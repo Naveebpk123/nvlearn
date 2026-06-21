@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}About{% endblock %}
+
+{% block content %}
+<header>
+    <h1>About The Study App</h1>
+</header>
+<div class="hero lg">
+    <h2 class="hero-header">Your Ultimate Learning Companion</h2>
+    <p class="hero-p">
+        The Study App was built to streamline the way you learn, revise, and retain information. 
+        Whether you are organizing your lecture notes, preparing for a major exam, or trying to master 
+        complex concepts, our platform provides the tools you need to succeed.
+    </p>
+    <p class="hero-p">
+        With integrated features like smart note formatting, quick-revisions flashcards, and an 
+        AI-powered assistant capable of generating custom quizzes and cheat sheets, staying ahead 
+        of your coursework has never been easier. Focus on learning—we'll handle the organization.
+    </p>
+    <div class="hero-navigation">
+        <a class="button" href="{{url_for('notes')}}">View Notes</a>
+        <a class="button" href="{{url_for('home')}}">Go Back to Home</a>
+    </div>
+</div>
+{% endblock %}

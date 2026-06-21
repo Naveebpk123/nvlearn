@@ -6,15 +6,20 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css')}}">
     <title>{% block title %}Study App{% endblock %}</title>
 </head>
-<body>
+<body class="site-container">
     <nav>
-        <a class="nav-link logo" href="#">The Study APP</a>
-        <a class="nav-link" href="#">Home</a>
-        <a class="nav-link" href="#">Notes</a>
-    </nav>
-    {% block content %}
+        <a class="nav-link logo" href="{{ url_for('home') }}">The Study APP</a>
+        <a class="nav-link" href="{{ url_for('home') }}">Home</a>
+        <a class="nav-link" href="{{ url_for('notes') }}">Notes</a>
+        <a class="nav-link" href="{{ url_for('about') }}">About</a>
 
-    {% endblock %}
+    </nav>
+
+    <main class="content-wrapper">
+        {% block content %}
+        {% endblock %}
+    </main>
+
     <footer>
         <p>&copy;2026 The Study App. Built for easy and effective note management and learning</p>
     </footer>
