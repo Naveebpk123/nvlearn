@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css')}}">
+    <title>{% block title %}Study App{% endblock %}</title>
+</head>
+<body>
+    <nav>
+        <a class="nav-link logo" href="#">The Study APP</a>
+        <a class="nav-link" href="#">Home</a>
+        <a class="nav-link" href="#">Notes</a>
+    </nav>
+    {% block content %}
+
+    {% endblock %}
+    <footer>
+        <p>&copy;2026 The Study App. Built for easy and effective note management and learning</p>
+    </footer>
+</body>
+</html>

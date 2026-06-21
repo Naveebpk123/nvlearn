@@ -1,0 +1,91 @@
+* {
+    box-sizing: border-box;
+    font-family: 'Lucida Sans', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: azure;
+}
+
+a {
+    text-decoration: none;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+}
+
+.brand-accent {
+    color: rgb(13, 110, 253);
+}
+
+nav {
+    display: flex;
+    background-color: rgb(41, 41, 42);
+    width: 100%;
+    padding: 15px 20px;
+    gap: 40px;
+    align-items: center;
+}
+
+.nav-link {
+    color: rgba(255, 255, 255, 0.6); 
+}
+
+.nav-link:hover {
+    color: rgb(255, 255, 255);
+}
+
+.logo {
+    color: white;
+    margin-right: auto;
+    font-weight: bolder;
+    font-size: large;
+}
+
+.hero {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); 
+    width: 350px; 
+    padding: 20px;
+    text-align: center;
+    background-color: white; 
+}
+
+.hero-navigation {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 15px;
+}
+
+.button {
+    padding: 8px 12px;
+    background-color: rgb(13, 110, 253);
+    color: white;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease;
+}
+
+.button:hover {
+    background-color: rgb(9, 91, 214); 
+}
+
+footer{
+    width:100%;
+    text-align:center;
+    background-color: rgb(41,41,42);
+    color:white;
+    padding:10px;
+}
