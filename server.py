@@ -10,7 +10,8 @@ class Base(DeclarativeBase):
 
 app=Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///tasks.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///notes.db"
+app.config['SECRET_KEY'] = 'secretkey'
 
 db = SQLAlchemy(app, model_class=Base)
 
@@ -35,8 +36,12 @@ def notes():
 def add_note():
     form = AddNoteForm()
     if form.validate_on_submit():
-        note = Not
-    return 'hello'
+        print('hello')
+        note = Note(title=form.title.data,content = form.content.data)
+        db.session.add(note)
+        db.session.commit()
+        return redirect(url_for('home'))
+    return render_template('add_note.html',form=form)
 
 @app.route('/about')
 def about():

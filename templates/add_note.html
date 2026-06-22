@@ -3,3 +3,13 @@
 {% block title %}Add Note{% endblock %}
 
 {% block content %}
+<form class="form" method="POST">
+    {{form.hidden_tag()}}
+    {{form.title.label(class="form-label")}}
+    {{form.title(class="form-input")}}
+    {{form.content.label(class="form-label")}}
+    {{form.content(class="ckeditor")}}
+    {{form.submit(class="button")}}
+    <a class="button" href="{{url_for('notes')}}">Cancel</a>
+</form>
+{% endblock %}

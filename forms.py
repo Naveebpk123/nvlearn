@@ -5,5 +5,5 @@ from flask_ckeditor import CKEditorField
 
 class AddNoteForm(FlaskForm):
     title = StringField('Note title',validators=[DataRequired(),Length(min=4,max=30)])
-    content = CKEditorField('Note Content', validators=[DataRequired()])
+    content = TextAreaField('Note Content', validators=[DataRequired()])
     submit = SubmitField('Add Note')
