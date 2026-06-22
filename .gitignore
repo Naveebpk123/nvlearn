@@ -1,0 +1,22 @@
+# Python bytecode & cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Environments
+.venv/
+venv/
+ENV/
+env/
+.env
+
+# Databases 
+instance/
+*.db
+*.sqlite3
+
+# Operating System files
+.DS_Store
+Thumbs.db

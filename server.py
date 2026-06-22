@@ -20,6 +20,9 @@ class Note(db.Model):
     title: Mapped[str] = mapped_column(String(100), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=True, default=None)
 
+with app.app_context():
+    db.create_all()
+
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -28,9 +31,11 @@ def home():
 def notes():
     return render_template('notes.html')
 
-@app.route('/add')
+@app.route('/add', methods=['GET','POST'])
 def add_note():
     form = AddNoteForm()
+    if form.validate_on_submit():
+        note = Not
     return 'hello'
 
 @app.route('/about')
