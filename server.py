@@ -30,13 +30,16 @@ def home():
 
 @app.route('/notes')
 def notes():
-    return render_template('notes.html')
+    try:
+        notes = db.session.query(Note).all()
+    except Exception:
+        notes=[]
+    return render_template('notes.html',notes=notes)
 
 @app.route('/add', methods=['GET','POST'])
 def add_note():
     form = AddNoteForm()
     if form.validate_on_submit():
-        print('hello')
         note = Note(title=form.title.data,content = form.content.data)
         db.session.add(note)
         db.session.commit()

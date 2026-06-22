@@ -7,27 +7,22 @@
 </header>
 
 <a class="button" href="{{url_for('add_note')}}">Add Note</a>
-
 <div class="note-container">
+    {% if notes %}
+{% for note in notes %}
     <div class="note">
-        <div class="note-title">Odin Project Tips</div>
+        <div class="note-title">{{note.title}}</div>
         <div class="note-preview">
-            <p>Flexbox is your friend! Remember to clear body margins when designing structural components.</p>
+            <p>{{note.content}}</p>
         </div>
     </div>
-    
-    <div class="note">
-        <div class="note-title">Flask Goals</div>
+    {% endfor %}
+{% else %}
+<div class="note">
+        <div class="note-title">No notes created yet</div>
         <div class="note-preview">
-            <p>Learn routing and template inheritance using Jinja syntax blocks today.</p>
+            <a class="button">Add note!</a>
         </div>
     </div>
-
-    <div class="note">
-        <div class="note-title">CSS Variables</div>
-        <div class="note-preview">
-            <p>Using root variables keeps the layout clean and stops repetitive styling errors.</p>
-        </div>
-    </div>
-</div>
+{% endif %}
 {% endblock %}
