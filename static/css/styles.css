@@ -217,3 +217,17 @@ footer p {
     font-size:smaller;
 }
 
+.action-buttons{
+    display:flex;
+    justify-content:flex-start;
+    gap:10px;
+}
+
+.cancel{
+    background-color: grey;
+    transition: background-color 0.2s ease;
+}
+
+.cancel:hover{
+    background-color:rgb(79, 79, 79);
+}
