@@ -131,19 +131,51 @@ footer p {
     width: 700px;
 }
 
-.note{
-    display:flex;
-    flex-direction:column;
-    gap:1rem;
+.note-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    width: 100%;
+    max-width: 1000px; 
+    margin-top: 20px;
 }
 
-.note-title{
-    font-weight:bolder;
-    text-align:center;
-    border-bottom: 1px solid gray;
+.note {
+    background-color: var(--bg-card);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 4px 10px var(--shadow-color);
+    padding: 15px;
+    width: 220px;
+    height: 250px;
+    overflow: hidden; 
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.note-preview{
-    text-align:center;
-    
+.note:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.note-title {
+    color: var(--bg-dark);
+    font-weight: bold;
+    font-size: 1.1rem;
+    text-align: center;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 10px;
+}
+
+.note-preview {
+    font-size: 0.9rem;
+    color: rgb(75, 85, 99); 
+    line-height: 1.5;
+}
+
+.note-preview p {
+    margin: 0;
 }

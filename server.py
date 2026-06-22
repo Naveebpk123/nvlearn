@@ -1,7 +1,24 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import ForeignKey, String, Integer, Text
+from forms import AddNoteForm
+
+class Base(DeclarativeBase):
+    pass
 
 app=Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///tasks.db"
+
+db = SQLAlchemy(app, model_class=Base)
+
+class Note(db.Model):
+    __tablename__ = 'notes'
+    id: Mapped[int] = mapped_column(Integer, primary_key = True)
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=True, default=None)
 
 @app.route('/')
 def home():
@@ -10,6 +27,11 @@ def home():
 @app.route('/notes')
 def notes():
     return render_template('notes.html')
+
+@app.route('/add')
+def add_note():
+    form = AddNoteForm()
+    return 'hello'
 
 @app.route('/about')
 def about():
