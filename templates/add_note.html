@@ -3,12 +3,30 @@
 {% block title %}Add Note{% endblock %}
 
 {% block content %}
-<form class="form" method="POST">
+<header>
+    <h1>Add a note</h1>
+</header>
+<form class="form" method="POST" novalidate>
     {{form.hidden_tag()}}
-    {{form.title.label(class="form-label")}}
-    {{form.title(class="form-input")}}
-    {{form.content.label(class="form-label")}}
-    {{form.content(class="ckeditor")}}
+    <div class="form-control">
+        {{form.title.label(class="form-label")}}
+        {{form.title(class="form-input"+(" invalid" if form.title.errors else ""), placeholder="Title of note")}}
+        {% if form.title.errors %}
+        {% for error in form.title.errors %}
+        <span class="error-message">{{error}}</span>
+        {% endfor %}
+        {% endif %}
+
+    </div>
+    <div class="form-control">
+        {{form.content.label(class="form-label")}}
+        {{form.content(class="form-input"+(" invalid" if form.content.errors else ""), placeholder="Content of note")}}
+        {% if form.content.errors %}
+        {% for error in form.content.errors %}
+        <span class="error-message">{{error}}</span>
+        {% endfor %}
+        {% endif %}
+    </div>
     {{form.submit(class="button")}}
     <a class="button" href="{{url_for('notes')}}">Cancel</a>
 </form>

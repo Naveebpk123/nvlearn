@@ -108,6 +108,7 @@ a {
     border-radius: 5px;
     font-size: 0.9rem;
     transition: background-color 0.2s ease;
+    text-align:center;
 }
 
 .button:hover {
@@ -179,3 +180,40 @@ footer p {
 .note-preview p {
     margin: 0;
 }
+
+.form{
+    display:flex;
+    flex-direction:column;
+    gap:1rem;
+    background-color:var(--bg-card);
+    padding:10px;
+    border-radius:10px;
+    border: 2px solid var(--bg-dark);
+    width:100%;
+    max-width:500px;
+}
+
+.form-control{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    justify-content:flex-start;
+}
+
+.form-input{
+    width:100%;
+    border: 3px solid var(--primary-blue);
+    border-radius: 5px;
+    padding:10px;
+}
+
+.invalid{
+    border-color:red;
+}
+
+.error-message{
+    color:red;
+    font-weight:lighter;
+    font-size:smaller;
+}
+
