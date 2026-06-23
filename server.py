@@ -46,6 +46,14 @@ def add_note():
         return redirect(url_for('home'))
     return render_template('add_note.html',form=form)
 
+@app.route('/edit/<int:note_id>',methods=['GET','POST'])
+def edit_note(note_id):
+    pass
+
+@app.route('/delete/<int:note_id>')
+def delete_note(note_id):
+    pass
+
 @app.route('/about')
 def about():
     return render_template('about.html')
