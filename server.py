@@ -50,6 +50,14 @@ def add_note():
 @app.route('/edit/<int:note_id>',methods=['GET','POST'])
 def edit_note(note_id):
     note = db.session.get(Note, note_id)
+    form = EditNoteForm()
+    if request.method == 'GET':
+        form.content.data = note.content
+    if form.validate_on_submit():
+        note.content = form.content.data
+        db.session.commit()
+        return redirect(url_for('notes'))
+    return render_template('edit_note.html',note=note,form=form)
 
 @app.route('/delete/<int:note_id>')
 def delete_note(note_id):

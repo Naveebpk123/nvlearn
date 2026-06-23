@@ -11,7 +11,7 @@
     {{ form.hidden_tag() }}
     <div class="form-control">
         {{form.content.label}}
-        {{form.content(class="form-input"+(" invalid" if form.title.errors else ""), placeholder="Title of note")}}
+        {{form.content(class="form-input"+(" invalid" if form.content.errors else ""))}}
         {% if form.content.errors %}
         {% for error in form.content.errors %}
         <span class="error-message">{{error}}</span>
