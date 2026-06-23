@@ -175,10 +175,14 @@ footer p {
     font-size: 0.9rem;
     color: rgb(75, 85, 99); 
     line-height: 1.5;
+    margin-bottom:auto;
 }
 
 .note-preview p {
     margin: 0;
+    font-size:smaller;
+    width: 100%;
+    word-break:break-word;
 }
 
 .form{
@@ -230,4 +234,13 @@ footer p {
 
 .cancel:hover{
     background-color:rgb(79, 79, 79);
+}
+
+.danger{
+    background-color:red;
+    transition: background-color 0.2s ease;
+}
+
+.danger:hover{
+    background-color:rgb(180, 7, 7);
 }
