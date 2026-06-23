@@ -13,7 +13,7 @@
     <div class="note">
         <div class="note-title">{{note.title}}</div>
         <div class="note-preview">
-            <p>{{note.content | truncate(150)}}</p>
+            {{note.content | safe}}
         </div>
         <div class="action-buttons">
             <a href="{{url_for('edit_note',note_id=note.id)}}" class="button cancel">✎ Edit Note</a>
@@ -24,9 +24,6 @@
 {% else %}
 <div class="note">
         <div class="note-title">No notes created yet</div>
-        <div class="note-preview">
-            <a class="button" href="{{url_for('add_note')}}">Add note!</a>
-        </div>
     </div>
 {% endif %}
 {% endblock %}

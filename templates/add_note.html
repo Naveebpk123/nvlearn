@@ -7,7 +7,8 @@
     <h1>Add a note</h1>
 </header>
 <form class="form" method="POST" novalidate>
-    {{form.hidden_tag()}}
+    {{ form.hidden_tag() }}
+    {{ ckeditor.load() }}
     <div class="form-control">
         {{form.title.label}}
         {{form.title(class="form-input"+(" invalid" if form.title.errors else ""), placeholder="Title of note")}}

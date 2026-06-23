@@ -177,13 +177,20 @@ footer p {
     color: rgb(75, 85, 99); 
     line-height: 1.5;
     margin-bottom:auto;
+    position: relative;
+    max-height: 140px; 
+    overflow: hidden;
 }
 
-.note-preview p {
-    margin: 0;
-    font-size:smaller;
+.note-preview::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
     width: 100%;
-    word-break:break-word;
+    height: 40px;
+    background: linear-gradient(transparent, var(--bg-card));
+    pointer-events: none;
 }
 
 .form{

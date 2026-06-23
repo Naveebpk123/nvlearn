@@ -9,5 +9,5 @@ class AddNoteForm(FlaskForm):
     submit = SubmitField('Add Note')
 
 class EditNoteForm(FlaskForm):
-    content=CKEditorFIeld('Edit Note Content', validators=[DataRequired()])
+    content=CKEditorField('Edit Note Content', validators=[DataRequired()])
     submit = SubmitField('Save Changes')
