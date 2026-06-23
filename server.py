@@ -59,8 +59,8 @@ def edit_note(note_id):
         return redirect(url_for('notes'))
     return render_template('edit_note.html',note=note,form=form)
 
-@app.route('/delete/<int:note_id>')
-def delete_note(note_id):
+@app.route('/move_to_bin/<int:note_id>')
+def move_to_bin(note_id):
     pass
 
 @app.route('/about')
