@@ -1,13 +1,13 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, DateField, SubmitField, PasswordField, EmailField
-from wtforms.validators import DataRequired, Length, Optional, ValidationError, Email, EqualTo
+from wtforms import StringField, SubmitField, PasswordField, EmailField
+from wtforms.validators import DataRequired, Length, Email
 from flask_ckeditor import CKEditorField
 
 class AddNoteForm(FlaskForm):
     title = StringField('Note title',validators=[DataRequired(),Length(min=4,max=30)])
-    content = TextAreaField('Note Content', validators=[DataRequired()])
+    content = CKEditorField('Note Content', validators=[DataRequired()])
     submit = SubmitField('Add Note')
 
 class EditNoteForm(FlaskForm):
-    content=TextAreaField('Edit Note Content', validators=[DataRequired()])
+    content=CKEditorFIeld('Edit Note Content', validators=[DataRequired()])
     submit = SubmitField('Save Changes')
