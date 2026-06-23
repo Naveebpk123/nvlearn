@@ -4,6 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey, String, Integer, Text
 from forms import AddNoteForm, EditNoteForm
+from flask_ckeditor import CKEditor
 
 class Base(DeclarativeBase):
     pass
@@ -14,6 +15,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///notes.db"
 app.config['SECRET_KEY'] = 'secretkey'
 
 db = SQLAlchemy(app, model_class=Base)
+ckeditor = CKEditor(app)
 
 class Note(db.Model):
     __tablename__ = 'notes'
@@ -61,7 +63,7 @@ def edit_note(note_id):
 
 @app.route('/move_to_bin/<int:note_id>')
 def move_to_bin(note_id):
-    pass
+    return 'hello'
 
 @app.route('/about')
 def about():
