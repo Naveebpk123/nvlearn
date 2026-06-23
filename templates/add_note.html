@@ -9,7 +9,7 @@
 <form class="form" method="POST" novalidate>
     {{form.hidden_tag()}}
     <div class="form-control">
-        {{form.title.label(class="form-label")}}
+        {{form.title.label}}
         {{form.title(class="form-input"+(" invalid" if form.title.errors else ""), placeholder="Title of note")}}
         {% if form.title.errors %}
         {% for error in form.title.errors %}
@@ -19,7 +19,7 @@
 
     </div>
     <div class="form-control">
-        {{form.content.label(class="form-label")}}
+        {{form.content.label}}
         {{form.content(class="form-input"+(" invalid" if form.content.errors else ""), placeholder="Content of note")}}
         {% if form.content.errors %}
         {% for error in form.content.errors %}

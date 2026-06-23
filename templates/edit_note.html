@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{note.title}}{% endblock %}
+
+{% block content %}
+
+<header>
+    <h1>{{note.title}}</h1>
+</header>
+<form class="form" method="POST" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="form-control">
+        {{form.content.label}}
+        {{form.content(class="form-input"+(" invalid" if form.title.errors else ""), placeholder="Title of note")}}
+        {% if form.content.errors %}
+        {% for error in form.content.errors %}
+        <span class="error-message">{{error}}</span>
+        {% endfor %}
+        {% endif %}
+    </div>
+</form>
+{% endblock %}
