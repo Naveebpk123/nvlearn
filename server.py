@@ -31,7 +31,8 @@ def home():
 @app.route('/notes')
 def notes():
     try:
-        notes = db.session.query(Note).all()
+        result = db.session.execute(db.select(Note))
+        notes = result.scalars().all()
     except Exception:
         notes=[]
     return render_template('notes.html',notes=notes)
@@ -48,7 +49,7 @@ def add_note():
 
 @app.route('/edit/<int:note_id>',methods=['GET','POST'])
 def edit_note(note_id):
-    pass
+    note = db.session.get(Note, note_id)
 
 @app.route('/delete/<int:note_id>')
 def delete_note(note_id):
