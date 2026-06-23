@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey, String, Integer, Text
-from forms import AddNoteForm
+from forms import AddNoteForm, EditNoteForm
 
 class Base(DeclarativeBase):
     pass

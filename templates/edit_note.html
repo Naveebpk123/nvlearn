@@ -18,5 +18,9 @@
         {% endfor %}
         {% endif %}
     </div>
+    <div class="action-buttons">
+    {{form.submit(class="button")}}
+    <a class="button cancel" href="{{url_for('notes')}}">Cancel</a>
+    </div>
 </form>
 {% endblock %}
