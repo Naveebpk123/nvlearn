@@ -71,7 +71,9 @@ def move_to_bin(note_id):
 
 @app.route('/note-bin')
 def note_bin():
-    return 'hello'
+    result = db.session.execute(db.select(Note).where(Note.in_bin == True))
+    notes = result.scalars().all()
+    return render_template('bin.html',notes=notes)
 
 @app.route('/about')
 def about():

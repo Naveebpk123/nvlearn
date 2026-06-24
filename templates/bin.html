@@ -7,6 +7,8 @@
     <h1>Bin</h1>
 </header>
 <div class="note-container">
+    {% if notes %}
+{% for note in notes %}
     <div class="note">
         <div class="note-title">{{note.title}}</div>
         <div class="note-preview">
@@ -17,5 +19,12 @@
             <a href="#" class="button danger">Delete</a>
         </div>
     </div>
+    {% endfor %}
+    {% else %}
+    <div class="note">
+        <div class="note-title">Bin is empty</div>
+
+        </div>
+        {% endif %}
 </div>
 {% endblock %}
