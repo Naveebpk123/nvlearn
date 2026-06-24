@@ -5,6 +5,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey, String, Integer, Text, Boolean
 from forms import AddNoteForm, EditNoteForm
 from flask_ckeditor import CKEditor
+from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class Base(DeclarativeBase):
     pass
@@ -23,10 +25,19 @@ class Note(db.Model):
     title: Mapped[str] = mapped_column(String(100), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=True, default=None)
     in_bin: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+
+class User(db.Model, UserMixin):
+    __tablename__ = 'users'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    password: Mapped[str] = mapped_column(String(1000), nullable=False)
+    name: Mapped[str] = mapped_column(String(250), nullable=False)
+    notes = relationship("Note", backref="author", lazy=True)
 
 with app.app_context():
     db.create_all()
-#✎
+
 @app.route('/')
 def home():
     return render_template('index.html')
