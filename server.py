@@ -66,7 +66,7 @@ def add_note():
         note = Note(title=form.title.data,content = form.content.data,in_bin=False)
         db.session.add(note)
         db.session.commit()
-        flash('Note added successfully')
+        flash('Note created successfully')
         return redirect(url_for('home'))
     return render_template('add_note.html',form=form)
 
