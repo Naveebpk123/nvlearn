@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey, String, Integer, Text, Boolean
-from forms import AddNoteForm, EditNoteForm
+from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm
 from flask_ckeditor import CKEditor
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -107,6 +107,17 @@ def restore(note_id):
     note.in_bin = False
     db.session.commit()
     return redirect(url_for('notes'))
+
+@app.route('/register', methods=['GET','POST'])
+def register():
+    form = RegisterForm()
+    if form.validate_on_submit():
+        user = User(email = form.email.data, name=form.name.data, password = generate_password_hash(form.password.data,salt_length=16))
+        db.session.add(user)
+        db.session.commit()
+        login_user(user)
+        return redirect(url_for('home'))
+    return render_template('register.html', form=form)
 
 @app.route('/about')
 def about():
