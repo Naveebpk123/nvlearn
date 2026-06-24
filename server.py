@@ -53,7 +53,7 @@ def home():
 @app.route('/notes')
 def notes():
     try:
-        result = db.session.execute(db.select(Note).where(Note.in_bin != True))
+        result = db.session.execute(db.select(Note).where(Note.in_bin != True).where(Note.id==current_user.id))
         notes = result.scalars().all()
     except Exception:
         notes=[]
