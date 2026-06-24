@@ -119,6 +119,16 @@ def register():
         return redirect(url_for('home'))
     return render_template('register.html', form=form)
 
+@app.route('/login',methods=['GET','POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = db.session.execute(db.select(User).where(User.email == form.email.data))
+        if check_password_hash(user.password, form.password.data):
+            login_user(user)
+            return redirect(url_for('home'))
+    return render_template('login.html',form=form)
+
 @app.route('/about')
 def about():
     return render_template('about.html')
