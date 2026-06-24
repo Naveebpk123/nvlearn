@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, String, Integer, Text
+from sqlalchemy import ForeignKey, String, Integer, Text, Boolean
 from forms import AddNoteForm, EditNoteForm
 from flask_ckeditor import CKEditor
 
@@ -22,6 +22,7 @@ class Note(db.Model):
     id: Mapped[int] = mapped_column(Integer, primary_key = True)
     title: Mapped[str] = mapped_column(String(100), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=True, default=None)
+    in_bin: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
 with app.app_context():
     db.create_all()
@@ -33,7 +34,7 @@ def home():
 @app.route('/notes')
 def notes():
     try:
-        result = db.session.execute(db.select(Note))
+        result = db.session.execute(db.select(Note).where(Note.in_bin != True))
         notes = result.scalars().all()
     except Exception:
         notes=[]
@@ -43,7 +44,7 @@ def notes():
 def add_note():
     form = AddNoteForm()
     if form.validate_on_submit():
-        note = Note(title=form.title.data,content = form.content.data)
+        note = Note(title=form.title.data,content = form.content.data,in_bin=False)
         db.session.add(note)
         db.session.commit()
         return redirect(url_for('home'))
@@ -63,7 +64,10 @@ def edit_note(note_id):
 
 @app.route('/move_to_bin/<int:note_id>')
 def move_to_bin(note_id):
-    return 'hello'
+    note = db.session.get(Note,note_id)
+    note.in_bin = True
+    db.session.commit()
+    return redirect(url_for('notes'))
 
 @app.route('/about')
 def about():
