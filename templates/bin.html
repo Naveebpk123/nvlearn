@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Bin{% endblock %}
+
+{% block content %}
+<header>
+    <h1>Bin</h1>
+</header>
+<div class="note-container">
+    <div class="note">
+        <div class="note-title">{{note.title}}</div>
+        <div class="note-preview">
+            {{note.content | safe}}
+        </div>
+        <div class="action-buttons">
+            <a href="#" class="button">Restore</a>
+            <a href="#" class="button danger">Delete</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

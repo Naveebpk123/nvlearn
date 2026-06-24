@@ -71,7 +71,7 @@ def move_to_bin(note_id):
 
 @app.route('/note-bin')
 def note_bin():
-    return 'Hello'
+    return 'hello'
 
 @app.route('/about')
 def about():
