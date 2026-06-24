@@ -134,6 +134,12 @@ def login():
             flash(f'Welcome back {user.name}')
             return redirect(url_for('home'))
     return render_template('login.html',form=form)
+    
+@app.route('/logout')
+def logout():
+    logout_user()
+    flash('Logged out successfully','success')
+    return redirect(url_for('home'))
 
 @app.route('/about')
 def about():
