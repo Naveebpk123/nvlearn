@@ -80,12 +80,13 @@ def delete(note_id):
     note = db.session.get(Note,note_id)
     db.session.delete(note)
     db.session.commit()
-    return redirect(url_for('bin'))
+    return redirect(url_for('note_bin'))
 
 @app.route('/restore/<int:note_id>')
 def restore(note_id):
     note = db.session.get(Note,note_id)
     note.in_bin = False
+    db.session.commit()
     return redirect(url_for('notes'))
 
 @app.route('/about')
