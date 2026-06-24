@@ -66,6 +66,7 @@ def add_note():
         note = Note(title=form.title.data,content = form.content.data,in_bin=False)
         db.session.add(note)
         db.session.commit()
+        flash('Note added successfully')
         return redirect(url_for('home'))
     return render_template('add_note.html',form=form)
 
@@ -85,6 +86,7 @@ def edit_note(note_id):
 def move_to_bin(note_id):
     note = db.session.get(Note,note_id)
     note.in_bin = True
+    flash("Note moved to bin.",'success')
     db.session.commit()
     return redirect(url_for('notes'))
 
@@ -99,6 +101,7 @@ def delete(note_id):
     note = db.session.get(Note,note_id)
     db.session.delete(note)
     db.session.commit()
+    flash("Note permanently deleted","success")
     return redirect(url_for('note_bin'))
 
 @app.route('/restore/<int:note_id>')
@@ -106,6 +109,7 @@ def restore(note_id):
     note = db.session.get(Note,note_id)
     note.in_bin = False
     db.session.commit()
+    flash('Note restored','success')
     return redirect(url_for('notes'))
 
 @app.route('/register', methods=['GET','POST'])
@@ -116,6 +120,7 @@ def register():
         db.session.add(user)
         db.session.commit()
         login_user(user)
+        flash(f'Created new account for {user.name}')
         return redirect(url_for('home'))
     return render_template('register.html', form=form)
 
@@ -126,6 +131,7 @@ def login():
         user = db.session.execute(db.select(User).where(User.email == form.email.data))
         if check_password_hash(user.password, form.password.data):
             login_user(user)
+            flash(f'Welcome back {user.name}')
             return redirect(url_for('home'))
     return render_template('login.html',form=form)
 

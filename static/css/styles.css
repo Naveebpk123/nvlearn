@@ -252,3 +252,31 @@ footer p {
 .danger:hover{
     background-color:rgb(180, 7, 7);
 }
+
+.flash-container {
+    width: 100%;
+    max-width: 500px;
+    margin-bottom: 15px;
+}
+
+.alert {
+    padding: 12px 15px;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    text-align: center;
+    border: 1px solid transparent;
+}
+
+.alert-success {
+    background-color: rgb(212, 239, 223);
+    color: rgb(27, 94, 32);
+    border-color: rgb(169, 223, 191);
+}
+
+/* Error Red theme */
+.alert-error {
+    background-color: rgb(fadbd8);
+    color: rgb(120, 40, 31);
+    border-color: rgb(f5b7b1);
+}
