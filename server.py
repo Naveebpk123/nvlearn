@@ -19,6 +19,10 @@ app.config['SECRET_KEY'] = 'secretkey'
 db = SQLAlchemy(app, model_class=Base)
 ckeditor = CKEditor(app)
 
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
 class Note(db.Model):
     __tablename__ = 'notes'
     id: Mapped[int] = mapped_column(Integer, primary_key = True)
@@ -37,6 +41,10 @@ class User(db.Model, UserMixin):
 
 with app.app_context():
     db.create_all()
+
+@login_manager.user_loader
+def load_user(user_id):
+    return db.session.get(User, int(user_id))
 
 @app.route('/')
 def home():
