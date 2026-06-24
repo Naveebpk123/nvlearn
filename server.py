@@ -69,6 +69,10 @@ def move_to_bin(note_id):
     db.session.commit()
     return redirect(url_for('notes'))
 
+@app.route('/note-bin')
+def note_bin():
+    return 'Hello'
+
 @app.route('/about')
 def about():
     return render_template('about.html')
