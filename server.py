@@ -75,6 +75,12 @@ def note_bin():
     notes = result.scalars().all()
     return render_template('bin.html',notes=notes)
 
+@app.route('/delete/<int:note_id>')
+def delete(note_id):
+    note = db.session.get(Note,note_id)
+    db.session.delete(note)
+    db.session.commit()
+
 @app.route('/about')
 def about():
     return render_template('about.html')
