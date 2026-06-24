@@ -8,15 +8,6 @@
 </header>
 <form class="form" method="POST" novalidate>
     {{ form.hidden_tag() }}
-    <div class="form-control">
-        {{form.name.label}}
-        {{form.name(class="form-input"+(" invalid" if form.name.errors else ""), placeholder="Your username here")}}
-        {% if form.name.errors %}
-        {% for error in form.name.errors %}
-        <span class="error-message">{{error}}</span>
-        {% endfor %}
-        {% endif %}
-
     </div>
         <div class="form-control">
         {{form.email.label}}
