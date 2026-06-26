@@ -22,7 +22,21 @@
     </nav>
 <div class="page-layout">
     <aside class="sidebar">
-        
+
+        <a class="sidebar-item" href="{{url_for('home')}}">
+            🏠Home
+        </a>
+        <a class="sidebar-item" href="{{url_for('notes')}}">
+            📚Notes
+        </a>
+
+        <a class="sidebar-item" href="{{url_for('note_bin')}}">
+            🗑️Bin
+        </a>
+
+        <a class="sidebar-item" href="{{url_for('about')}}">
+            ℹ️About
+        </a>
     </aside>
     <main class="content-wrapper">
         {% with messages = get_flashed_messages(with_categories=true) %}

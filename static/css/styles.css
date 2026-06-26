@@ -48,6 +48,24 @@ nav {
 .sidebar{
     display:flex;
     flex-direction:column;
+    margin-top:62px;
+    background-color:var(--bg-dark);
+    padding:10px;
+    position:sticky;
+    left:0;
+    justify-content:flex-start;
+    gap:1rem;
+}
+
+.sidebar-item{
+    text-align:start;
+    color:var(--text-muted);
+    transition:color 0.2s ease;
+    padding:3px;
+}
+
+.sidebar-item:hover{
+    color:var(--text-light);
 }
 
 .content-wrapper {
