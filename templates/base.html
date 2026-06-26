@@ -24,18 +24,30 @@
     <aside class="sidebar">
 
         <a class="sidebar-item" href="{{url_for('home')}}">
-            🏠Home
+            🏠 Home
         </a>
+        {% if current_user.is_authenticated %}
         <a class="sidebar-item" href="{{url_for('notes')}}">
-            📚Notes
+            📚 Notes
         </a>
 
         <a class="sidebar-item" href="{{url_for('note_bin')}}">
-            🗑️Bin
+            🗑️ Bin
+        </a>
+        <a class="sidebar-item" href="{{url_for('logout')}}">
+            ➜] Logout
+        </a>
+        {% else %}
+        <a class="sidebar-item" href="{{url_for('register')}}">
+            📝 Register
         </a>
 
+        <a class="sidebar-item" href="{{url_for('login')}}">
+            ➜] Login
+        </a>
+        {% endif %}
         <a class="sidebar-item" href="{{url_for('about')}}">
-            ℹ️About
+            ℹ️ About
         </a>
     </aside>
     <main class="content-wrapper">
