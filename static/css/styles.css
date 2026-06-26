@@ -81,10 +81,8 @@ a {
 }
 
 .logo {
-    color: var(--text-light);
-    margin-right: auto;
-    font-weight: bolder;
-    font-size: large;
+    height:32px;
+    width:40px;
 }
 
 .hero {

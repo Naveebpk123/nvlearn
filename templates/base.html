@@ -8,7 +8,7 @@
 </head>
 <body class="site-layout">
     <nav>
-        <a class="nav-link logo" href="{{ url_for('home') }}">The Study APP</a>
+        <img src="{{url_for('static',filename='assets/logo.png')}}" alt="logo" class="logo">
         <a class="nav-link" href="{{ url_for('home') }}">Home</a>
         <a class="nav-link" href="{{ url_for('about') }}">About</a>
         {% if current_user.is_authenticated %}
