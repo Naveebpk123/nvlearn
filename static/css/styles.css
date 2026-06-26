@@ -21,7 +21,7 @@ html, body {
     height: 100%;
 }
 
-.site-container {
+.site-layout {
     display: flex;
     flex-direction: column;
     background-color: var(--bg-main);
@@ -39,6 +39,15 @@ nav {
     top: 0;
     left: 0;
     z-index: 1000;
+}
+
+.page-layout{
+    display:flex;
+}
+
+.sidebar{
+    display:flex;
+    flex-direction:column;
 }
 
 .content-wrapper {

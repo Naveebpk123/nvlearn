@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css')}}">
     <title>{% block title %}Study App{% endblock %}</title>
 </head>
-<body class="site-container">
+<body class="site-layout">
     <nav>
         <a class="nav-link logo" href="{{ url_for('home') }}">The Study APP</a>
         <a class="nav-link" href="{{ url_for('home') }}">Home</a>
@@ -20,7 +20,10 @@
         <a class="nav-link" href="{{ url_for('register') }}">Register</a>
         {% endif %}
     </nav>
-
+<div class="page-layout">
+    <aside class="sidebar">
+        
+    </aside>
     <main class="content-wrapper">
         {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
@@ -36,6 +39,6 @@
         {% block content %}
         {% endblock %}
     </main>
-
+</div>
 </body>
 </html>
