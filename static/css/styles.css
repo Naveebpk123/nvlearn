@@ -117,18 +117,6 @@ a {
     background-color: var(--primary-hover);
 }
 
-footer {
-    flex-shrink: 0;
-    width: 100%;
-    text-align: center;
-    background-color: var(--bg-dark);
-    color: var(--text-light);
-    padding: 10px;
-}
-
-footer p {
-    margin: 0;
-}
 
 .lg {
     width: 700px;
