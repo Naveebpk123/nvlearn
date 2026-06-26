@@ -4,11 +4,10 @@
 
 {% block content %}
 <header>
-    <h1>Create an account</h1>
+    <h1>Login</h1>
 </header>
 <form class="form" method="POST" novalidate>
     {{ form.hidden_tag() }}
-    </div>
         <div class="form-control">
         {{form.email.label}}
         {{form.email(class="form-input"+(" invalid" if form.email.errors else ""), placeholder="Your email here")}}
