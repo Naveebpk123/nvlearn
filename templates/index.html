@@ -3,7 +3,11 @@
 
 {% block content %}
 <header>
-    <h1>Welcome to the <a class="brand-accent" href="{{url_for('about')}}">Study App!</a></h1>
+    {% if current_user.is_authenticated %}
+    <h1>Welcome {{current_user.name}}</h1>
+    {% else %}
+    <h1>Welcome to the <a class="brand-accent" href="{{url_for('about')}}">Study App!</a></h1>    
+    {% endif %}
 </header>
 
 <div class="hero">
