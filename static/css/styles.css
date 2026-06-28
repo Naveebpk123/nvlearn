@@ -302,6 +302,27 @@ a {
     width: 100%;
     max-width: 500px;
     margin-bottom: 15px;
+    height:6rem;
+}
+
+.flashCloseBtn{
+    background:none;
+    border:none;
+    font-size:larger;
+    transition: background-color 0.2s ease;
+    padding:5px;
+    height:35px;
+    width:35px;
+    border-radius:50%;
+}
+
+.flashCloseBtn:hover{
+    background-color:gray;
+}
+
+.flash-msg{
+    margin-right:auto;
+    margin-left:auto;
 }
 
 .alert {
@@ -311,6 +332,9 @@ a {
     font-weight: bold;
     text-align: center;
     border: 1px solid transparent;
+    display:flex;
+    justify-content:center;
+    align-items:center;
 }
 
 .alert-success {

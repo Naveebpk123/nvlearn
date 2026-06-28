@@ -47,11 +47,13 @@
     <main class="content-wrapper sidebar-open" id="contentWrapper">
         {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <div class="flash-container">
+        <div class="flash-container" id="flashContainer">
           {% for category, message in messages %}
             <div class="alert alert-{{ category }}">
-              {{ message }}
+              <span class="flash-msg">{{ message }}</span>
+              <button class="flashCloseBtn" id="flashCloseBtn">X</button>
             </div>
+            
           {% endfor %}
         </div>
       {% endif %}
