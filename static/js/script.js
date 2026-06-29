@@ -12,6 +12,31 @@
 
   const deleteNoteBtn = document.getElementById('deleteNoteBtn');
 
+const focusableElements = [modalConfirmBtn, modalCancelBtn];
+const firstFocusableElement = focusableElements[0];
+const lastFocusableElement = focusableElements[focusableElements.length - 1];
+
+window.addEventListener('keydown',(e)=> {
+  if (modalBackground.style.display === 'flex') {
+    
+    if (e.key === 'Tab' || e.keyCode === 9) {
+      
+      if (e.shiftKey) { 
+        if (document.activeElement === firstFocusableElement) {
+          lastFocusableElement.focus(); 
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastFocusableElement) {
+          firstFocusableElement.focus(); 
+          e.preventDefault();
+        }
+      }
+      
+    }
+  }
+});
+
   function toggleSidebar() {
     document.getElementById("sidebar").classList.toggle("close");
     document.getElementById('contentWrapper').classList.toggle("sidebar-open");
