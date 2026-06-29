@@ -344,7 +344,7 @@ a {
 }
 
 .alert-error {
-    background-color: rgb(fadbd8);
+    background-color: rgb(239, 212, 212);
     color: rgb(120, 40, 31);
     border-color: rgb(f5b7b1);
 }
