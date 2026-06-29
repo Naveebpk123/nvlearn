@@ -28,7 +28,7 @@
         <a class="sidebar-item" href="{{url_for('note_bin')}}">
             🗑️ Bin
         </a>
-        <a class="sidebar-item" href="{{url_for('logout')}}">
+        <a class="sidebar-item" id="sidebarLogout" href="">
             ➜] Logout
         </a>
         {% else %}
@@ -64,9 +64,9 @@
 </div>
 <div class="modal-bg" id="modalBackground" style="display:none;">
 <div class="confirm-modal" id="confirmModal">
-    <p class="modal-text">yo</p>
+    <p class="modal-text" id="modalText">yo</p>
     <div class="modal-btns">
-        <button id="modalConfirmBtn" class="button">Confirm</button>
+        <a id="modalConfirmBtn" class="button" role="button">Confirm</a>
         <button id="modalCancelBtn" class="button cancel">Cancel</button>
     </div>
 </div>
