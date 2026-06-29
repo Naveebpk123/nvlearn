@@ -1,16 +1,16 @@
-  const logo = document.getElementById('logo');
+const logo = document.getElementById('logo');
 
-  const flashContainer = document.getElementById('flashContainer');
-  const flashCloseBtn = document.getElementById('flashCloseBtn');
+const flashContainer = document.getElementById('flashContainer');
+const flashCloseBtn = document.getElementById('flashCloseBtn');
 
-  const modalBackground = document.getElementById('modalBackground'); //This is also container for the modal
-  const modalText = document.getElementById('modalText');
-  const modalCancelBtn = document.getElementById('modalCancelBtn');
-  const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+const modalBackground = document.getElementById('modalBackground'); //This is also container for the modal
+const modalText = document.getElementById('modalText');
+const modalCancelBtn = document.getElementById('modalCancelBtn');
+const modalConfirmBtn = document.getElementById('modalConfirmBtn');
 
-  const logoutBtn = document.getElementById('sidebarLogout');
+const logoutBtn = document.getElementById('sidebarLogout');
 
-  const deleteNoteBtn = document.getElementById('deleteNoteBtn');
+const deleteNoteBtns = document.getElementsByClassName('delete-note-btn');
 
 const focusableElements = [modalConfirmBtn, modalCancelBtn];
 const firstFocusableElement = focusableElements[0];
@@ -55,11 +55,13 @@ window.addEventListener('keydown',(e)=> {
     openModal('Are you sure you want to logout?','/logout');
 
   });
-
-  deleteNoteBtn?.addEventListener('click',(e)=>{
+if(deleteNoteBtns !== null){
+for (const btn of deleteNoteBtns){
+  btn?.addEventListener('click',(e)=>{
     e.preventDefault();
-    openModal('Are you sure you want to permanently delete this note?',deleteNoteBtn.dataset.link);
-  })
+    openModal('Are you sure you want to permanently delete this note?',btn.dataset.link);
+  })};
+};
 
   modalConfirmBtn?.addEventListener('click',()=>{
     modalBackground.style.display = 'none';
