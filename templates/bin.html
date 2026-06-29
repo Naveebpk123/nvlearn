@@ -16,7 +16,7 @@
         </div>
         <div class="action-buttons">
             <a href="{{url_for('restore', note_id=note.id)}}" class="button">Restore</a>
-            <a href="{{url_for('delete',note_id = note.id)}}" class="button danger">Delete</a>
+            <a href="" id="deleteNoteBtn" class="button danger" role="button" data-link="{{url_for('delete',note_id=note.id)}}">Delete</a>
         </div>
     </div>
     {% endfor %}
