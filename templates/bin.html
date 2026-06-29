@@ -12,7 +12,7 @@
     <div class="note">
         <div class="note-title">{{note.title}}</div>
         <div class="note-preview">
-            {{note.content | safe}}
+            {{note.html_content | safe}}
         </div>
         <div class="action-buttons">
             <a href="{{url_for('restore', note_id=note.id)}}" class="button">Restore</a>

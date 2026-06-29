@@ -387,4 +387,57 @@ a {
     gap:10px;
 }
 
+.quill-editor-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
 
+/* Match borders with your custom app styles */
+.ql-toolbar.ql-snow {
+    border: 3px solid var(--primary-blue) !important;
+    border-bottom: none !important;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    background: white;
+}
+
+.ql-container.ql-snow {
+    border: 3px solid var(--primary-blue) !important;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    background: var(--bg-card);
+    font-family: inherit;
+    min-height: 250px;
+    font-size: 1rem;
+}
+
+/* FULLSCREEN DISTRACTION-FREE OVERRIDE MODE */
+.quill-editor-wrapper.fullscreen-active {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 10005 !important; /* Forces layout completely over your fixed navbar (1000) and sidebar (999) */
+    background: var(--bg-main);
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* Adjust text space constraints dynamically during full-screen stretch modes */
+.quill-editor-wrapper.fullscreen-active .ql-container {
+    flex: 1 !important;
+    height: calc(100vh - 120px) !important;
+    overflow-y: auto;
+}
+
+/* Lock backdrop screen scroll layout updates */
+body.editor-lock-scroll {
+    overflow: hidden !important;
+}
+
+/* Active style toggle adjustments for custom fullscreen icon button indicator */
+.quill-editor-wrapper.fullscreen-active .ql-fullscreen stroke {
+    stroke: var(--primary-blue) !important;
+}

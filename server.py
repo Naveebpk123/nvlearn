@@ -29,7 +29,8 @@ class Note(db.Model):
     __tablename__ = 'notes'
     id: Mapped[int] = mapped_column(Integer, primary_key = True)
     title: Mapped[str] = mapped_column(String(100), nullable=False)
-    content: Mapped[str] = mapped_column(Text, nullable=True, default=None)
+    html_content: Mapped[str] = mapped_column(Text, nullable=True, default=None)
+    md_content: Mapped[str] = mapped_column(Text, nullable=True, default=None)    
     in_bin: Mapped[bool] = mapped_column(Boolean, nullable=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
 
@@ -74,7 +75,7 @@ def add_note():
     form = AddNoteForm()
     if form.validate_on_submit():
         try:
-            note = Note(title=form.title.data, content=form.content.data, in_bin=False, user_id=current_user.id)
+            note = Note(title=form.title.data, md_content=form.content.data,html_content = request.form.get('html_content') ,in_bin=False, user_id=current_user.id)
             db.session.add(note)
             db.session.commit()
             flash('Note created successfully', 'success')
@@ -98,11 +99,12 @@ def edit_note(note_id):
 
     form = EditNoteForm()
     if request.method == 'GET':
-        form.content.data = note.content
+        form.content.data = note.md_content
         
     if form.validate_on_submit():
         try:
-            note.content = form.content.data
+            note.md_content = form.content.data
+            note.html_content = request.form.get('html_content')
             db.session.commit()
             flash("Changes saved successfully!", "success")
             return redirect(url_for('notes'))
