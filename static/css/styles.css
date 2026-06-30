@@ -40,6 +40,7 @@ nav {
     left: 0;
     z-index: 1000;
     min-height:71px;
+    justify-content:flex-start;
 }
 
 .search-bar{
@@ -128,6 +129,7 @@ a {
 .logo {
     height:32px;
     width:40px;
+    margin-right:auto;
 }
 
 .logo:hover{
