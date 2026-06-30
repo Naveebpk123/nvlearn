@@ -8,6 +8,10 @@ const modalText = document.getElementById('modalText');
 const modalCancelBtn = document.getElementById('modalCancelBtn');
 const modalConfirmBtn = document.getElementById('modalConfirmBtn');
 
+const searchBar = document.getElementById('searchBar');
+const searchModalBg = document.getElementById('searchModalBackground');
+const modalSearchBar = document.getElementById('modalSearchBar');
+
 const logoutBtn = document.getElementById('sidebarLogout');
 
 const deleteNoteBtns = document.getElementsByClassName('delete-note-btn');
@@ -17,7 +21,7 @@ const firstFocusableElement = focusableElements[0];
 const lastFocusableElement = focusableElements[focusableElements.length - 1];
 
 window.addEventListener('keydown',(e)=> {
-  if (modalBackground.style.display === 'flex') {
+  if (modalBackground.style.display === 'flex' || searchModalBg.style.display === 'flex') {
     
     if (e.key === 'Tab' || e.keyCode === 9) {
       
@@ -42,10 +46,14 @@ window.addEventListener('keydown',(e)=> {
     document.getElementById('contentWrapper').classList.toggle("sidebar-open");
   }
 
-  function openModal(text,confirmBtnLink){
-    modalBackground.style.display = 'flex';
+  function openModal(text,confirmBtnLink,modal){
+    modal.style.display = 'flex';
+    if(text !== null){
     modalText.innerText = text;
-    modalConfirmBtn.setAttribute('href',confirmBtnLink);
+  };
+   if(confirmBtnLink !== null){
+     modalConfirmBtn.setAttribute('href',confirmBtnLink);
+   };
   }
 
   logo?.addEventListener('click',toggleSidebar);
@@ -59,20 +67,26 @@ if(deleteNoteBtns !== null){
 for (const btn of deleteNoteBtns){
   btn?.addEventListener('click',(e)=>{
     e.preventDefault();
-    openModal('Are you sure you want to permanently delete this note?',btn.dataset.link);
+    openModal('Are you sure you want to permanently delete this note?',btn.dataset.link,modalBackground);
   })};
 };
 
-  modalConfirmBtn?.addEventListener('click',()=>{
-    modalBackground.style.display = 'none';
-  });
-  modalCancelBtn?.addEventListener('click',()=>{
-    modalBackground.style.display = 'none';
-    modalConfirmBtn.setAttribute('href','');
-  });
+searchBar?.addEventListener('click',()=> {
+  openModal(null,null,searchModalBg);
+});
 
-  flashCloseBtn?.addEventListener('click',()=>{
-    flashContainer.style.display = 'none';
-  });
+modalConfirmBtn?.addEventListener('click',()=>{
+  modalBackground.style.display = 'none';
+});
+modalCancelBtn?.addEventListener('click',()=>{
+  modalBackground.style.display = 'none';
+  modalConfirmBtn.setAttribute('href','');
+});
+
+flashCloseBtn?.addEventListener('click',()=>{
+  flashContainer.style.display = 'none';
+});
+
+
 
 
