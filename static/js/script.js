@@ -60,10 +60,10 @@ window.addEventListener('keydown',(e)=> {
 
   logoutBtn?.addEventListener('click',(e)=>{
     e.preventDefault();
-    openModal('Are you sure you want to logout?','/logout');
+    openModal('Are you sure you want to logout?','/logout','modalBackground');
 
   });
-if(deleteNoteBtns !== null){
+if(deleteNoteBtns.length > 0){
 for (const btn of deleteNoteBtns){
   btn?.addEventListener('click',(e)=>{
     e.preventDefault();
