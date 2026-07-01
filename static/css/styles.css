@@ -353,7 +353,6 @@ a {
 }
 
 .modal-bg{
-    display:none;
     display:flex;
     background-color:rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(8px);
@@ -446,6 +445,10 @@ body.editor-lock-scroll {
 
 .search-bar.active{
     width:100%;
+}
+
+.search-bar.hidden{
+    display:none;
 }
 
 #searchModalBackground{

@@ -46,21 +46,24 @@ window.addEventListener('keydown',(e)=> {
     document.getElementById('contentWrapper').classList.toggle("sidebar-open");
   }
 
-  function openModal(text,confirmBtnLink,modal){
-    modal.style.display = 'flex';
-    if(text !== null){
+function openModal(text, confirmBtnLink, modal) {
+  const targetModal = modal || modalBackground; 
+  
+  targetModal.style.display = 'flex';
+  
+  if (text !== null && modalText) {
     modalText.innerText = text;
-  };
-   if(confirmBtnLink !== null){
-     modalConfirmBtn.setAttribute('href',confirmBtnLink);
-   };
   }
+  if (confirmBtnLink !== null && modalConfirmBtn) {
+    modalConfirmBtn.setAttribute('href', confirmBtnLink);
+  }
+}
 
-  logo?.addEventListener('click',toggleSidebar);
+logo?.addEventListener('click',toggleSidebar);
 
   logoutBtn?.addEventListener('click',(e)=>{
     e.preventDefault();
-    openModal('Are you sure you want to logout?','/logout','modalBackground');
+    openModal('Are you sure you want to logout?','/logout',modalBackground);
 
   });
 if(deleteNoteBtns.length > 0){
@@ -75,7 +78,15 @@ searchBar?.addEventListener('click',()=> {
   openModal(null,null,searchModalBg);
   modalSearchBar.classList.add('active');
   modalSearchBar.focus();
-  searchBar.style.display = 'none';
+  searchBar.classList.add('hidden');
+});
+
+searchModalBg?.addEventListener('click',(e)=>{
+  if(e.target === searchModalBg){
+    searchModalBg.style.display = 'none';
+    modalSearchBar.classList.remove('active');
+    searchBar.classList.remove('hidden');
+  }
 });
 
 modalConfirmBtn?.addEventListener('click',()=>{
