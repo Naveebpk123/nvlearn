@@ -48,6 +48,7 @@ nav {
     width:20%;
     border:3px solid var(--primary-blue);
     border-radius:8px;
+    outline:none;
 }
 
 .page-layout{
@@ -379,6 +380,10 @@ a {
     min-height:40%;
 }
 
+.search-modal{
+    width:80%;
+}
+
 .modal-text{
     font-size:large;
 }
@@ -440,9 +445,11 @@ body.editor-lock-scroll {
 }
 
 .search-bar.active{
-    width:40%;
+    width:100%;
 }
-.search-modal{
-    justify-content:center;
+
+#searchModalBackground{
     align-items:flex-start;
+    padding-top:20px;
 }
+

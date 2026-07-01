@@ -73,6 +73,9 @@ for (const btn of deleteNoteBtns){
 
 searchBar?.addEventListener('click',()=> {
   openModal(null,null,searchModalBg);
+  modalSearchBar.classList.add('active');
+  modalSearchBar.focus();
+  searchBar.style.display = 'none';
 });
 
 modalConfirmBtn?.addEventListener('click',()=>{
