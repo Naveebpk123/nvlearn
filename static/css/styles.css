@@ -445,6 +445,7 @@ body.editor-lock-scroll {
 
 .search-bar.active{
     width:100%;
+    padding:15px;
 }
 
 .search-bar.hidden{
@@ -456,3 +457,23 @@ body.editor-lock-scroll {
     padding-top:20px;
 }
 
+.search-result-container{
+    display:flex;
+    flex-direction:column;
+    max-height:400px;
+    overflow-y:auto;
+}
+
+.search-result{
+    padding:10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color:var(--bg-card);
+    transition:all 0.2s ease;
+}
+
+.search-result:hover{
+    background-color:var(--primary-blue);
+    color:var(--text-light);
+    cursor:pointer;
+}
