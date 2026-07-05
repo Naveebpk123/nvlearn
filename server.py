@@ -223,5 +223,23 @@ def logout():
 def about():
     return render_template('about.html')
 
+@app.route('/search/<query>')
+@login_required
+def search(query):
+    query = query.strip()
+    print(f"Received search query: '{query}'")
+    if not query:
+        return {"results": []}    
+    try:
+        result = db.session.execute(
+            db.select(Note).where(Note.user_id == current_user.id).where(Note.title.contains(query))
+        )
+        notes = result.scalars().all()
+        results = [{"id": note.id, "title": note.title} for note in notes]
+        print(f"Search results: {results}")
+        return {"results": results}
+    except SQLAlchemyError:
+        return {"results": []}
+
 if __name__ == "__main__":
     app.run(debug=True)

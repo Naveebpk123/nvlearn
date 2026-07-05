@@ -11,6 +11,7 @@ const modalConfirmBtn = document.getElementById('modalConfirmBtn');
 const searchBar = document.getElementById('searchBar');
 const searchModalBg = document.getElementById('searchModalBackground');
 const modalSearchBar = document.getElementById('modalSearchBar');
+const searchResultContainer = document.getElementById('searchResultContainer');
 
 const logoutBtn = document.getElementById('sidebarLogout');
 
@@ -59,6 +60,22 @@ function openModal(text, confirmBtnLink, modal) {
   }
 }
 
+async function fetchSearchResults(query) {
+  try {
+    const response = await fetch(`/search/${query}`);
+    const results = await response.json();
+    console.log('Search results:', results);
+    searchResultContainer.innerHTML = '';
+    let htmlContent = '';
+    for (const result of results.results) {
+      htmlContent += `<a href="/note/${result.id}" class="search-result">${result.title}</a>`;
+    }
+    searchResultContainer.innerHTML = htmlContent;
+  } catch (error) {
+    console.error('Error fetching search results:', error);
+  }
+};
+
 logo?.addEventListener('click',toggleSidebar);
 
   logoutBtn?.addEventListener('click',(e)=>{
@@ -87,6 +104,14 @@ searchModalBg?.addEventListener('click',(e)=>{
     modalSearchBar.classList.remove('active');
     searchBar.classList.remove('hidden');
   }
+});
+
+modalSearchBar?.addEventListener('input',(e)=>{
+  const query = e.target.value.trim();
+  if(query.length > 0){
+    searchBar.value = query;
+  }
+  fetchSearchResults(query);
 });
 
 modalConfirmBtn?.addEventListener('click',()=>{
