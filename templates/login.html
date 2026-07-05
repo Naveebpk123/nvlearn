@@ -8,6 +8,18 @@
 </header>
 <form class="form" method="POST" novalidate>
     {{ form.hidden_tag() }}
+    {% if show_code %}
+    <p>Type the 6 digit code sent to {{ verification_email }}.</p>
+    <div class="form-control">
+        {{ form.code.label }}
+        {{ form.code(class="form-input"+(" invalid" if form.code.errors else ""), placeholder="123456") }}
+        {% if form.code.errors %}
+        {% for error in form.code.errors %}
+        <span class="error-message">{{ error }}</span>
+        {% endfor %}
+        {% endif %}
+    </div>
+    {% else %}
         <div class="form-control">
         {{form.email.label}}
         {{form.email(class="form-input"+(" invalid" if form.email.errors else ""), placeholder="Your email here")}}
@@ -29,6 +41,7 @@
         {% endif %}
 
     </div>
+    {% endif %}
     <div class="action-buttons">
     {{form.submit(class="button")}}
     <a class="button cancel" href="{{url_for('home')}}">Cancel</a>

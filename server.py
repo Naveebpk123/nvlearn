@@ -1,13 +1,14 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey, String, Integer, Text, Boolean
-from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm
+from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm, VerificationForm
 from flask_ckeditor import CKEditor
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from helpers import send_email, create_code
+from helpers import send_email, send_email_threaded, create_code
+import time
 
 class Base(DeclarativeBase):
     pass
@@ -16,6 +17,7 @@ app=Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///notes.db"
 app.config['SECRET_KEY'] = 'secretkey'
+VERIFICATION_TTL_SECONDS = 10 * 60
 
 db = SQLAlchemy(app, model_class=Base)
 ckeditor = CKEditor(app)
@@ -42,6 +44,27 @@ class User(db.Model, UserMixin):
     password: Mapped[str] = mapped_column(String(1000), nullable=False)
     name: Mapped[str] = mapped_column(String(250), nullable=False)
     notes = relationship("Note", backref="author", lazy=True)
+
+
+def _clear_pending_auth():
+    session.pop('pending_register', None)
+    session.pop('pending_login', None)
+    session.pop('pending_auth_code', None)
+    session.pop('pending_auth_expires_at', None)
+    session.pop('pending_auth_email', None)
+
+
+def _verification_is_valid(submitted_code):
+    expected_code = session.get('pending_auth_code')
+    expires_at = session.get('pending_auth_expires_at')
+    if not expected_code or not expires_at:
+        return False, "Your verification session expired. Please start again."
+    if time.time() > expires_at:
+        _clear_pending_auth()
+        return False, "Your verification code expired. Please start again."
+    if submitted_code != expected_code:
+        return False, "That verification code is incorrect."
+    return True, ""
 
 with app.app_context():
     db.create_all()
@@ -176,19 +199,75 @@ def restore(note_id):
 
 @app.route('/register', methods=['GET','POST'])
 def register():
+    if session.get('pending_register'):
+        form = VerificationForm()
+        if form.validate_on_submit():
+            is_valid, message = _verification_is_valid(form.code.data.strip())
+            if not is_valid:
+                flash(message, "error")
+                return render_template(
+                    'register.html',
+                    form=form,
+                    show_code=True,
+                    verification_email=session.get('pending_auth_email'),
+                )
+            pending_register = session.get('pending_register')
+            try:
+                user = User(
+                    email=pending_register['email'],
+                    name=pending_register['name'],
+                    password=pending_register['password'],
+                )
+                db.session.add(user)
+                db.session.commit()
+                login_user(user)
+                _clear_pending_auth()
+                flash(f'Created new account for {user.name}', 'success')
+                return redirect(url_for('notes'))
+            except IntegrityError:
+                db.session.rollback()
+                _clear_pending_auth()
+                flash("That email address is already registered.", "error")
+            except SQLAlchemyError:
+                db.session.rollback()
+                flash("An unexpected error occurred. Please try again.", "error")
+        return render_template(
+            'register.html',
+            form=form,
+            show_code=True,
+            verification_email=session.get('pending_auth_email'),
+        )
+
     form = RegisterForm()
     if form.validate_on_submit():
         try:
-            user = User(
-                email=form.email.data, 
-                name=form.name.data, 
-                password=generate_password_hash(form.password.data, method='pbkdf2:sha256', salt_length=16)
+            _clear_pending_auth()
+            existing_user = db.session.execute(db.select(User).where(User.email == form.email.data)).scalar()
+            if existing_user:
+                flash("That email address is already registered.", "error")
+                return render_template('register.html', form=form, show_code=False)
+
+            verification_code = create_code()
+            session['pending_register'] = {
+                'name': form.name.data,
+                'email': form.email.data,
+                'password': generate_password_hash(form.password.data, method='pbkdf2:sha256', salt_length=16),
+            }
+            session['pending_auth_code'] = verification_code
+            session['pending_auth_expires_at'] = time.time() + VERIFICATION_TTL_SECONDS
+            session['pending_auth_email'] = form.email.data
+            send_email_threaded(
+                form.email.data,
+                "Your verification code",
+                f"Type this 6 digit code to finish your account setup: {verification_code}",
             )
-            db.session.add(user)
-            db.session.commit()
-            login_user(user)
-            flash(f'Created new account for {user.name}', 'success')
-            return redirect(url_for('notes'))
+            flash(f'Type the 6 digit code sent to {form.email.data}.', 'success')
+            return render_template(
+                'register.html',
+                form=VerificationForm(),
+                show_code=True,
+                verification_email=form.email.data,
+            )
         except IntegrityError:
             db.session.rollback()
             flash("That email address is already registered.", "error")
@@ -199,19 +278,66 @@ def register():
 
 @app.route('/login', methods=['GET','POST'])
 def login():
+    if session.get('pending_login'):
+        form = VerificationForm()
+        if form.validate_on_submit():
+            is_valid, message = _verification_is_valid(form.code.data.strip())
+            if not is_valid:
+                flash(message, "error")
+                return render_template(
+                    'login.html',
+                    form=form,
+                    show_code=True,
+                    verification_email=session.get('pending_auth_email'),
+                )
+            pending_login = session.get('pending_login')
+            try:
+                user = db.session.get(User, pending_login['user_id'])
+                if not user:
+                    _clear_pending_auth()
+                    flash("Your account could not be found. Please login again.", "error")
+                    return redirect(url_for('login'))
+                login_user(user)
+                _clear_pending_auth()
+                flash(f'Welcome back {user.name}', 'success')
+                return redirect(url_for('notes'))
+            except SQLAlchemyError:
+                flash("Internal database communication mismatch.", "error")
+        return render_template(
+            'login.html',
+            form=form,
+            show_code=True,
+            verification_email=session.get('pending_auth_email'),
+        )
+
     form = LoginForm()
     if form.validate_on_submit():
         try:
+            _clear_pending_auth()
             user = db.session.execute(db.select(User).where(User.email == form.email.data)).scalar()
             if user and check_password_hash(user.password, form.password.data):
-                login_user(user)
-                flash(f'Welcome back {user.name}', 'success')
-                return redirect(url_for('notes'))
+                verification_code = create_code()
+                session['pending_login'] = {'user_id': user.id}
+                session['pending_auth_code'] = verification_code
+                session['pending_auth_expires_at'] = time.time() + VERIFICATION_TTL_SECONDS
+                session['pending_auth_email'] = user.email
+                send_email_threaded(
+                    user.email,
+                    "Your verification code",
+                    f"Type this 6 digit code to finish your login: {verification_code}",
+                )
+                flash(f'Type the 6 digit code sent to {user.email}.', 'success')
+                return render_template(
+                    'login.html',
+                    form=VerificationForm(),
+                    show_code=True,
+                    verification_email=user.email,
+                )
             else:
                 flash('Incorrect login credentials.', 'error')
         except SQLAlchemyError:
             flash("Internal database communication mismatch.", "error")
-    return render_template('login.html', form=form)
+    return render_template('login.html', form=form, show_code=False)
     
 @app.route('/logout')
 @login_required

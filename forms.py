@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, PasswordField, EmailField, TextAreaField
-from wtforms.validators import DataRequired, Length, Email
+from wtforms.validators import DataRequired, Length, Email, Regexp
 
 class AddNoteForm(FlaskForm):
     title = StringField('Note title',validators=[DataRequired(),Length(min=4,max=30)])
@@ -21,3 +21,7 @@ class LoginForm(FlaskForm):
     email = EmailField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired()])
     submit = SubmitField('Login')
+
+class VerificationForm(FlaskForm):
+    code = StringField('Verification code', validators=[DataRequired(), Length(min=6, max=6), Regexp(r'^\d{6}$', message='The code must be 6 digits.')])
+    submit = SubmitField('Verify Code')
