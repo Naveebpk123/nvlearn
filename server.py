@@ -219,10 +219,6 @@ def logout():
     flash('Logged out successfully', 'success')
     return redirect(url_for('home'))
 
-@app.route('/about')
-def about():
-    return render_template('about.html')
-
 @app.route('/search/<query>')
 @login_required
 def search(query):
@@ -240,6 +236,25 @@ def search(query):
         return {"results": results}
     except SQLAlchemyError:
         return {"results": []}
+
+@app.route('/search-results/<query>')
+@login_required
+def search_results(query):
+    query = query.strip()
+    if not query:
+        return render_template('search-results.html', query=query, notes=[])
+    try:
+        result = db.session.execute(
+            db.select(Note).where(Note.user_id == current_user.id).where(Note.title.contains(query))
+        )
+        notes = result.scalars().all()
+        return render_template('search-results.html', query=query, notes=notes)
+    except SQLAlchemyError:
+        return render_template('search-results.html', query=query, notes=[])
+
+@app.route('/about')
+def about():
+    return render_template('about.html')
 
 if __name__ == "__main__":
     app.run(debug=True)

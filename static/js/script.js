@@ -123,6 +123,16 @@ modalSearchBar?.addEventListener('input',(e)=>{
   fetchSearchResults(query);
 });
 
+modalSearchBar?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const query = e.target.value.trim();
+    if (query) {
+      window.location.href = `/search-results/${encodeURIComponent(query)}`;
+    }
+  }
+});
+
+
 modalConfirmBtn?.addEventListener('click',()=>{
   modalBackground.style.display = 'none';
 });
