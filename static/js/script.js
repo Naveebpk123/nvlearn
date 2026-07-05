@@ -17,30 +17,39 @@ const logoutBtn = document.getElementById('sidebarLogout');
 
 const deleteNoteBtns = document.getElementsByClassName('delete-note-btn');
 
-const focusableElements = [modalConfirmBtn, modalCancelBtn];
-const firstFocusableElement = focusableElements[0];
-const lastFocusableElement = focusableElements[focusableElements.length - 1];
+window.addEventListener('keydown', (e) => {
+  let activeModal = null;
+  if (modalBackground.style.display === 'flex') {
+    activeModal = modalBackground;
+  } else if (searchModalBg.style.display === 'flex') {
+    activeModal = searchModalBg;
+  }
 
-window.addEventListener('keydown',(e)=> {
-  if (modalBackground.style.display === 'flex' || searchModalBg.style.display === 'flex') {
+  if (!activeModal) return;
+
+  if (e.key === 'Tab' || e.keyCode === 9) {
+    const focusableSelectors = 'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex="0"], [contenteditable]';
+    const focusableElements = activeModal.querySelectorAll(focusableSelectors);
     
-    if (e.key === 'Tab' || e.keyCode === 9) {
-      
-      if (e.shiftKey) { 
-        if (document.activeElement === firstFocusableElement) {
-          lastFocusableElement.focus(); 
-          e.preventDefault();
-        }
-      } else {
-        if (document.activeElement === lastFocusableElement) {
-          firstFocusableElement.focus(); 
-          e.preventDefault();
-        }
+    if (focusableElements.length === 0) return;
+
+    const firstEl = focusableElements[0];
+    const lastEl = focusableElements[focusableElements.length - 1];
+
+    if (e.shiftKey) { 
+      if (document.activeElement === firstEl) {
+        lastEl.focus(); 
+        e.preventDefault();
       }
-      
+    } else {
+      if (document.activeElement === lastEl) {
+        firstEl.focus(); 
+        e.preventDefault();
+      }
     }
   }
 });
+
 
   function toggleSidebar() {
     document.getElementById("sidebar").classList.toggle("close");
@@ -68,7 +77,7 @@ async function fetchSearchResults(query) {
     searchResultContainer.innerHTML = '';
     let htmlContent = '';
     for (const result of results.results) {
-      htmlContent += `<a href="/note/${result.id}" class="search-result">${result.title}</a>`;
+      htmlContent += `<a href="/edit/${result.id}" class="search-result">${result.title}</a>`;
     }
     searchResultContainer.innerHTML = htmlContent;
   } catch (error) {
