@@ -7,6 +7,7 @@ from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm
 from flask_ckeditor import CKEditor
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from helpers import send_email, create_code
 
 class Base(DeclarativeBase):
     pass

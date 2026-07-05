@@ -2,6 +2,7 @@ import smtplib
 from email.message import EmailMessage
 import dotenv
 import os
+import random
 
 dotenv.load_dotenv()
 
@@ -27,4 +28,6 @@ def send_email(recipient,subject, msg_content):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-
+def create_code():
+    code = str(random.randint(100000, 999999))
+    return code
