@@ -18,6 +18,7 @@ const logoutBtn = document.getElementById('sidebarLogout');
 const deleteNoteBtns = document.getElementsByClassName('delete-note-btn');
 
 const chatInput = document.getElementById('user-input');
+const userInputContainer = document.getElementById('userInputContainer');
 
 window.addEventListener('keydown', (e) => {
   let activeModal = null;
@@ -139,6 +140,36 @@ chatInput?.addEventListener('input', function(){
   this.style.height = (this.scrollHeight) + 'px';
 });
 
+chatInput?.addEventListener('keydown', async function(e){
+  if(e.key === 'Enter' && !e.shiftKey){
+  e.preventDefault();
+  const inputText = chatInput.value.trim();
+  if(inputText.length === 0) return;
+
+  const userBubble = document.createElement('div');
+  const userBubbleText = document.createElement('p');
+  userBubble.classList.add('user-bubble');
+  userBubbleText.textContent = inputText;
+  userBubble.appendChild(userBubbleText);
+  userInputContainer.insertAdjacentElement('beforebegin', userBubble);
+  chatInput.value = '';
+  chatInput.disabled=true;
+  const response = await fetch('/ai-response', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ message: inputText })
+  });
+  const aiResponse = await response.json();
+  const aiBubble = document.createElement('div');
+  const aiBubbleText = document.createElement('p');
+  aiBubble.classList.add('ai-bubble');
+  aiBubbleText.textContent = aiResponse.reply;
+  aiBubble.appendChild(aiBubbleText);
+  userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
+  chatInput.disabled=false;
+}});
 
 modalConfirmBtn?.addEventListener('click',()=>{
   modalBackground.style.display = 'none';

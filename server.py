@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -7,7 +7,7 @@ from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm, Verificati
 from flask_ckeditor import CKEditor
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from helpers import send_email, send_email_threaded, create_code
+from helpers import send_email, send_email_threaded, create_code, ask_ai
 import time
 
 class Base(DeclarativeBase):
@@ -383,6 +383,14 @@ def search_results(query):
 @login_required
 def ai_chat():
     return render_template('ai-chat.html')
+
+@app.route('/ai-response', methods=['POST'])
+@login_required
+def ai_response():
+    data = request.get_json()
+    message = data.get('message')
+    ai_reply = ask_ai(message)
+    return jsonify({'reply': ai_reply})
 
 @app.route('/about')
 def about():

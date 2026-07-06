@@ -46,8 +46,8 @@ def create_code():
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
 def ask_ai(question):
-    response = gemini_client.generate_text(
+    response = gemini_client.models.generate_content(
         model="gemini-2.5-flash",
-        contents=question
+        contents=question,
         )
     return response.text
