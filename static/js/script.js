@@ -17,6 +17,8 @@ const logoutBtn = document.getElementById('sidebarLogout');
 
 const deleteNoteBtns = document.getElementsByClassName('delete-note-btn');
 
+const chatInput = document.getElementById('user-input');
+
 window.addEventListener('keydown', (e) => {
   let activeModal = null;
   if (modalBackground.style.display === 'flex') {
@@ -130,6 +132,11 @@ modalSearchBar?.addEventListener('keydown', (e) => {
       window.location.href = `/search-results/${encodeURIComponent(query)}`;
     }
   }
+});
+
+chatInput?.addEventListener('input', function(){
+  this.style.height = 'auto';
+  this.style.height = (this.scrollHeight) + 'px';
 });
 
 
