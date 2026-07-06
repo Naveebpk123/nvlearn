@@ -379,6 +379,11 @@ def search_results(query):
     except SQLAlchemyError:
         return render_template('search-results.html', query=query, notes=[])
 
+@app.route('/ai-chat')
+@login_required
+def ai_chat():
+    return render_template('ai-chat.html')
+
 @app.route('/about')
 def about():
     return render_template('about.html')
