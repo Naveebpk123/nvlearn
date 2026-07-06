@@ -99,6 +99,7 @@ nav {
     margin-left: 0;
     width: 100%;
     transition: margin-left 0.3s ease-in-out, width 0.3s ease-in-out; 
+    height:calc(100vh - 71px);
 }
 
 .content-wrapper.sidebar-open {
@@ -478,13 +479,16 @@ body.editor-lock-scroll {
     cursor:pointer;
 }
 
-.user-query{
+.user-bubble{
+    display:flex;
     background-color:rgb(185, 240, 255);
     min-width:10%;
     max-width:20%;
-    text-align:center;
+    max-height:10rem;
+    align-items:center;
+    justify-content:center;
     padding:10px;
-    font-size:larger;
-    border-radius:10px;
+    border-radius:15px;
     align-self:flex-end;
+    overflow-y:auto;
 }
