@@ -95,11 +95,13 @@ nav {
     flex-direction: column;
     align-items: center;
     padding: 20px;
+    padding-bottom:10rem;
     margin-top: 71px;     
     margin-left: 0;
     width: 100%;
     transition: margin-left 0.3s ease-in-out, width 0.3s ease-in-out; 
     height:calc(100vh - 71px);
+    overflow-y:auto;
 }
 
 .content-wrapper.sidebar-open {
@@ -502,4 +504,40 @@ body.editor-lock-scroll {
     padding:10px;
     align-self:flex-start;
     margin-bottom:10px;
+}
+
+.user-input-box {
+    display: flex;
+    width: 100%;
+    max-width: 700px;
+    position: fixed;
+    bottom: 0;    
+    left: 50%;
+    transform: translateX(-50%);     
+    background-color: var(--bg-main); 
+    padding: 15px 20px 25px 20px; 
+    z-index: 10;
+}
+
+.content-wrapper.sidebar-open ~ .user-input-box,
+.page-layout:has(.sidebar-open) .user-input-box {
+    left: calc(50% + 75px); 
+}
+
+#user-input {
+    width: 100%;
+    border: 3px solid var(--border-color); 
+    border-radius: 15px;
+    padding: 12px;
+    min-height: 3.5rem;
+    max-height: 10rem;
+    resize: none;
+    outline: none;
+    background-color: var(--bg-card);
+    box-shadow: 0 4px 15px var(--shadow-color);
+    transition: border-color 0.2s;
+}
+
+#user-input:focus {
+    border-color: var(--primary-blue); 
 }
