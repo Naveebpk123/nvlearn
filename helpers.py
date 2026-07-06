@@ -4,6 +4,7 @@ import dotenv
 import os
 import random
 import threading
+from google import genai
 
 dotenv.load_dotenv()
 
@@ -11,6 +12,7 @@ SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 EMAIL = os.getenv('EMAIL')
 EMAIL_PASSWORD = os.getenv('APP_PASSWORD')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 
 def send_email(recipient, subject, msg_content):
     msg = EmailMessage()
@@ -40,3 +42,12 @@ def send_email_threaded(recipient, subject, msg_content):
 def create_code():
     code = str(random.randint(100000, 999999))
     return code
+
+gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+
+def ask_ai(question):
+    response = gemini_client.generate_text(
+        model="gemini-2.5-flash",
+        contents=question
+        )
+    return response.text
