@@ -483,7 +483,8 @@ body.editor-lock-scroll {
     display:flex;
     background-color:rgb(185, 240, 255);
     min-width:10%;
-    max-width:20%;
+    max-width:40%;
+    min-height:5rem;
     max-height:10rem;
     align-items:center;
     justify-content:center;
@@ -491,4 +492,14 @@ body.editor-lock-scroll {
     border-radius:15px;
     align-self:flex-end;
     overflow-y:auto;
+    margin-bottom:10px;
+}
+
+.ai-bubble{
+    min-width:10%;
+    align-items:center;
+    justify-content:center;
+    padding:10px;
+    align-self:flex-start;
+    margin-bottom:10px;
 }
