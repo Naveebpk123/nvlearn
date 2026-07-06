@@ -477,3 +477,14 @@ body.editor-lock-scroll {
     color:var(--text-light);
     cursor:pointer;
 }
+
+.user-query{
+    background-color:rgb(185, 240, 255);
+    min-width:10%;
+    max-width:20%;
+    text-align:center;
+    padding:10px;
+    font-size:larger;
+    border-radius:10px;
+    align-self:flex-end;
+}
