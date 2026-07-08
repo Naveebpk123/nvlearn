@@ -59,12 +59,22 @@ def create_code():
 
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
-def ask_ai(question):
-    response = gemini_client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=question,
-        config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT
+def ask_ai(contents,username,is_gemini=False):
+    if is_gemini:
+        messages=[]
+        for msg in contents:
+            role = msg.get('role')
+            msg_content = msg.get('contents')
+            if role == 'user':
+                messages.append({'role': 'user', 'parts': [{'text': msg_content}]})
+            elif role == 'assistant':
+                messages.append({'role': 'model', 'parts': [{'text': msg_content}]})
+        response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=messages,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT+f"username: {username}",
+            )
         )
-    )
+    
     return response.text

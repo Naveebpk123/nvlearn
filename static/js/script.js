@@ -142,7 +142,7 @@ chatInput?.addEventListener('input', function(){
 
 chatInput?.addEventListener('keydown', async function(e){
   if(e.key === 'Enter' && !e.shiftKey){
-  e.preventDefault();
+  e.preventDefault();  
   const inputText = chatInput.value.trim();
   if(inputText.length === 0) return;
 
@@ -152,6 +152,17 @@ chatInput?.addEventListener('keydown', async function(e){
   userBubbleText.textContent = inputText;
   userBubble.appendChild(userBubbleText);
   userInputContainer.insertAdjacentElement('beforebegin', userBubble);
+  const pastBubbles = document.querySelectorAll('.user-bubble, .ai-bubble');
+  const past8Bubbles = pastBubbles.slice(-8);
+  let messageHistory=[];
+  if(pastBubbles.length > 0) {
+  for (const bubble of past8Bubbles) {
+    if(bubble.classList.contains('user-bubble')){
+      messageHistory.push({ role: 'user', contents: bubble.textContent });
+    }else{
+      messageHistory.push({ role: 'assistant', contents: bubble.textContent });
+    }
+  }};
   chatInput.value = '';
   chatInput.disabled=true;
   const response = await fetch('/ai-response', {
@@ -159,7 +170,7 @@ chatInput?.addEventListener('keydown', async function(e){
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ message: inputText })
+    body: JSON.stringify({contents: messageHistory })
   });
   const aiResponse = await response.json();
   const aiBubble = document.createElement('div');

@@ -387,9 +387,10 @@ def ai_chat():
 @app.route('/ai-response', methods=['POST'])
 @login_required
 def ai_response():
+    username = current_user.name
     data = request.get_json()
-    message = data.get('message')
-    ai_reply = ask_ai(message)
+    message = data.get('contents')
+    ai_reply = ask_ai(contents=message,username=username,is_gemini=True)
     return jsonify({'reply': ai_reply})
 
 @app.route('/about')
