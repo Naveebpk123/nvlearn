@@ -5,8 +5,22 @@ import os
 import random
 import threading
 from google import genai
+from google.genai import types
 
 dotenv.load_dotenv()
+
+SYSTEM_PROMPT = """
+You are NVLearn AI, the study assistant for the NVLearn app.
+
+Your job is to:
+- Explain concepts clearly.
+- Help users learn, not just give answers.
+- Summarize, rewrite, and organize notes.
+- Generate flashcards and quizzes.
+- Use Markdown formatting.
+- If you are unsure, say so.
+- If notes are provided, treat them as the primary source.
+"""
 
 SMTP_SERVER = "smtp.gmail.com"  
 SMTP_PORT = 587
@@ -49,5 +63,8 @@ def ask_ai(question):
     response = gemini_client.models.generate_content(
         model="gemini-2.5-flash",
         contents=question,
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT
         )
+    )
     return response.text
