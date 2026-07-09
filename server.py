@@ -388,8 +388,15 @@ def ai_response():
     username = current_user.name
     data = request.get_json()
     message = data.get('contents')
-    ai_reply = ask_ai(contents=message,username=username,)
-    return jsonify({'reply': ai_reply})
+    action,ai_reply = ask_ai(contents=message,username=username,)
+    if action == 'chat':
+        return jsonify({'reply': ai_reply})
+    elif action == 'create_note':
+        new_note = Note(title=ai_reply['title'],md_content=ai_reply['content'],html_content = ai_reply['html_content'],in_bin=False,user_id = current_user.id)
+        db.session.add(new_note)
+        db.session.commit()
+        completion_msg = f"Made new note '{ai_reply['title']}'"
+        return jsonify({'reply' : completion_msg})
 
 @app.route('/about')
 def about():

@@ -31,6 +31,22 @@ Use LaTeX for all math:
 Since the output is JSON, escape every LaTeX backslash (e.g. `"\\\\frac{a}{b}"`, `"\\\\tan(x)"`).
 """
 
+GEMINI_SYSTEM_PROMPT = """You are NVLearn AI's content generation engine.
+Generate high-quality study notes from the user's request.
+Return ONLY valid JSON. Do not include markdown code fences or any extra text.
+Schema:
+{
+  "title": "A concise, descriptive title",
+  "content": "The complete note in Markdown"
+}
+Rules:
+- Return only the JSON object.
+- The title should be short (2 to 8 words) and accurately describe the note.
+- The content should be well-structured Markdown using headings, lists, tables, and examples where appropriate.
+- Be concise but comprehensive.
+- Do not include conversational text such as "Sure" or "Here's your note."
+- Do not explain your reasoning."""
+
 SMTP_SERVER = "smtp.gmail.com"  
 SMTP_PORT = 587
 EMAIL = os.getenv('EMAIL')
@@ -85,21 +101,29 @@ def ask_ai(contents,username):
     response_format={"type": "json_object"}
     )
     response_json = json.loads(response.choices[0].message.content)
-    print(response_json)
     if 'chat' in response_json['action']:
         reply = response_json['content'][response_json['action'].index('chat')]
+    if 'create_note' in response_json['action']:
+        instruction = response_json['content'][response_json['action'].index('create_note')]
+        gemini_response = ask_gemini(question=f"Create note on:{instruction}")
+        json_gemini_response = json.loads(gemini_response)
+        json_gemini_response['html_content'] = markdown.markdown(json_gemini_response['content'],extensions=['fenced_code', 'tables'])
+        return 'create_note', json_gemini_response
 
     html_output = markdown.markdown(reply, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
         'pymdownx.arithmatex': {
             'generic': True  
         }
     })
-    return html_output
+    return 'chat',html_output
 
 def ask_gemini(question):
     response = gemini_client.models.generate_content(
         model="gemini-2.5-flash",
-        contents=messages,
+        contents=GEMINI_SYSTEM_PROMPT+f"prompt: {question}",
+        config=types.GenerateContentConfig(
+        response_mime_type="application/json",
+    )
     )
     return response.text
 
