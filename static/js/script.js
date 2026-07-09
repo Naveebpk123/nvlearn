@@ -177,7 +177,11 @@ chatInput?.addEventListener('keydown', async function(e){
   aiBubble.classList.add('ai-bubble');
   aiBubble.innerHTML = aiResponse.reply;
   userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
+  if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+      MathJax.typesetPromise([aiBubble]).catch((err) => console.log("MathJax error:", err.message));
+    }
   chatInput.disabled=false;
+  chatInput.focus();
 }});
 
 modalConfirmBtn?.addEventListener('click',()=>{
