@@ -152,10 +152,10 @@ chatInput?.addEventListener('keydown', async function(e){
   userBubbleText.textContent = inputText;
   userBubble.appendChild(userBubbleText);
   userInputContainer.insertAdjacentElement('beforebegin', userBubble);
-  const pastBubbles = document.querySelectorAll('.user-bubble, .ai-bubble');
-  const past8Bubbles = pastBubbles.slice(-8);
+  const pastBubbles = Array.from(document.querySelectorAll('.user-bubble, .ai-bubble')); 
   let messageHistory=[];
   if(pastBubbles.length > 0) {
+    const past8Bubbles = pastBubbles.slice(-8);
   for (const bubble of past8Bubbles) {
     if(bubble.classList.contains('user-bubble')){
       messageHistory.push({ role: 'user', contents: bubble.textContent });
@@ -174,10 +174,8 @@ chatInput?.addEventListener('keydown', async function(e){
   });
   const aiResponse = await response.json();
   const aiBubble = document.createElement('div');
-  const aiBubbleText = document.createElement('p');
   aiBubble.classList.add('ai-bubble');
-  aiBubbleText.textContent = aiResponse.reply;
-  aiBubble.appendChild(aiBubbleText);
+  aiBubble.innerHTML = aiResponse.reply;
   userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
   chatInput.disabled=false;
 }});

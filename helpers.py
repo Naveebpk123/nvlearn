@@ -6,6 +6,7 @@ import random
 import threading
 from google import genai
 from google.genai import types
+import markdown
 
 dotenv.load_dotenv()
 
@@ -76,5 +77,5 @@ def ask_ai(contents,username,is_gemini=False):
                 system_instruction=SYSTEM_PROMPT+f"username: {username}",
             )
         )
-    
-    return response.text
+    html_output = markdown.markdown(response.text, extensions=['fenced_code', 'tables'])
+    return html_output
