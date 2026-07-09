@@ -70,42 +70,24 @@ def create_code():
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
 
-def ask_ai(contents,username,model='groq'):
-    if model=='gemini':
-        messages=[]
-        for msg in contents:
-            role = msg.get('role')
-            msg_content = msg.get('contents')
-            if role == 'user':
-                messages.append({'role': 'user', 'parts': [{'text': msg_content}]})
-            elif role == 'assistant':
-                messages.append({'role': 'model', 'parts': [{'text': msg_content}]})
-        response = gemini_client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=messages,
-            config=types.GenerateContentConfig(
-                system_instruction=GROQ_SYSTEM_PROMPT+f"username: {username}",
-            )
-        )
-        reply = response.text
-    elif model=='groq':
-        messages=[{'role':'system','content':GROQ_SYSTEM_PROMPT+f"username of user is:{username}"}]
-        for msg in contents:
-            role = msg.get('role')
-            msg_content = msg.get('contents')
-            if role == 'user':
-                messages.append({'role': 'user', 'content':msg_content})
-            elif role == 'assistant':
-                messages.append({'role': 'assistant', 'content':msg_content})
-        response = groq_client.chat.completions.create(
-        messages=messages,
-        model="llama-3.3-70b-versatile",
-        response_format={"type": "json_object"}
-        )
-        response_json = json.loads(response.choices[0].message.content)
-        print(response_json)
-        if 'chat' in response_json['action']:
-            reply = response_json['content'][response_json['action'].index('chat')]
+def ask_ai(contents,username):
+    messages=[{'role':'system','content':GROQ_SYSTEM_PROMPT+f"username of user is:{username}"}]
+    for msg in contents:
+        role = msg.get('role')
+        msg_content = msg.get('contents')
+        if role == 'user':
+            messages.append({'role': 'user', 'content':msg_content})
+        elif role == 'assistant':
+            messages.append({'role': 'assistant', 'content':msg_content})
+    response = groq_client.chat.completions.create(
+    messages=messages,
+    model="llama-3.3-70b-versatile",
+    response_format={"type": "json_object"}
+    )
+    response_json = json.loads(response.choices[0].message.content)
+    print(response_json)
+    if 'chat' in response_json['action']:
+        reply = response_json['content'][response_json['action'].index('chat')]
 
     html_output = markdown.markdown(reply, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
         'pymdownx.arithmatex': {
@@ -113,4 +95,11 @@ def ask_ai(contents,username,model='groq'):
         }
     })
     return html_output
+
+def ask_gemini(question):
+    response = gemini_client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=messages,
+    )
+    return response.text
 

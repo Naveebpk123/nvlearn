@@ -388,7 +388,7 @@ def ai_response():
     username = current_user.name
     data = request.get_json()
     message = data.get('contents')
-    ai_reply = ask_ai(contents=message,username=username,model='groq')
+    ai_reply = ask_ai(contents=message,username=username,)
     return jsonify({'reply': ai_reply})
 
 @app.route('/about')
