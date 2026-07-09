@@ -67,14 +67,14 @@ nav {
     justify-content: flex-start;
     gap: 1rem;
     height: 100%;
-    width: 150px;
+    width: 170px;
     z-index: 999; 
     transition: transform 0.3s ease-in-out;
 }
 
 
 .sidebar.close{
-    transform: translateX(-150px);
+    transform: translateX(-170px);
 }
 
 .sidebar-item{
@@ -105,8 +105,8 @@ nav {
 }
 
 .content-wrapper.sidebar-open {
-    margin-left: 150px; 
-    width: calc(100% - 150px);
+    margin-left: 170px; 
+    width: calc(100% - 170px);
 }
 
 header {
@@ -521,7 +521,7 @@ body.editor-lock-scroll {
 
 .content-wrapper.sidebar-open ~ .user-input-box,
 .page-layout:has(.sidebar-open) .user-input-box {
-    left: calc(50% + 75px); 
+    left: calc(50% + 85px); 
 }
 
 #user-input {

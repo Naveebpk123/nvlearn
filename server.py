@@ -4,7 +4,6 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey, String, Integer, Text, Boolean
 from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm, VerificationForm
-from flask_ckeditor import CKEditor
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from helpers import send_email, send_email_threaded, create_code, ask_ai
@@ -20,7 +19,6 @@ app.config['SECRET_KEY'] = 'secretkey'
 VERIFICATION_TTL_SECONDS = 10 * 60
 
 db = SQLAlchemy(app, model_class=Base)
-ckeditor = CKEditor(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
