@@ -10,7 +10,7 @@
 <div class="note-container">
     {% if notes %}
 {% for note in notes %}
-    <div class="note">
+    <div class="note" data-id="{{note.id}}">
         <div class="note-title">{{note.title}}</div>
         <div class="note-preview">
             {{note.html_content | safe}}
@@ -22,7 +22,7 @@
     </div>
     {% endfor %}
 {% else %}
-<div class="note">
+<div class="note" data-id="_">
         <div class="note-title">No notes created yet</div>
     </div>
 {% endif %}

@@ -15,12 +15,14 @@ const searchResultContainer = document.getElementById('searchResultContainer');
 
 const logoutBtn = document.getElementById('sidebarLogout');
 
-const deleteNoteBtns = document.getElementsByClassName('delete-note-btn');
+const deleteNoteBtns = document.getElementById('delete-note-btn');
 
 const chatInput = document.getElementById('user-input');
 const userInputContainer = document.getElementById('userInputContainer');
 
 const readNoteContent = document.getElementsByClassName('read-note-content');
+
+const notes = document.getElementsByClassName('note');
 
 window.addEventListener('keydown', (e) => {
   let activeModal = null;
@@ -55,6 +57,16 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+if (notes !== null){
+  for(const note of notes){
+    const id = note.dataset.id;
+    if (id!=='_'){
+    note.addEventListener('click',()=>window.location.href = `/read_note/${id}`);
+  }else{
+    continue
+  };
+  };
+};
 
   function toggleSidebar() {
     document.getElementById("sidebar").classList.toggle("close");
