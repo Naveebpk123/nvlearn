@@ -276,6 +276,11 @@ def register():
 
 @app.route('/login', methods=['GET','POST'])
 def login():
+    #-----------FOR TESTING-------------------
+    user=db.session.get(User,1)
+    login_user(user)
+    return redirect(url_for('home'))
+    #-----------------------------------------------
     if session.get('pending_login'):
         form = VerificationForm()
         if form.validate_on_submit():

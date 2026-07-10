@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Read Note{% endblock %}
+
+{% block content %}
+<header>
+    <h1>{{note.title}}</h1>
+</header>
+{{note.html_content|safe}}
+{% endblock %}

@@ -130,12 +130,8 @@
             fullscreenBtn.title = "Toggle Fullscreen Mode";
         }
 
-        // =========================================================
-        // FIX: Convert stored Markdown back to HTML when editing
-        // =========================================================
         if (textarea.value) {
-            // marked.parse() turns `# Hello` into `<h1>Hello</h1>`
-            // editor.clipboard.dangerouslyPasteHTML() forces Quill to render it visually
+
             const htmlFromMarkdown = marked.parse(textarea.value);
             editor.clipboard.dangerouslyPasteHTML(htmlFromMarkdown);
         }
