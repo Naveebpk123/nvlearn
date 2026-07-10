@@ -87,73 +87,86 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>   
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        const textarea = document.getElementById('markdownEditor');
-        if (!textarea) return; 
+    const textarea = document.getElementById('markdownEditor');
+    if (!textarea) return; 
 
-        const editorWrapper = document.createElement('div');
-        editorWrapper.className = 'quill-editor-wrapper';
-        textarea.parentNode.insertBefore(editorWrapper, textarea);
+    const editorWrapper = document.createElement('div');
+    editorWrapper.className = 'quill-editor-wrapper';
+    textarea.parentNode.insertBefore(editorWrapper, textarea);
 
-        const quillContainer = document.createElement('div');
-        editorWrapper.appendChild(quillContainer);
-        textarea.style.display = 'none'; 
+    const quillContainer = document.createElement('div');
+    editorWrapper.appendChild(quillContainer);
+    textarea.style.display = 'none'; 
 
-        const themeOptions = {
-            modules: {
-                toolbar: {
-                    container: [
-                        ['bold', 'italic', 'underline'],
-                        [{ 'header': 1 }, { 'header': 2 }],
-                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                        ['clean'],
-                        ['fullscreen']
-                    ],
-                    handlers: {
-                        'fullscreen': function() {
-                            editorWrapper.classList.toggle('fullscreen-active');
-                            document.body.classList.toggle('editor-lock-scroll');
-                        }
-                    }
-                }
-            },
-            placeholder: 'Write your note here...',
-            theme: 'snow'
-        };
-        const editor = new Quill(quillContainer, themeOptions);
-
-        const fullscreenBtn = editorWrapper.querySelector('.ql-fullscreen');
-        if (fullscreenBtn) {
-            fullscreenBtn.innerHTML = `
-                <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-                </svg>`;
-            fullscreenBtn.title = "Toggle Fullscreen Mode";
-        }
-
-        if (textarea.value) {
-
-            const htmlFromMarkdown = marked.parse(textarea.value);
-            editor.clipboard.dangerouslyPasteHTML(htmlFromMarkdown);
-        }
-
-        const turndownService = new TurndownService();
-        textarea.form.addEventListener('submit', function() {
-            const htmlContent = editor.getSemanticHTML(); 
-            const markdownContent = turndownService.turndown(htmlContent); 
-
-            textarea.value = markdownContent;
-
-            let htmlHiddenInput = document.getElementById('htmlNoteContent');
-            if (!htmlHiddenInput) {
-                htmlHiddenInput = document.createElement('input');
-                htmlHiddenInput.type = 'hidden';
-                htmlHiddenInput.id = 'htmlNoteContent';
-                htmlHiddenInput.name = 'html_content'; 
-                textarea.form.appendChild(htmlHiddenInput);
+    const themeOptions = {
+        modules: {
+            toolbar: {
+                container: [
+                    ['bold', 'italic', 'underline'],
+                    [{ 'header': 1 }, { 'header': 2 }],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    ['clean'],
+                    ['fullscreen'],
+                    ['readmode']
+                ],
+                handlers: {
+                    'fullscreen': function() {
+                        editorWrapper.classList.toggle('fullscreen-active');
+                        document.body.classList.toggle('editor-lock-scroll');
+                    },
+                    'readmode': function() {
+                        window.location.href = "{% if note %}{{url_for('read_note', note_id=note.id)}}{% else %}#{% endif %}";
+                    }    
+                }                    
             }
-            htmlHiddenInput.value = htmlContent;
-        });
+        },
+        placeholder: 'Write your note here...',
+        theme: 'snow'
+    };
+    const editor = new Quill(quillContainer, themeOptions);
+
+    const readModeBtn = editorWrapper.querySelector('.ql-readmode');
+    if (readModeBtn) {
+        readModeBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+            </svg>`;
+        readModeBtn.title = "Open Read Mode";
+    }
+
+    const fullscreenBtn = editorWrapper.querySelector('.ql-fullscreen');
+    if (fullscreenBtn) {
+        fullscreenBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+            </svg>`;
+        fullscreenBtn.title = "Toggle Fullscreen Mode";
+    }
+
+    if (textarea.value) {
+        const htmlFromMarkdown = marked.parse(textarea.value);
+        editor.clipboard.dangerouslyPasteHTML(htmlFromMarkdown);
+    }
+
+    const turndownService = new TurndownService();
+    textarea.form.addEventListener('submit', function() {
+        const htmlContent = editor.getSemanticHTML(); 
+        const markdownContent = turndownService.turndown(htmlContent); 
+
+        textarea.value = markdownContent;
+
+        let htmlHiddenInput = document.getElementById('htmlNoteContent');
+        if (!htmlHiddenInput) {
+            htmlHiddenInput = document.createElement('input');
+            htmlHiddenInput.type = 'hidden';
+            htmlHiddenInput.id = 'htmlNoteContent';
+            htmlHiddenInput.name = 'html_content'; 
+            textarea.form.appendChild(htmlHiddenInput);
+        }
+        htmlHiddenInput.value = htmlContent;
     });
+});
 </script>
 
 </body>

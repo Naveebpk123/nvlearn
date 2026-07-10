@@ -403,6 +403,12 @@ def ai_response():
         completion_msg = f"Made new note '{ai_reply['title']}'"
         return jsonify({'reply' : completion_msg})
 
+@app.route('/read_note/<int:note_id>')
+@login_required
+def read_note(note_id):
+    note = db.session.get(Note,note_id)
+    return render_template('read_note.html',note=note)
+
 @app.route('/about')
 def about():
     return render_template('about.html')

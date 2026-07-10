@@ -20,6 +20,8 @@ const deleteNoteBtns = document.getElementsByClassName('delete-note-btn');
 const chatInput = document.getElementById('user-input');
 const userInputContainer = document.getElementById('userInputContainer');
 
+const readNoteContent = document.getElementsByClassName('read-note-content');
+
 window.addEventListener('keydown', (e) => {
   let activeModal = null;
   if (modalBackground.style.display === 'flex') {
@@ -183,6 +185,12 @@ chatInput?.addEventListener('keydown', async function(e){
   chatInput.disabled=false;
   chatInput.focus();
 }});
+
+document.addEventListener('DOMContentLoaded',()=>{
+  if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+      MathJax.typesetPromise([readNoteContent]).catch((err) => console.log("MathJax error:", err.message));
+    }
+});
 
 modalConfirmBtn?.addEventListener('click',()=>{
   modalBackground.style.display = 'none';
