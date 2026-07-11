@@ -144,10 +144,11 @@ def ask_ai(contents,username):
     response_format={"type": "json_object"}
     )
     response_json = json.loads(response.choices[0].message.content)
-    if 'chat' in response_json['action']:
-        reply = response_json['content'][response_json['action'].index('chat')]
-    if 'create_note' in response_json['action']:
-        instruction = response_json['content'][response_json['action'].index('create_note')]
+    action = response_json['action']
+    if 'chat' in action:
+        reply = response_json['content'][action.index('chat')]
+    if 'create_note' in action:
+        instruction = response_json['content'][action.index('create_note')]
         gemini_response = ask_gemini(question=f"Create note on:{instruction}")
         json_gemini_response = json.loads(gemini_response)
         json_gemini_response['html_content'] = markdown.markdown(json_gemini_response['content'],extensions=['fenced_code', 'tables'])

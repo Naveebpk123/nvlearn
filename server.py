@@ -2,11 +2,12 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, String, Integer, Text, Boolean
+from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, JSON
 from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm, VerificationForm
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from helpers import send_email, send_email_threaded, create_code, ask_ai
+from typing import Dict,Any
 import time
 
 class Base(DeclarativeBase):
@@ -34,6 +35,7 @@ class Note(db.Model):
     md_content: Mapped[str] = mapped_column(Text, nullable=True, default=None)    
     in_bin: Mapped[bool] = mapped_column(Boolean, nullable=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    meta_data: Mapped[Dict[str,Any]] = mapped_column(JSON)
 
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
