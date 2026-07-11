@@ -6,7 +6,7 @@ from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, JSON
 from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm, VerificationForm
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from helpers import send_email, send_email_threaded, create_code, ask_ai, ask_mistral
+from helpers import send_email, send_email_threaded, create_code, ask_groq, ask_mistral, ask_gemini
 from typing import Dict,Any
 import time
 
@@ -406,7 +406,7 @@ def ai_response():
     username = current_user.name
     data = request.get_json()
     message = data.get('contents')
-    action,ai_reply = ask_ai(contents=message,username=username,)
+    action,ai_reply = ask_groq(contents=message,username=username,)
     if action == 'chat':
         return jsonify({'reply': ai_reply})
     elif action == 'create_note':
@@ -425,10 +425,13 @@ def ai_response():
         for note in notes:
             if 'error' or 'is_invalid' not in note.meta_data['tags']:
                 metadata_list.append(note.meta_data)
-        print(metadata_list)
         note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
-        print(note_ids)
-        return jsonify({'reply':note_ids})
+        note_content_list= ""
+        if note_ids:
+            for note_id in note_ids['note_ids']:
+                note = db.session.get(Note,note_id)
+                note_content_list += note.html_content+'\n'
+        return jsonify({'reply':note_content_list})
 
 @app.route('/read_note/<int:note_id>')
 @login_required

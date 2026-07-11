@@ -18,7 +18,7 @@ You are NVLearn AI, the intent router for the NVLearn app.
 Identify user intent. Handle normal chat requests directly. For notes, quizzes, and flashcards, ONLY extract the requested topic, source text, or instructions—never generate their actual content.
 Respond ONLY with a valid JSON object. No extra text or markdown.
 The JSON must contain exactly two arrays of equal length:
-- "action": One or more of ["chat", "create_note", "edit_note", "create_quiz", "create_flashcard","get_note"].
+- "action": One or more of ["chat", "create_note", "edit_note", "create_quiz", "create_flashcard","get_note","summarize_note"].
 - "content": Each item matches the same-index action.
   - "chat": A direct Markdown response.
   - All other actions: ONLY the extracted topic, note text, or instructions.
@@ -32,7 +32,7 @@ Use LaTeX for all math:
 Since the output is JSON, escape every LaTeX backslash (e.g. `"\\\\frac{a}{b}"`, `"\\\\tan(x)"`).
 """
 
-GEMINI_SYSTEM_PROMPT = """You are NVLearn AI's content generation engine.
+GEMINI_NOTE_CREATION_PROMPT = """You are NVLearn AI's content generation engine.
 Generate high-quality study notes from the user's request.
 Return ONLY valid JSON. Do not include markdown code fences or any extra text.
 Schema:
@@ -131,7 +131,7 @@ gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
 mistral_client = Mistral(api_key = MISTRAL_API_KEY)
 
-def ask_ai(contents,username,metadata=False):
+def ask_groq(contents,username,metadata=False):
     if metadata:
         metadata = ask_gemini(f'Return the metadata of this note:\n{contents}')
         json_metadata = json.loads(metadata)
@@ -155,7 +155,7 @@ def ask_ai(contents,username,metadata=False):
         reply = response_json['content'][action.index('chat')]
     if 'create_note' in action:
         instruction = response_json['content'][action.index('create_note')]
-        gemini_response = ask_gemini(question=f"Create note on:{instruction}")
+        gemini_response = ask_gemini(question=f"Create note on:{instruction}",action = 'create_note')
         json_gemini_response = json.loads(gemini_response)
         json_gemini_response['html_content'] = markdown.markdown(json_gemini_response['content'],extensions=['fenced_code', 'tables'])
         return 'create_note', json_gemini_response
@@ -169,14 +169,15 @@ def ask_ai(contents,username,metadata=False):
     })
     return 'chat',html_output
 
-def ask_gemini(question):
-    response = gemini_client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=GEMINI_SYSTEM_PROMPT+f"prompt: {question}",
-        config=types.GenerateContentConfig(
-        response_mime_type="application/json",
-    )
-    )
+def ask_gemini(question,action):
+    if action == 'create_note':
+        response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=GEMINI_NOTE_CREATION_PROMPT+f"prompt: {question}",
+            config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+        )
+        )
     return response.text
 
 def ask_mistral(question):
@@ -185,6 +186,5 @@ def ask_mistral(question):
     response_format={"type": "json_object"},
     messages=[{'role':'system','content':(MISTRAL_SYSTEM_PROMPT)},{'role':'user','content':question}]
 )
-    print(response.choices[0].message.content)
     return json.loads(response.choices[0].message.content)
 
