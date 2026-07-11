@@ -8,6 +8,7 @@ from google import genai
 from google.genai import types
 import markdown
 from groq import Groq
+from mistralai import Mistral
 import json
 
 dotenv.load_dotenv()
@@ -17,7 +18,7 @@ You are NVLearn AI, the intent router for the NVLearn app.
 Identify user intent. Handle normal chat requests directly. For notes, quizzes, and flashcards, ONLY extract the requested topic, source text, or instructions—never generate their actual content.
 Respond ONLY with a valid JSON object. No extra text or markdown.
 The JSON must contain exactly two arrays of equal length:
-- "action": One or more of ["chat", "create_note", "edit_note", "create_quiz", "create_flashcard"].
+- "action": One or more of ["chat", "create_note", "edit_note", "create_quiz", "create_flashcard","get_note"].
 - "content": Each item matches the same-index action.
   - "chat": A direct Markdown response.
   - All other actions: ONLY the extracted topic, note text, or instructions.
@@ -53,6 +54,7 @@ EMAIL = os.getenv('EMAIL')
 EMAIL_PASSWORD = os.getenv('APP_PASSWORD')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+MISTRAL_API_KEY = os.getenv('MISTRAL_API_KEY')
 
 def send_email(recipient, subject, msg_content):
     msg = EmailMessage()
@@ -85,6 +87,7 @@ def create_code():
 
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
+mistral_client = Mistral(api_key = MISTRAL_API_KEY)
 
 def ask_ai(contents,username):
     messages=[{'role':'system','content':GROQ_SYSTEM_PROMPT+f"username of user is:{username}"}]
@@ -126,4 +129,11 @@ def ask_gemini(question):
     )
     )
     return response.text
+
+def ask_mistral(question):
+    response = client.chat.complete(
+    model="mistral-large-latest",
+    messages=question
+)
+    return response.choices[0].message.content 
 
