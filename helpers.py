@@ -159,6 +159,8 @@ def ask_ai(contents,username,metadata=False):
         json_gemini_response = json.loads(gemini_response)
         json_gemini_response['html_content'] = markdown.markdown(json_gemini_response['content'],extensions=['fenced_code', 'tables'])
         return 'create_note', json_gemini_response
+    if 'get_note' in action:
+        return 'get_note', response_json['content'][action.index('get_note')]
 
     html_output = markdown.markdown(reply, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
         'pymdownx.arithmatex': {
@@ -178,9 +180,11 @@ def ask_gemini(question):
     return response.text
 
 def ask_mistral(question):
-    response = client.chat.complete(
+    response = mistral_client.chat.complete(
     model="mistral-large-latest",
-    messages=question
+    response_format={"type": "json_object"},
+    messages=[{'role':'system','content':(MISTRAL_SYSTEM_PROMPT)},{'role':'user','content':question}]
 )
-    return response.choices[0].message.content 
+    print(response.choices[0].message.content)
+    return json.loads(response.choices[0].message.content)
 

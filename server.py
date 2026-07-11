@@ -6,7 +6,7 @@ from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, JSON
 from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm, VerificationForm
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from helpers import send_email, send_email_threaded, create_code, ask_ai
+from helpers import send_email, send_email_threaded, create_code, ask_ai, ask_mistral
 from typing import Dict,Any
 import time
 
@@ -417,6 +417,18 @@ def ai_response():
         db.session.commit()
         completion_msg = f"Made new note '{ai_reply['title']}'"
         return jsonify({'reply' : completion_msg})
+    elif action == 'get_note':
+        metadata_list = []
+        notes = db.session.execute(
+            db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
+        ).scalars().all()
+        for note in notes:
+            if 'error' or 'is_invalid' not in note.meta_data['tags']:
+                metadata_list.append(note.meta_data)
+        print(metadata_list)
+        note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
+        print(note_ids)
+        return jsonify({'reply':note_ids})
 
 @app.route('/read_note/<int:note_id>')
 @login_required
