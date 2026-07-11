@@ -8,7 +8,7 @@ from google import genai
 from google.genai import types
 import markdown
 from groq import Groq
-from mistralai import Mistral
+from mistralai.client import Mistral
 import json
 
 dotenv.load_dotenv()
@@ -38,7 +38,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any extra text.
 Schema:
 {
   "title": "A concise, descriptive title",
-  "content": "The complete note in Markdown"
+  "content": "The complete note in Markdown",
+  "meta_data": {'tags':[tag1,tag2], 'summary': a short 2-3 sentence summary}
 }
 Rules:
 - Return only the JSON object.
@@ -46,7 +47,8 @@ Rules:
 - The content should be well-structured Markdown using headings, lists, tables, and examples where appropriate.
 - Be concise but comprehensive.
 - Do not include conversational text such as "Sure" or "Here's your note."
-- Do not explain your reasoning."""
+- Do not explain your reasoning.
+- If asked for only metadata, return ONLY that based on content sent and metadata must follow the schema above."""
 
 MISTRAL_SYSTEM_PROMPT = r"""
 You are NVLearn AI's note retrieval engine.
@@ -129,7 +131,11 @@ gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
 mistral_client = Mistral(api_key = MISTRAL_API_KEY)
 
-def ask_ai(contents,username):
+def ask_ai(contents,username,metadata=False):
+    if metadata:
+        metadata = ask_gemini(f'Return the metadata of this note:\n{contents}')
+        json_metadata = json.loads(metadata)
+        return json_metadata
     messages=[{'role':'system','content':GROQ_SYSTEM_PROMPT+f"username of user is:{username}"}]
     for msg in contents:
         role = msg.get('role')

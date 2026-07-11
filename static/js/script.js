@@ -109,7 +109,7 @@ logo?.addEventListener('click',toggleSidebar);
     openModal('Are you sure you want to logout?','/logout',modalBackground);
 
   });
-if(deleteNoteBtns.length > 0){
+if(deleteNoteBtns !== null){
 for (const btn of deleteNoteBtns){
   btn?.addEventListener('click',(e)=>{
     e.preventDefault();

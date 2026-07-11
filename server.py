@@ -45,6 +45,9 @@ class User(db.Model, UserMixin):
     name: Mapped[str] = mapped_column(String(250), nullable=False)
     notes = relationship("Note", backref="author", lazy=True)
 
+def get_meta_data(content):
+    metadata = ask_ai(content,username=current_user.name,metadata=True)
+    return metadata
 
 def _clear_pending_auth():
     session.pop('pending_register', None)
@@ -99,8 +102,12 @@ def add_note():
     form = AddNoteForm()
     if form.validate_on_submit():
         try:
-            note = Note(title=form.title.data, md_content=form.content.data,html_content = request.form.get('html_content') ,in_bin=False, user_id=current_user.id)
+            content = form.content.data
+            metadata = get_meta_data(content)
+            note = Note(title=form.title.data, md_content=content,html_content = request.form.get('html_content') ,in_bin=False, user_id=current_user.id,meta_data=metadata)
             db.session.add(note)
+            db.session.flush()
+            note.meta_data['id'] = note.id
             db.session.commit()
             flash('Note created successfully', 'success')
             return redirect(url_for('notes'))
@@ -127,7 +134,11 @@ def edit_note(note_id):
         
     if form.validate_on_submit():
         try:
+            if form.content.data != note.md_content:
+                metadata = get_meta_data(form.content.data)
+                metadata['id'] = note.id
             note.md_content = form.content.data
+            note.meta_data = metadata
             note.html_content = request.form.get('html_content')
             db.session.commit()
             flash("Changes saved successfully!", "success")
@@ -399,8 +410,10 @@ def ai_response():
     if action == 'chat':
         return jsonify({'reply': ai_reply})
     elif action == 'create_note':
-        new_note = Note(title=ai_reply['title'],md_content=ai_reply['content'],html_content = ai_reply['html_content'],in_bin=False,user_id = current_user.id)
+        new_note = Note(title=ai_reply['title'],md_content=ai_reply['content'],html_content = ai_reply['html_content'],in_bin=False,user_id = current_user.id,meta_data=ai_reply['meta_data'])
         db.session.add(new_note)
+        db.session.flush()
+        new_note.meta_data['id'] = new_note.id
         db.session.commit()
         completion_msg = f"Made new note '{ai_reply['title']}'"
         return jsonify({'reply' : completion_msg})
