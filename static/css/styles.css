@@ -206,6 +206,7 @@ a {
     height: 250px;
     overflow: hidden; 
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor:pointer;
 }
 
 .note:hover {
@@ -284,6 +285,10 @@ a {
     display:flex;
     justify-content:flex-start;
     gap:10px;
+}
+
+.action-buttons .action-buttons *{
+    cursor: default;
 }
 
 .cancel{

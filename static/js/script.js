@@ -61,7 +61,12 @@ if (notes !== null){
   for(const note of notes){
     const id = note.dataset.id;
     if (id!=='_'){
-    note.addEventListener('click',()=>window.location.href = `/read_note/${id}`);
+    note.addEventListener('click',(e)=>{
+      if(e.target.closest('.action-buttons')){
+        return;
+      };
+      window.location.href = `/read_note/${id}`
+    });
   }else{
     continue
   };
