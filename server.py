@@ -137,8 +137,8 @@ def edit_note(note_id):
             if form.content.data != note.md_content:
                 metadata = get_meta_data(form.content.data)
                 metadata['id'] = note.id
+                note.meta_data = metadata
             note.md_content = form.content.data
-            note.meta_data = metadata
             note.html_content = request.form.get('html_content')
             db.session.commit()
             flash("Changes saved successfully!", "success")
@@ -438,7 +438,7 @@ def ai_response():
             db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
         ).scalars().all()
         for note in notes:
-            if 'error' or 'is_invalid' not in note.meta_data['tags']:
+            if 'error' not in note.meta_data['tags'] or 'is_invalid' not in note.meta_data['tags']:
                 metadata_list.append(note.meta_data)
         note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
         note_content_list = ''
@@ -454,6 +454,9 @@ def ai_response():
 @login_required
 def read_note(note_id):
     note = db.session.get(Note,note_id)
+    if note.user_id != current_user.id:
+        flash('That note does not exist','error')
+        return redirect(url_for('notes'))
     return render_template('read_note.html',note=note)
 
 @app.route('/about')

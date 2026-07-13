@@ -15,7 +15,7 @@ const searchResultContainer = document.getElementById('searchResultContainer');
 
 const logoutBtn = document.getElementById('sidebarLogout');
 
-const deleteNoteBtns = document.getElementById('delete-note-btn');
+const deleteNoteBtns = document.getElementsByClassName('delete-note-btn');
 
 const chatInput = document.getElementById('user-input');
 const userInputContainer = document.getElementById('userInputContainer');

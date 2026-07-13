@@ -234,7 +234,7 @@ def ask_gemini(question,action):
             model="gemini-2.5-flash",
             contents=GEMINI_NOTE_ACTION_PROMPT+f"prompt: {question}",         
         )
-        html_content = markdown.markdown(response.text, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
+        response.text = markdown.markdown(response.text, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
         'pymdownx.arithmatex': {
             'generic': True  
         }
