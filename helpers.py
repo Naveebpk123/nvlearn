@@ -14,22 +14,41 @@ import json
 dotenv.load_dotenv()
 
 GROQ_SYSTEM_PROMPT = r"""
-You are NVLearn AI, the intent router for the NVLearn app.
-Identify user intent. Handle normal chat requests directly. For notes, quizzes, and flashcards, ONLY extract the requested topic, source text, or instructions—never generate their actual content.
-Respond ONLY with a valid JSON object. No extra text or markdown.
-The JSON must contain exactly two arrays of equal length:
-- "action": One or more of ["chat", "create_note", "edit_note", "create_quiz", "create_flashcard","get_note","summarize_note"].
-- "content": Each item matches the same-index action.
-  - "chat": A direct Markdown response.
-  - All other actions: ONLY the extracted topic, note text, or instructions.
+You are NVLearn AI's intent router.
+
+Respond ONLY with a valid JSON object containing exactly two arrays of equal length:
+
+{
+  "action": [...],
+  "content": [...]
+}
+
+Valid actions:
+- chat
+- create_note
+- edit_note
+- create_quiz
+- create_flashcard
+- get_note
+- note_action
+
+Rules:
+- chat: Respond directly to the user in Markdown.
+- create_note, edit_note, create_quiz, create_flashcard: Extract ONLY the topic or instructions. Do NOT generate any content.
+- get_note: Use only when the user explicitly requests the complete original note.
+- note_action: Use for any operation on an existing note (e.g. summarize, extract key points, explain, rewrite, answer questions, find information, list formulas, convert format). Extract ONLY the requested operation or instructions.
+- Support multiple actions by returning multiple entries in order.
+- Never invent missing information.
+
 Examples:
-{"action":["chat"],"content":["### Trigonometry\nTrigonometry is the study of **triangles**..."]}
-{"action":["create_note","create_flashcard"],"content":["Photosynthesis overview","Photosynthesis vocabulary"]}
-Use LaTeX for all math:
+{"action":["create_note"],"content":["Photosynthesis"]}
+{"action":["note_action"],"content":["Summarize the note"]}
+{"action":["get_note"],"content":["Hydraulic Lift"]}
+
+Use LaTeX for math:
 - Inline: `$...$`
 - Display: `$$...$$`
-- Never use plain `^` notation outside LaTeX.
-Since the output is JSON, escape every LaTeX backslash (e.g. `"\\\\frac{a}{b}"`, `"\\\\tan(x)"`).
+- Escape backslashes in JSON (e.g. `"\\\\frac{a}{b}"`).
 """
 
 GEMINI_NOTE_CREATION_PROMPT = """You are NVLearn AI's content generation engine.
@@ -50,25 +69,33 @@ Rules:
 - Do not explain your reasoning.
 - If asked for only metadata, return ONLY that based on content sent and metadata must follow the schema above."""
 
-GEMINI_NOTE_ACTION_PROMPT = """You are NVLearn AI's note processing engine.
+GEMINI_NOTE_ACTION_PROMPT = """
+You are NVLearn AI's note processing engine.
 You will receive:
-- An action to perform.
+- A user request describing what they want to do with the notes.
 - The content of one or more notes.
-- Optional user instructions.
-
-Perform the requested action using ONLY the provided note content unless explicitly instructed otherwise.
-
-Return ONLY the requested output. Do not include JSON, markdown code fences, conversational text, or explanations.
-
+Your task is to perform exactly what the user requests using ONLY the provided note content unless the user explicitly asks for external knowledge.
+Possible requests include (but are not limited to):
+- Summarizing notes
+- Extracting key points
+- Listing formulas, definitions, dates, or important facts
+- Explaining a concept from the notes
+- Finding or extracting information about a specific topic
+- Answering questions using the notes
+- Comparing concepts within the notes
+- Organizing information into tables or lists
+- Rewriting, simplifying, or improving the clarity of the notes
+- Converting notes into a different format (e.g., bullet points, outline, timeline)
 Rules:
-- Follow the user's instructions exactly.
+- Follow the user's request exactly.
+- Use ONLY information found in the provided notes unless the user explicitly instructs otherwise.
+- Never invent facts or fill in missing information.
+- If the requested information is not present in the notes, clearly state that it is not found.
 - Preserve factual accuracy.
-- Do not invent information not supported by the provided notes unless explicitly requested.
-- Use clear, well-structured Markdown when the output is textual.
+- Keep responses clear, concise, and well-organized.
+- Use Markdown formatting whenever the output is textual.
 - Do not explain your reasoning.
-
-Current supported action:
-- summarize: Produce a concise, well-organized Markdown summary that retains the key concepts, definitions, formulas, and important examples while removing unnecessary detail.
+- Return ONLY the requested output. Do not include conversational text, JSON, markdown code fences, or any explanations.
 """
 
 MISTRAL_SYSTEM_PROMPT = r"""
@@ -154,7 +181,7 @@ mistral_client = Mistral(api_key = MISTRAL_API_KEY)
 
 def ask_groq(contents,username,metadata=False):
     if metadata:
-        metadata = ask_gemini(f'Return the metadata of this note:\n{contents}')
+        metadata = ask_gemini(f'Return the metadata of this note:\n{contents}',action='metadata')
         json_metadata = json.loads(metadata)
         return json_metadata
     messages=[{'role':'system','content':GROQ_SYSTEM_PROMPT+f"username of user is:{username}"}]
@@ -172,6 +199,7 @@ def ask_groq(contents,username,metadata=False):
     )
     response_json = json.loads(response.choices[0].message.content)
     action = response_json['action']
+    print(response_json)
     if 'chat' in action:
         reply = response_json['content'][action.index('chat')]
     if 'create_note' in action:
@@ -182,6 +210,8 @@ def ask_groq(contents,username,metadata=False):
         return 'create_note', json_gemini_response
     if 'get_note' in action:
         return 'get_note', response_json['content'][action.index('get_note')]
+    if 'note_action' in action:
+        return 'note_action', response_json['content'][action.index('note_action')]
 
     html_output = markdown.markdown(reply, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
         'pymdownx.arithmatex': {
@@ -199,13 +229,31 @@ def ask_gemini(question,action):
             response_mime_type="application/json",
         )
         )
+    if action == 'note_action':
+        response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=GEMINI_NOTE_ACTION_PROMPT+f"prompt: {question}",         
+        )
+        html_content = markdown.markdown(response.text, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
+        'pymdownx.arithmatex': {
+            'generic': True  
+        }
+    })
+    if action =='metadata':
+        response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=GEMINI_NOTE_CREATION_PROMPT+f"prompt: {question}",config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+        )
+        )
     return response.text
 
 def ask_mistral(question):
     response = mistral_client.chat.complete(
     model="mistral-large-latest",
     response_format={"type": "json_object"},
-    messages=[{'role':'system','content':(MISTRAL_SYSTEM_PROMPT)},{'role':'user','content':question}]
+    messages=[{'role':'system','content':(MISTRAL_SYSTEM_PROMPT)},{'role':'user','content':question}]    
+
 )
     return json.loads(response.choices[0].message.content)
 

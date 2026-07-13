@@ -46,7 +46,7 @@ class User(db.Model, UserMixin):
     notes = relationship("Note", backref="author", lazy=True)
 
 def get_meta_data(content):
-    metadata = ask_ai(content,username=current_user.name,metadata=True)
+    metadata = ask_groq(content,username=current_user.name,metadata=True)
     return metadata
 
 def _clear_pending_auth():
@@ -432,6 +432,23 @@ def ai_response():
                 note = db.session.get(Note,note_id)
                 note_content_list += note.html_content+'\n'
         return jsonify({'reply':note_content_list})
+    elif action == 'note_action':
+        metadata_list = []
+        notes = db.session.execute(
+            db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
+        ).scalars().all()
+        for note in notes:
+            if 'error' or 'is_invalid' not in note.meta_data['tags']:
+                metadata_list.append(note.meta_data)
+        note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
+        note_content_list = ''
+        if note_ids:
+            for note_id in note_ids['note_ids']:
+                note = db.session.get(Note,note_id)
+                note_content_list += note.html_content+'\n'
+        response = ask_gemini(action = 'note_action', question = f"Instructions:{ai_reply} content:{note_content_list}")
+        return jsonify({'reply':response})
+
 
 @app.route('/read_note/<int:note_id>')
 @login_required
