@@ -20,7 +20,7 @@ const deleteNoteBtns = document.getElementsByClassName('delete-note-btn');
 const chatInput = document.getElementById('user-input');
 const userInputContainer = document.getElementById('userInputContainer');
 
-const readNoteContent = document.getElementsByClassName('read-note-content');
+const readNoteContent = document.getElementById('read-note-content');
 
 const notes = document.getElementsByClassName('note');
 
@@ -93,7 +93,7 @@ function openModal(text, confirmBtnLink, modal) {
 
 async function fetchSearchResults(query) {
   try {
-    const response = await fetch(`/search/${query}`);
+    const response = await fetch(`/search/${encodeURIComponent(query)}`);
     const results = await response.json();
     console.log('Search results:', results);
     searchResultContainer.innerHTML = '';
