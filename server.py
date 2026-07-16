@@ -107,7 +107,8 @@ def add_note():
             note = Note(title=form.title.data, md_content=content,html_content = request.form.get('html_content') ,in_bin=False, user_id=current_user.id,meta_data=metadata)
             db.session.add(note)
             db.session.flush()
-            note.meta_data['id'] = note.id
+            if metadata != 'error':
+                note.meta_data['id'] = note.id
             db.session.commit()
             flash('Note created successfully', 'success')
             return redirect(url_for('notes'))
@@ -136,8 +137,9 @@ def edit_note(note_id):
         try:
             if form.content.data != note.md_content:
                 metadata = get_meta_data(form.content.data)
-                metadata['id'] = note.id
-                note.meta_data = metadata
+                if metadata != 'error':
+                    metadata['id'] = note.id
+                    note.meta_data = metadata
             note.md_content = form.content.data
             note.html_content = request.form.get('html_content')
             db.session.commit()
@@ -405,6 +407,8 @@ def ai_response():
     data = request.get_json()
     message = data.get('contents')
     action,ai_reply = ask_groq(contents=message,username=username,)
+    if action == 'error':
+        return jsonify({'reply':'An error has occured. Please try again later'})
     if action == 'chat':
         return jsonify({'reply': ai_reply})
     elif action == 'create_note':
@@ -436,8 +440,9 @@ def ai_response():
             db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
         ).scalars().all()
         for note in notes:
-            if 'error' not in note.meta_data['tags'] and 'is_invalid' not in note.meta_data['tags']:
-                metadata_list.append(note.meta_data)
+            if note.metadata != 'error':
+                if 'error' not in note.meta_data['tags'] and 'is_invalid' not in note.meta_data['tags']:
+                    metadata_list.append(note.meta_data)
         note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
         note_content_list = ''
         if note_ids['note_ids']:

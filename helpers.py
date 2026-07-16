@@ -181,7 +181,10 @@ mistral_client = Mistral(api_key = MISTRAL_API_KEY)
 
 def ask_groq(contents,username,metadata=False):
     if metadata:
-        metadata = ask_gemini(f'Return the metadata of this note:\n{contents}',action='metadata')
+        try:
+            metadata = ask_gemini(f'Return the metadata of this note:\n{contents}',action='metadata')
+        except Exception:
+            return 'error'
         json_metadata = json.loads(metadata)
         return json_metadata
     messages=[{'role':'system','content':GROQ_SYSTEM_PROMPT+f"username of user is:{username}"}]
@@ -192,14 +195,16 @@ def ask_groq(contents,username,metadata=False):
             messages.append({'role': 'user', 'content':msg_content})
         elif role == 'assistant':
             messages.append({'role': 'assistant', 'content':msg_content})
-    response = groq_client.chat.completions.create(
-    messages=messages,
-    model="llama-3.3-70b-versatile",
-    response_format={"type": "json_object"}
-    )
+    try:
+        response = groq_client.chat.completions.create(
+        messages=messages,
+        model="llama-3.3-70b-versatile",
+        response_format={"type": "json_object"}
+        )
+    except Exception:
+        return 'error','error'
     response_json = json.loads(response.choices[0].message.content)
     action = response_json['action']
-    print(response_json)
     if 'chat' in action:
         reply = response_json['content'][action.index('chat')]
     if 'create_note' in action:
@@ -221,39 +226,43 @@ def ask_groq(contents,username,metadata=False):
     return 'chat',html_output
 
 def ask_gemini(question,action):
-    if action == 'create_note':
-        response = gemini_client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=GEMINI_NOTE_CREATION_PROMPT+f"prompt: {question}",
-            config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-        )
-        )
-    if action == 'note_action':
-        response = gemini_client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=GEMINI_NOTE_ACTION_PROMPT+f"prompt: {question}",         
-        )
-        response.text = markdown.markdown(response.text, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
-        'pymdownx.arithmatex': {
-            'generic': True  
-        }
-    })
-    if action =='metadata':
-        response = gemini_client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=GEMINI_NOTE_CREATION_PROMPT+f"prompt: {question}",config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-        )
-        )
-    return response.text
-
+    try:
+        if action == 'create_note':
+            response = gemini_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=GEMINI_NOTE_CREATION_PROMPT+f"prompt: {question}",
+                config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            )
+            )
+        if action == 'note_action':
+            response = gemini_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=GEMINI_NOTE_ACTION_PROMPT+f"prompt: {question}",         
+            )
+            response.text = markdown.markdown(response.text, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
+            'pymdownx.arithmatex': {
+                'generic': True  
+            }
+        })
+        if action =='metadata':
+            response = gemini_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=GEMINI_NOTE_CREATION_PROMPT+f"prompt: {question}",config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            )
+            )
+        return response.text
+    except Exception:
+        return 'error'
 def ask_mistral(question):
-    response = mistral_client.chat.complete(
-    model="mistral-large-latest",
-    response_format={"type": "json_object"},
-    messages=[{'role':'system','content':(MISTRAL_SYSTEM_PROMPT)},{'role':'user','content':question}]    
-
-)
-    return json.loads(response.choices[0].message.content)
+    try:
+        response = mistral_client.chat.complete(
+        model="mistral-large-latest",
+        response_format={"type": "json_object"},
+        messages=[{'role':'system','content':(MISTRAL_SYSTEM_PROMPT)},{'role':'user','content':question}]    
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception:
+        return 'error'
 
