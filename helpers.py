@@ -123,7 +123,7 @@ Rules:
 - Return multiple IDs if the request relates to multiple notes.
 - If no relevant note exists, return:
   {
-    "note_ids": []
+    "note_ids": [], "msg":  "I could not find your notes about (topic)"
   }
 - Never invent or modify IDs.
 - Never answer the user's question.

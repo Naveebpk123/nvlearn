@@ -287,10 +287,6 @@ a {
     gap:10px;
 }
 
-.action-buttons .action-buttons *{
-    cursor: default;
-}
-
 .cancel{
     background-color: grey;
     transition: background-color 0.2s ease;

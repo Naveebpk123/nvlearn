@@ -366,7 +366,6 @@ def logout():
 @login_required
 def search(query):
     query = query.strip()
-    print(f"Received search query: '{query}'")
     if not query:
         return {"results": []}    
     try:
@@ -375,7 +374,6 @@ def search(query):
         )
         notes = result.scalars().all()
         results = [{"id": note.id, "title": note.title} for note in notes]
-        print(f"Search results: {results}")
         return {"results": results}
     except SQLAlchemyError:
         return {"results": []}
@@ -438,25 +436,30 @@ def ai_response():
             db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
         ).scalars().all()
         for note in notes:
-            if 'error' not in note.meta_data['tags'] or 'is_invalid' not in note.meta_data['tags']:
+            if 'error' not in note.meta_data['tags'] and 'is_invalid' not in note.meta_data['tags']:
                 metadata_list.append(note.meta_data)
         note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
         note_content_list = ''
-        if note_ids:
+        if note_ids['note_ids']:
             for note_id in note_ids['note_ids']:
                 note = db.session.get(Note,note_id)
                 note_content_list += note.html_content+'\n'
+        else:
+            return jsonify({'reply':note_ids['msg']})
         response = ask_gemini(action = 'note_action', question = f"Instructions:{ai_reply} content:{note_content_list}")
+        
         return jsonify({'reply':response})
 
 
 @app.route('/read_note/<int:note_id>')
 @login_required
 def read_note(note_id):
-    note = db.session.get(Note,note_id)
-    if note.user_id != current_user.id:
-        flash('That note does not exist','error')
-        return redirect(url_for('notes'))
+    try:
+        note = db.session.get(Note,note_id)
+        if note.user_id != current_user.id:
+            abort(404)
+    except SQLAlchemyError:
+        abort(404)
     return render_template('read_note.html',note=note)
 
 @app.route('/about')
