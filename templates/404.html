@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Not Found{% endblock %}
+
+{% block content %}
+
+<header>
+    <h1>Page not found</h1>
+</header>
+<div class="action-buttons">
+<a class="button" href="{{url_for('home')}}">Go to Home</a>
+<a class="button" href="{{url_for('notes')}}">View Notes</a>
+</div>
+
+{% endblock %}
