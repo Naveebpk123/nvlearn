@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -425,14 +425,21 @@ def ai_response():
             db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
         ).scalars().all()
         for note in notes:
-            if 'error' or 'is_invalid' not in note.meta_data['tags']:
-                metadata_list.append(note.meta_data)
+            if note.meta_data != 'error':
+                if 'error' not in note.meta_data['tags'] and 'is_invalid' not in note.meta_data['tags']:
+                    metadata_list.append(note.meta_data)
         note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
         note_content_list= ""
-        if note_ids:
-            for note_id in note_ids['note_ids']:
-                note = db.session.get(Note,note_id)
-                note_content_list += note.html_content+'\n'
+        if note_ids == 'error':
+            return jsonify({'reply':'An error has occured. Please try again later'})
+        else:
+            if note_ids.get('note_ids'):
+                for note_id in note_ids['note_ids']:
+                    note = db.session.get(Note,int(note_id))
+                    if note:
+                        note_content_list += (note.html_content or "")+'\n'        
+            else:
+                return jsonify({'reply': note_ids.get('msg', 'I could not find any relevant notes.')})
         return jsonify({'reply':note_content_list})
     elif action == 'note_action':
         metadata_list = []
@@ -440,17 +447,21 @@ def ai_response():
             db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
         ).scalars().all()
         for note in notes:
-            if note.metadata != 'error':
+            if note.meta_data != 'error':
                 if 'error' not in note.meta_data['tags'] and 'is_invalid' not in note.meta_data['tags']:
                     metadata_list.append(note.meta_data)
         note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
         note_content_list = ''
-        if note_ids['note_ids']:
-            for note_id in note_ids['note_ids']:
-                note = db.session.get(Note,note_id)
-                note_content_list += note.html_content+'\n'
+        if note_ids == 'error':
+            return jsonify({'reply':'An error has occured. Please try again later'})
         else:
-            return jsonify({'reply':note_ids['msg']})
+            if note_ids.get('note_ids'):
+                for note_id in note_ids['note_ids']:
+                    note = db.session.get(Note,int(note_id))
+                    if note:
+                        note_content_list += (note.html_content or "")+'\n'
+            else:
+                return jsonify({'reply': note_ids.get('msg', 'I could not find any relevant notes.')})
         response = ask_gemini(action = 'note_action', question = f"Instructions:{ai_reply} content:{note_content_list}")
         
         return jsonify({'reply':response})
@@ -461,7 +472,7 @@ def ai_response():
 def read_note(note_id):
     try:
         note = db.session.get(Note,note_id)
-        if note.user_id != current_user.id:
+        if not note or note.user_id != current_user.id:
             abort(404)
     except SQLAlchemyError:
         abort(404)

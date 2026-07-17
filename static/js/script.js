@@ -93,9 +93,15 @@ function openModal(text, confirmBtnLink, modal) {
 
 async function fetchSearchResults(query) {
   try {
+     if (!query) {
+    searchResultContainer.innerHTML = '';
+    return;
+  }
+    let results;
+    if (query){
     const response = await fetch(`/search/${encodeURIComponent(query)}`);
-    const results = await response.json();
-    console.log('Search results:', results);
+    results = await response.json();
+    }
     searchResultContainer.innerHTML = '';
     let htmlContent = '';
     for (const result of results.results) {
@@ -103,7 +109,7 @@ async function fetchSearchResults(query) {
     }
     searchResultContainer.innerHTML = htmlContent;
   } catch (error) {
-    console.error('Error fetching search results:', error);
+    console.log('An error occured while fetching search results')
   }
 };
 
@@ -183,6 +189,7 @@ chatInput?.addEventListener('keydown', async function(e){
     }
   }};
   chatInput.value = '';
+  chatInput.style.height = 'auto';
   chatInput.disabled=true;
   const response = await fetch('/ai-response', {
     method: 'POST',

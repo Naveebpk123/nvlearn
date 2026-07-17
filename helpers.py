@@ -14,7 +14,7 @@ import json
 dotenv.load_dotenv()
 
 GROQ_SYSTEM_PROMPT = r"""
-You are NVLearn AI's intent router.
+You are NVLearn AI's intent router. Refer to yourself as NVLearn AI or NVL AI. To users do not declare you are an intent router.
 
 Respond ONLY with a valid JSON object containing exactly two arrays of equal length:
 
@@ -183,10 +183,12 @@ def ask_groq(contents,username,metadata=False):
     if metadata:
         try:
             metadata = ask_gemini(f'Return the metadata of this note:\n{contents}',action='metadata')
+            json_metadata = json.loads(metadata)
+            print(json_metadata)
+            return json_metadata['meta_data']
         except Exception:
             return 'error'
-        json_metadata = json.loads(metadata)
-        return json_metadata
+
     messages=[{'role':'system','content':GROQ_SYSTEM_PROMPT+f"username of user is:{username}"}]
     for msg in contents:
         role = msg.get('role')
@@ -201,15 +203,17 @@ def ask_groq(contents,username,metadata=False):
         model="llama-3.3-70b-versatile",
         response_format={"type": "json_object"}
         )
+        response_json = json.loads(response.choices[0].message.content)
     except Exception:
         return 'error','error'
-    response_json = json.loads(response.choices[0].message.content)
     action = response_json['action']
     if 'chat' in action:
         reply = response_json['content'][action.index('chat')]
     if 'create_note' in action:
         instruction = response_json['content'][action.index('create_note')]
         gemini_response = ask_gemini(question=f"Create note on:{instruction}",action = 'create_note')
+        if gemini_response == 'error':
+            return 'error','error'
         json_gemini_response = json.loads(gemini_response)
         json_gemini_response['html_content'] = markdown.markdown(json_gemini_response['content'],extensions=['fenced_code', 'tables'])
         return 'create_note', json_gemini_response
@@ -240,11 +244,13 @@ def ask_gemini(question,action):
                 model="gemini-2.5-flash",
                 contents=GEMINI_NOTE_ACTION_PROMPT+f"prompt: {question}",         
             )
-            response.text = markdown.markdown(response.text, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
+            html_content = markdown.markdown(response.text, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
             'pymdownx.arithmatex': {
                 'generic': True  
             }
         })
+            return html_content
+
         if action =='metadata':
             response = gemini_client.models.generate_content(
                 model="gemini-2.5-flash",
