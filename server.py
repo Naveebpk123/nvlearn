@@ -6,7 +6,7 @@ from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, JSON
 from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm, VerificationForm
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from helpers import send_email, send_email_threaded, create_code, ask_groq, ask_mistral, ask_gemini
+from helpers import send_email_threaded, create_code, ask_groq, ask_mistral, ask_gemini, get_welcome_message
 from typing import Dict,Any
 import time
 
@@ -81,7 +81,10 @@ def load_user(user_id):
 
 @app.route('/')
 def home():
-    return render_template('index.html')
+    welcome_msg = None
+    if current_user.is_authenticated:
+        welcome_msg = get_welcome_message(current_user.name)
+    return render_template('index.html', welcome_msg = welcome_msg)
 
 @app.route('/notes')
 @login_required

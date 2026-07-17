@@ -4,7 +4,7 @@
 {% block content %}
 <header>
     {% if current_user.is_authenticated %}
-    <h1>Welcome {{current_user.name}}</h1>
+    <h1>{{welcome_msg}}</h1>
     {% else %}
     <h1>Welcome to <a class="brand-accent" href="{{url_for('about')}}">NVLearn</a></h1>    
     {% endif %}

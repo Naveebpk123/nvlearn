@@ -175,6 +175,20 @@ def create_code():
     code = str(random.randint(100000, 999999))
     return code
 
+def get_welcome_message(username):
+    return random.choice([
+    f"Ready to learn something new {username}?",
+    f"What are we conquering today {username}?",
+    f"Back for more? Let's dive in {username}.",
+    f"What are we up to today {username}?",
+    f"Let’s get it {username}.",
+    f"What's the plan today {username}?",    
+    f"Time to crush your goals {username}!",
+    f"Make today count {username}!",
+    f"Your future self will thank you {username}.",
+    f"Ready to unlock your potential today {username}?"
+])
+
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
 mistral_client = Mistral(api_key = MISTRAL_API_KEY)
