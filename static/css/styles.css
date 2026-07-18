@@ -195,7 +195,7 @@ a {
 }
 
 .note {
-    background-color: var(--bg-card);
+    background-color: var(--bg-card);   
     display: flex;
     flex-direction: column;
     border: 1px solid var(--border-color);

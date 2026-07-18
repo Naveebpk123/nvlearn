@@ -84,9 +84,17 @@ def load_user(user_id):
 @app.route('/')
 def home():
     welcome_msg = None
+    recent_notes = []
     if current_user.is_authenticated:
         welcome_msg = get_welcome_message(current_user.name)
-    return render_template('index.html', welcome_msg = welcome_msg)
+        try: 
+            result = db.session.execute(
+                        db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id).order_by(Note.last_opened.desc())
+                    ) 
+            recent_notes = result.scalars().all()
+        except Exception:
+            recent_notes = []   
+    return render_template('index.html', welcome_msg = welcome_msg, recent_notes = recent_notes[:5])
 
 @app.route('/notes')
 @login_required
@@ -128,7 +136,7 @@ def edit_note(note_id):
     try:
         note = db.session.get(Note, note_id)
         if not note or note.user_id != current_user.id:
-            flash("Note not found or access denied.", "error")
+            flash("Note not found.", "error")
             return redirect(url_for('notes'))
     except SQLAlchemyError:
         flash("Error pulling note transaction records.", "error")
@@ -166,7 +174,7 @@ def move_to_bin(note_id):
             db.session.commit()
             flash("Note moved to bin.", 'success')
         else:
-            flash("Action prohibited or record not found.", "error")
+            flash("Note not found", "error")
     except SQLAlchemyError:
         db.session.rollback()
         flash("Could not change note structural path status.", "error")
@@ -193,7 +201,7 @@ def delete(note_id):
             db.session.commit()
             flash("Note permanently deleted", "success")
         else:
-            flash("Record missing or permission denied.", "error")
+            flash("Note not found", "error")
     except SQLAlchemyError:
         db.session.rollback()
         flash("Database execution error during record expulsion.", "error")

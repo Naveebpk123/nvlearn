@@ -7,10 +7,12 @@
 {% block content %}
   <h1>Search Results for "{{ query }}"</h1>
     {% if notes %}
-      <div id="note-container">
+      <div class="note-container">
       {% for note in notes %}
     <div class="note" data-id="{{note.id}}">
-        <div class="note-title">{{note.title}}</div>
+        <div class="note-title">
+          {{note.title}}
+        </div>
         <div class="note-preview">
             {{note.html_content | safe}}
         </div>
