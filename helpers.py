@@ -49,6 +49,8 @@ Use LaTeX for math:
 - Inline: `$...$`
 - Display: `$$...$$`
 - Escape backslashes in JSON (e.g. `"\\\\frac{a}{b}"`).
+
+The username of the active user is provided in the initial user context context. Use it only if addressing them.
 """
 
 GEMINI_NOTE_CREATION_PROMPT = """You are NVLearn AI's content generation engine.

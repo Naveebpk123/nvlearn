@@ -8,7 +8,6 @@ from flask_login import UserMixin, login_user, LoginManager, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from helpers import send_email_threaded, create_code, ask_groq, ask_mistral, ask_gemini, get_welcome_message
 from typing import Dict,Any
-import time
 from datetime import datetime, timezone
 
 class Base(DeclarativeBase):
@@ -64,7 +63,7 @@ def _verification_is_valid(submitted_code):
     expires_at = session.get('pending_auth_expires_at')
     if not expected_code or not expires_at:
         return False, "Your verification session expired. Please start again."
-    if time.time() > expires_at:
+    if datetime.now(timezone.utc).timestamp() > expires_at:
         _clear_pending_auth()
         return False, "Your verification code expired. Please start again."
     if submitted_code != expected_code:
@@ -280,7 +279,7 @@ def register():
                 'password': generate_password_hash(form.password.data, method='pbkdf2:sha256', salt_length=16),
             }
             session['pending_auth_code'] = verification_code
-            session['pending_auth_expires_at'] = time.time() + VERIFICATION_TTL_SECONDS
+            session['pending_auth_expires_at'] = datetime.now(timezone.utc).timestamp() + VERIFICATION_TTL_SECONDS
             session['pending_auth_email'] = form.email.data
             send_email_threaded(
                 form.email.data,
@@ -450,7 +449,7 @@ def ai_response():
                 for note_id in note_ids['note_ids']:
                     note = db.session.get(Note,int(note_id))
                     if note:
-                        note_content_list += (note.html_content or "")+'\n'        
+                        note_content_list += (note.md_content or "")+'\n'        
             else:
                 return jsonify({'reply': note_ids.get('msg', 'I could not find any relevant notes.')})
         return jsonify({'reply':note_content_list})
@@ -472,7 +471,7 @@ def ai_response():
                 for note_id in note_ids['note_ids']:
                     note = db.session.get(Note,int(note_id))
                     if note:
-                        note_content_list += (note.html_content or "")+'\n'
+                        note_content_list += (note.md_content or "")+'\n'
             else:
                 return jsonify({'reply': note_ids.get('msg', 'I could not find any relevant notes.')})
         response = ask_gemini(action = 'note_action', question = f"Instructions:{ai_reply} content:{note_content_list}")
