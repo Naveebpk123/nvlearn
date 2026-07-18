@@ -201,7 +201,7 @@ chatInput?.addEventListener('keydown', async function(e){
   const aiResponse = await response.json();
   const aiBubble = document.createElement('div');
   aiBubble.classList.add('ai-bubble');
-  aiBubble.innerHTML = aiResponse.reply;
+  aiBubble.innerHTML = `${aiResponse.chat || ''} \n ${aiResponse.note_action || ''} \n ${aiResponse.notes || ''}`;
   userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
   if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
       MathJax.typesetPromise([aiBubble]).catch((err) => console.log("MathJax error:", err.message));

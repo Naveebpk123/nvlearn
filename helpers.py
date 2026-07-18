@@ -173,6 +173,14 @@ def send_email_threaded(recipient, subject, msg_content):
     thread.start()
     return True, f"Email delivery started for {recipient}."
 
+def md_to_html(content):
+    html_content = markdown.markdown(content, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
+            'pymdownx.arithmatex': {
+                'generic': True  
+            }
+        })
+    return html_content
+
 def create_code():
     code = str(random.randint(100000, 999999))
     return code
@@ -196,6 +204,7 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 mistral_client = Mistral(api_key = MISTRAL_API_KEY)
 
 def ask_groq(contents,username,metadata=False):
+    instructions = []
     if metadata:
         try:
             metadata = ask_gemini(f'Return the metadata of this note:\n{contents}',action='metadata')
@@ -221,30 +230,32 @@ def ask_groq(contents,username,metadata=False):
         )
         response_json = json.loads(response.choices[0].message.content)
     except Exception:
-        return 'error','error'
-    action = response_json['action']
-    if 'chat' in action:
-        reply = response_json['content'][action.index('chat')]
-    if 'create_note' in action:
-        instruction = response_json['content'][action.index('create_note')]
-        gemini_response = ask_gemini(question=f"Create note on:{instruction}",action = 'create_note')
-        if gemini_response == 'error':
-            return 'error','error'
-        json_gemini_response = json.loads(gemini_response)
-        json_gemini_response['html_content'] = markdown.markdown(json_gemini_response['content'],extensions=['fenced_code', 'tables'])
-        return 'create_note', json_gemini_response
-    if 'get_note' in action:
-        return 'get_note', response_json['content'][action.index('get_note')]
-    if 'note_action' in action:
-        return 'note_action', response_json['content'][action.index('note_action')]
-
-    html_output = markdown.markdown(reply, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
+        return [{'action':'error','content':'chat_error'}]
+    actions = response_json['action']
+    for i, action in enumerate(actions):
+        if action == 'chat':
+            reply = response_json['content'][i]
+            html_output = markdown.markdown(reply, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
         'pymdownx.arithmatex': {
             'generic': True  
-        }
-    })
-    return 'chat',html_output
-
+            }
+            })
+            instructions.append({'action':'chat','content':html_output})
+        elif action == 'create_note':
+            instruction = response_json['content'][i]
+            gemini_response = ask_gemini(question=f"Create note on:{instruction}",action = 'create_note')
+            if gemini_response == 'error':
+                instructions.append({'action':'error','content': 'create_note_error'})
+                continue
+            json_gemini_response = json.loads(gemini_response)
+            json_gemini_response['html_content'] = markdown.markdown(json_gemini_response['content'],extensions=['fenced_code', 'tables'])
+            instructions.append({'action':'create_note','content': json_gemini_response})
+        elif action == 'get_note':
+            instructions.append({'action':'get_note', 'content':response_json['content'][i]})
+        elif action == 'note_action':
+            instructions.append({'action':'note_action', 'content':response_json['content'][i]})   
+    return instructions
+    
 def ask_gemini(question,action):
     try:
         if action == 'create_note':
@@ -265,7 +276,7 @@ def ask_gemini(question,action):
                 'generic': True  
             }
         })
-            return html_content
+            return html_content,response.text
 
         if action =='metadata':
             response = gemini_client.models.generate_content(
@@ -273,6 +284,11 @@ def ask_gemini(question,action):
                 contents=GEMINI_NOTE_CREATION_PROMPT+f"prompt: {question}",config=types.GenerateContentConfig(
                 response_mime_type="application/json",
             )
+            )
+        if action == 'summarize':
+            response = gemini_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents="Summarize this prompt like this. I have done this that base don prompt."+f"prompt: {question}",
             )
         return response.text
     except Exception:

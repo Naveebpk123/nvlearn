@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort, Response, stream_with_context
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -6,9 +6,10 @@ from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, JSON, DateTim
 from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm, VerificationForm
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from helpers import send_email_threaded, create_code, ask_groq, ask_mistral, ask_gemini, get_welcome_message
+from helpers import send_email_threaded, create_code, ask_groq, ask_mistral, ask_gemini, get_welcome_message, md_to_html
 from typing import Dict,Any
 from datetime import datetime, timezone
+import json
 
 class Base(DeclarativeBase):
     pass
@@ -418,65 +419,82 @@ def ai_response():
     username = current_user.name
     data = request.get_json()
     message = data.get('contents')
-    action,ai_reply = ask_groq(contents=message,username=username,)
-    if action == 'error':
-        return jsonify({'reply':'An error has occured. Please try again later'})
-    if action == 'chat':
-        return jsonify({'reply': ai_reply})
-    elif action == 'create_note':
-        new_note = Note(title=ai_reply['title'],md_content=ai_reply['content'],html_content = ai_reply['html_content'],in_bin=False,user_id = current_user.id,meta_data=ai_reply['meta_data'])
-        db.session.add(new_note)
-        db.session.flush()
-        new_note.meta_data['id'] = new_note.id
-        db.session.commit()
-        completion_msg = f"Made new note '{ai_reply['title']}'"
-        return jsonify({'reply' : completion_msg})
-    elif action == 'get_note':
-        metadata_list = []
-        notes = db.session.execute(
-            db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
-        ).scalars().all()
-        for note in notes:
-            if note.meta_data != 'error':
-                if 'error' not in note.meta_data['tags'] and 'is_invalid' not in note.meta_data['tags']:
-                    metadata_list.append(note.meta_data)
-        note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
-        note_content_list= ""
-        if note_ids == 'error':
-            return jsonify({'reply':'An error has occured. Please try again later'})
-        else:
-            if note_ids.get('note_ids'):
-                for note_id in note_ids['note_ids']:
-                    note = db.session.get(Note,int(note_id))
-                    if note:
-                        note_content_list += (note.md_content or "")+'\n'        
+    all_instructions = ask_groq(contents=message,username=username,)
+    all_results = []
+    all_get_notes = ''
+    note_action_html_content = ''
+    chat = None
+    all_errors = []
+    for instruction in all_instructions:
+        action = instruction['action']
+        ai_reply = instruction['content']
+        if action == 'error':
+            if ai_reply == 'create_note_error':
+                all_errors.append('An error has occured in creating note. Please try again later.')
+            if ai_reply == 'chat_error':
+                all_errors.append('NVLearn AI is currently experiencing some errors. Please try again later.')
+                chat = 'error'
+        if action == 'chat':
+            chat = ai_reply 
+        elif action == 'create_note':
+            new_note = Note(title=ai_reply['title'],md_content=ai_reply['content'],html_content = ai_reply['html_content'],in_bin=False,user_id = current_user.id,meta_data=ai_reply['meta_data'])
+            db.session.add(new_note)
+            db.session.flush()
+            new_note.meta_data['id'] = new_note.id
+            db.session.commit()
+            completion_msg = f"Made new note '{ai_reply['title']}'"
+            all_results.append(completion_msg)
+        elif action == 'get_note':
+            metadata_list = []
+            notes = db.session.execute(
+                db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
+            ).scalars().all()
+            for note in notes:
+                if note.meta_data != 'error':
+                    if 'error' not in note.meta_data['tags'] and 'is_invalid' not in note.meta_data['tags']:
+                        metadata_list.append(note.meta_data)
+            note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
+            note_content_list= ""
+            if note_ids == 'error':
+                all_errors.append(f'An error has occured in fetching notes on {ai_reply}')
             else:
-                return jsonify({'reply': note_ids.get('msg', 'I could not find any relevant notes.')})
-        return jsonify({'reply':note_content_list})
-    elif action == 'note_action':
-        metadata_list = []
-        notes = db.session.execute(
-            db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
-        ).scalars().all()
-        for note in notes:
-            if note.meta_data != 'error':
-                if 'error' not in note.meta_data['tags'] and 'is_invalid' not in note.meta_data['tags']:
-                    metadata_list.append(note.meta_data)
-        note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
-        note_content_list = ''
-        if note_ids == 'error':
-            return jsonify({'reply':'An error has occured. Please try again later'})
-        else:
-            if note_ids.get('note_ids'):
-                for note_id in note_ids['note_ids']:
-                    note = db.session.get(Note,int(note_id))
-                    if note:
-                        note_content_list += (note.md_content or "")+'\n'
+                if note_ids.get('note_ids'):
+                    for note_id in note_ids['note_ids']:
+                        note = db.session.get(Note,int(note_id))
+                        if note:
+                            note_content_list += (note.html_content or "")+'\n'        
+                else:
+                    all_results.append(note_ids.get('msg', 'I could not find any relevant notes.'))
+            all_get_notes += note_content_list
+        elif action == 'note_action':
+            metadata_list = []
+            notes = db.session.execute(
+                db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
+            ).scalars().all()
+            for note in notes:
+                if note.meta_data != 'error':
+                    if 'error' not in note.meta_data['tags'] and 'is_invalid' not in note.meta_data['tags']:
+                        metadata_list.append(note.meta_data)
+            note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
+            note_content_list = ''
+            if note_ids == 'error':
+                all_errors.append('An error has occured in performing note actions. Please try again later')
             else:
-                return jsonify({'reply': note_ids.get('msg', 'I could not find any relevant notes.')})
-        response = ask_gemini(action = 'note_action', question = f"Instructions:{ai_reply} content:{note_content_list}")
-        
-        return jsonify({'reply':response})
+                if note_ids.get('note_ids'):
+                    for note_id in note_ids['note_ids']:
+                        note = db.session.get(Note,int(note_id))
+                        if note:
+                            note_content_list += (note.md_content or "")+'\n'
+                else:
+                    all_results.append(note_ids.get('msg', 'I could not find any relevant notes.'))
+            response, md_response = ask_gemini(action = 'note_action', question = f"Instructions:{ai_reply} content:{note_content_list}")            
+            all_results.append({'reply':md_response}) 
+            note_action_html_content += response +'\n'
+    final_result = {'results':all_results, 'errors': all_errors, 'chat': chat}
+    final_summary = ask_gemini(question = f'Summarize this thing{final_result}',action='summarize')
+    output = {'chat':md_to_html(final_summary),'notes':all_get_notes,'note_action':note_action_html_content}
+    return jsonify(output)
+
 
 
 @app.route('/read_note/<int:note_id>')
