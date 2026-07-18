@@ -2,13 +2,14 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, JSON
+from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, JSON, DateTime
 from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm, VerificationForm
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from helpers import send_email_threaded, create_code, ask_groq, ask_mistral, ask_gemini, get_welcome_message
 from typing import Dict,Any
 import time
+from datetime import datetime, timezone
 
 class Base(DeclarativeBase):
     pass
@@ -36,6 +37,7 @@ class Note(db.Model):
     in_bin: Mapped[bool] = mapped_column(Boolean, nullable=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     meta_data: Mapped[Dict[str,Any]] = mapped_column(JSON)
+    last_opened : Mapped[datetime] = mapped_column(DateTime,default = lambda: datetime.now(timezone.utc), onupdate = lambda: datetime.now(timezone.utc))
 
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
@@ -475,6 +477,8 @@ def ai_response():
 def read_note(note_id):
     try:
         note = db.session.get(Note,note_id)
+        note.last_opened = datetime.now(timezone.utc)
+        db.session.commit()
         if not note or note.user_id != current_user.id:
             abort(404)
     except SQLAlchemyError:
