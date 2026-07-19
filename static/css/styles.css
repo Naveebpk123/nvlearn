@@ -309,7 +309,17 @@ a {
     width: 100%;
     max-width: 500px;
     margin-bottom: 15px;
-    height:6rem;
+    height:5rem;
+}
+
+#notificationBar{
+    display:flex;
+    flex-direction:column;
+    gap:0.5rem;
+    overflow-y:auto;
+    max-height:15rem;
+    position:fixed;
+    top:71px;
 }
 
 .flashCloseBtn{

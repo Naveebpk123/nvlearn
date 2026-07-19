@@ -49,6 +49,7 @@
         </a>
     </aside>
     <main class="content-wrapper sidebar-open" id="contentWrapper">
+        <div id="notificationBar">
         {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="flash-container" id="flashContainer">
@@ -57,11 +58,11 @@
               <span class="flash-msg">{{ message }}</span>
               <button class="flashCloseBtn" id="flashCloseBtn">X</button>
             </div>
-            
+            </div>
           {% endfor %}
-        </div>
       {% endif %}
     {% endwith %}
+    </div>
         {% block content %}
         {% endblock %}
     </main>
