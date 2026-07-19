@@ -49,20 +49,8 @@
         </a>
     </aside>
     <main class="content-wrapper sidebar-open" id="contentWrapper">
-        <div id="notificationBar">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="flash-container" id="flashContainer">
-          {% for category, message in messages %}
-            <div class="alert alert-{{ category }}">
-              <span class="flash-msg">{{ message }}</span>
-              <button class="flashCloseBtn" id="flashCloseBtn">X</button>
-            </div>
-            </div>
-          {% endfor %}
-      {% endif %}
-    {% endwith %}
-    </div>
+        <div id="notificationBar"></div>
+        
         {% block content %}
         {% endblock %}
     </main>
@@ -86,9 +74,20 @@
 <script src="{{url_for('static',filename='js/script.js')}}"></script>
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/turndown@7.1.3/dist/turndown.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>   
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener('DOMContentLoaded',function(){
+        {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+          {% for category, message in messages %}
+            flash('{{message}}','{{category}}');
+          {% endfor %}
+      {% endif %}
+    {% endwith %}
+    })
+</script>  
+<script>
+    document.addEventListener("DOMContentLoaded", function() {        
     const textarea = document.getElementById('markdownEditor');
     if (!textarea) return; 
 

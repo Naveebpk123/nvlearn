@@ -1,7 +1,6 @@
 const logo = document.getElementById('logo');
 
-const flashContainer = document.getElementById('flashContainer');
-const flashCloseBtn = document.getElementById('flashCloseBtn');
+const notificationBar = document.getElementById('notificationBar');
 
 const modalBackground = document.getElementById('modalBackground'); //This is also container for the modal
 const modalText = document.getElementById('modalText');
@@ -17,12 +16,30 @@ const logoutBtn = document.getElementById('sidebarLogout');
 
 const deleteNoteBtns = document.getElementsByClassName('delete-note-btn');
 
+const moveToBinBtns = document.getElementsByClassName('move-to-bin');
+
 const chatInput = document.getElementById('user-input');
 const userInputContainer = document.getElementById('userInputContainer');
 
 const readNoteContent = document.getElementById('read-note-content');
 
 const notes = document.getElementsByClassName('note');
+
+function flash(text='',category='success'){
+  const flashAlert = document.createElement('div');
+  flashAlert.classList.add('alert',`alert-${category}`);
+  const flashMsg = document.createElement('span');
+  flashMsg.innerText = text;
+  const flashCloseBtn = document.createElement('button');
+  flashCloseBtn.classList.add('flashCloseBtn');
+  flashCloseBtn.innerText = 'X';
+  flashCloseBtn.addEventListener('click',()=>{
+    flashAlert.remove();
+  })
+  notificationBar.appendChild(flashAlert);
+  flashAlert.appendChild(flashMsg);
+  flashAlert.appendChild(flashCloseBtn);
+}
 
 window.addEventListener('keydown', (e) => {
   let activeModal = null;
@@ -128,6 +145,16 @@ for (const btn of deleteNoteBtns){
   })};
 };
 
+if(moveToBinBtns){
+  for(const btn of moveToBinBtns){
+    btn?.addEventListener('click',async function(){
+      const response = await fetch(`/move_to_bin/${btn.dataset.noteId}`,{method:'POST'});
+      const response_json = await response.json();
+      flash(response_json[0],response_json[1]);
+    })
+  }
+}
+
 searchBar?.addEventListener('click',()=> {
   openModal(null,null,searchModalBg);
   modalSearchBar.classList.add('active');
@@ -224,9 +251,6 @@ modalCancelBtn?.addEventListener('click',()=>{
   modalConfirmBtn.setAttribute('href','');
 });
 
-flashCloseBtn?.addEventListener('click',()=>{
-  flashContainer.style.display = 'none';
-});
 
 
 

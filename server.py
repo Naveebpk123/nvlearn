@@ -165,7 +165,7 @@ def edit_note(note_id):
             
     return render_template('edit_note.html', note=note, form=form)
 
-@app.route('/move_to_bin/<int:note_id>')
+@app.route('/move_to_bin/<int:note_id>',methods=['POST'])
 @login_required
 def move_to_bin(note_id):
     try:
@@ -173,13 +173,12 @@ def move_to_bin(note_id):
         if note and note.user_id == current_user.id:
             note.in_bin = True
             db.session.commit()
-            flash("Note moved to bin.", 'success')
+            return jsonify(['Note moved to bin','success'])
         else:
-            flash("Note not found", "error")
+            return jsonify(["Note not found", "error"])
     except SQLAlchemyError:
         db.session.rollback()
-        flash("Could not change note structural path status.", "error")
-    return redirect(url_for('notes'))
+        return jsonify(["Could not change note structural path status.", "error"])
 
 @app.route('/note-bin')
 @login_required
