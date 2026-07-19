@@ -268,11 +268,7 @@ def ask_groq(contents, username, metadata=False, chat_only=False):
     for i, action in enumerate(actions):
         if action == 'chat':
             reply = response_json['content'][i]
-            html_output = markdown.markdown(reply, extensions=['fenced_code', 'tables', 'pymdownx.arithmatex'], extension_configs={
-                'pymdownx.arithmatex': {
-                    'generic': True
-                }
-            })
+            html_output = md_to_html(reply)
             instructions.append({'action': 'chat', 'content': html_output})
         elif action == 'create_note':
             instruction = response_json['content'][i]
@@ -304,11 +300,7 @@ def ask_gemini(question, action):
                 model="gemini-2.5-flash",
                 contents=GEMINI_NOTE_ACTION_PROMPT + f"prompt: {question}",
             )
-            html_content = markdown.markdown(response.text, extensions=['fenced_code', 'tables', 'pymdownx.arithmatex'], extension_configs={
-                'pymdownx.arithmatex': {
-                    'generic': True
-                }
-            })
+            html_content = md_to_html(response.text)
             return html_content, response.text
         elif action == 'metadata':
             response = gemini_client.models.generate_content(
