@@ -53,6 +53,20 @@ Use LaTeX for math:
 The username of the active user is provided in the initial user context context. Use it only if addressing them.
 """
 
+GROQ_CHAT_ONLY_PROMPT = r"""
+You are NVLearn AI. You are currently in chat-only mode because note-related services are temporarily unavailable due to high demand.
+
+Respond ONLY with a valid JSON object:
+{"action": ["chat"], "content": ["your response"]}
+
+Rules:
+- You can ONLY use the "chat" action. Do NOT use create_note, edit_note, create_quiz, create_flashcard, get_note, or note_action.
+- If the user asks to create, edit, get, summarize, or perform any operation on notes, quizzes, or flashcards, politely inform them that note-related features are temporarily unavailable due to high demand and suggest trying again in a few minutes.
+- Respond to general questions and conversations in Markdown.
+- Use LaTeX for math: Inline: `$...$` Display: `$$...$$` Escape backslashes in JSON.
+- The username of the active user is provided in the initial user context. Use it only if addressing them.
+"""
+
 GEMINI_NOTE_CREATION_PROMPT = """You are NVLearn AI's content generation engine.
 Generate high-quality study notes from the user's request.
 Return ONLY valid JSON. Do not include markdown code fences or any extra text.
@@ -203,104 +217,128 @@ gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
 mistral_client = Mistral(api_key = MISTRAL_API_KEY)
 
-def ask_groq(contents,username,metadata=False):
+def is_rate_limit_error(e):
+    """Check if an exception is a 429 / rate-limit error."""
+    error_str = str(e).lower()
+    if '429' in error_str or 'rate limit' in error_str or 'too many requests' in error_str or 'resource exhausted' in error_str:
+        return True
+    if hasattr(e, 'status_code') and e.status_code == 429:
+        return True
+    if hasattr(e, 'code') and e.code == 429:
+        return True
+    return False
+
+def is_ai_error(response):
+    """Check if an AI function returned a structured error dict."""
+    return isinstance(response, dict) and response.get('error') is True
+
+def ask_groq(contents, username, metadata=False, chat_only=False):
     instructions = []
     if metadata:
         try:
-            metadata = ask_gemini(f'Return the metadata of this note:\n{contents}',action='metadata')
-            json_metadata = json.loads(metadata)
-            print(json_metadata)
+            result = ask_gemini(f'Return the metadata of this note:\n{contents}', action='metadata')
+            if is_ai_error(result):
+                return 'error'
+            json_metadata = json.loads(result)
             return json_metadata['meta_data']
         except Exception:
             return 'error'
 
-    messages=[{'role':'system','content':GROQ_SYSTEM_PROMPT+f"username of user is:{username}"}]
+    system_prompt = GROQ_CHAT_ONLY_PROMPT if chat_only else GROQ_SYSTEM_PROMPT
+    messages = [{'role': 'system', 'content': system_prompt + f"username of user is:{username}"}]
     for msg in contents:
         role = msg.get('role')
         msg_content = msg.get('contents')
         if role == 'user':
-            messages.append({'role': 'user', 'content':msg_content})
+            messages.append({'role': 'user', 'content': msg_content})
         elif role == 'assistant':
-            messages.append({'role': 'assistant', 'content':msg_content})
+            messages.append({'role': 'assistant', 'content': msg_content})
     try:
         response = groq_client.chat.completions.create(
-        messages=messages,
-        model="llama-3.3-70b-versatile",
-        response_format={"type": "json_object"}
+            messages=messages,
+            model="llama-3.3-70b-versatile",
+            response_format={"type": "json_object"}
         )
         response_json = json.loads(response.choices[0].message.content)
-    except Exception:
-        return [{'action':'error','content':'chat_error'}]
+    except Exception as e:
+        if is_rate_limit_error(e):
+            return [{'action': 'error', 'content': {'type': 'rate_limit', 'msg': 'NVLearn AI is receiving too many requests right now. Please wait a few minutes before trying again.'}}]
+        return [{'action': 'error', 'content': {'type': 'api_error', 'msg': 'NVLearn AI is currently experiencing some issues. Please try again shortly.'}}]
     actions = response_json['action']
     for i, action in enumerate(actions):
         if action == 'chat':
             reply = response_json['content'][i]
-            html_output = markdown.markdown(reply, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
-        'pymdownx.arithmatex': {
-            'generic': True  
-            }
+            html_output = markdown.markdown(reply, extensions=['fenced_code', 'tables', 'pymdownx.arithmatex'], extension_configs={
+                'pymdownx.arithmatex': {
+                    'generic': True
+                }
             })
-            instructions.append({'action':'chat','content':html_output})
+            instructions.append({'action': 'chat', 'content': html_output})
         elif action == 'create_note':
             instruction = response_json['content'][i]
-            gemini_response = ask_gemini(question=f"Create note on:{instruction}",action = 'create_note')
-            if gemini_response == 'error':
-                instructions.append({'action':'error','content': 'create_note_error'})
+            gemini_response = ask_gemini(question=f"Create note on:{instruction}", action='create_note')
+            if is_ai_error(gemini_response):
+                instructions.append({'action': 'error', 'content': gemini_response})
                 continue
             json_gemini_response = json.loads(gemini_response)
-            json_gemini_response['html_content'] = markdown.markdown(json_gemini_response['content'],extensions=['fenced_code', 'tables'])
-            instructions.append({'action':'create_note','content': json_gemini_response})
+            json_gemini_response['html_content'] = markdown.markdown(json_gemini_response['content'], extensions=['fenced_code', 'tables'])
+            instructions.append({'action': 'create_note', 'content': json_gemini_response})
         elif action == 'get_note':
-            instructions.append({'action':'get_note', 'content':response_json['content'][i]})
+            instructions.append({'action': 'get_note', 'content': response_json['content'][i]})
         elif action == 'note_action':
-            instructions.append({'action':'note_action', 'content':response_json['content'][i]})   
+            instructions.append({'action': 'note_action', 'content': response_json['content'][i]})
     return instructions
     
-def ask_gemini(question,action):
+def ask_gemini(question, action):
     try:
         if action == 'create_note':
             response = gemini_client.models.generate_content(
                 model="gemini-2.5-flash",
-                contents=GEMINI_NOTE_CREATION_PROMPT+f"prompt: {question}",
+                contents=GEMINI_NOTE_CREATION_PROMPT + f"prompt: {question}",
                 config=types.GenerateContentConfig(
-                response_mime_type="application/json",
+                    response_mime_type="application/json",
+                )
             )
-            )
-        if action == 'note_action':
+        elif action == 'note_action':
             response = gemini_client.models.generate_content(
                 model="gemini-2.5-flash",
-                contents=GEMINI_NOTE_ACTION_PROMPT+f"prompt: {question}",         
+                contents=GEMINI_NOTE_ACTION_PROMPT + f"prompt: {question}",
             )
-            html_content = markdown.markdown(response.text, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
-            'pymdownx.arithmatex': {
-                'generic': True  
-            }
-        })
-            return html_content,response.text
-
-        if action =='metadata':
+            html_content = markdown.markdown(response.text, extensions=['fenced_code', 'tables', 'pymdownx.arithmatex'], extension_configs={
+                'pymdownx.arithmatex': {
+                    'generic': True
+                }
+            })
+            return html_content, response.text
+        elif action == 'metadata':
             response = gemini_client.models.generate_content(
                 model="gemini-2.5-flash",
-                contents=GEMINI_NOTE_CREATION_PROMPT+f"prompt: {question}",config=types.GenerateContentConfig(
-                response_mime_type="application/json",
+                contents=GEMINI_NOTE_CREATION_PROMPT + f"prompt: {question}",
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                )
             )
-            )
-        if action == 'summarize':
+        elif action == 'summarize':
             response = gemini_client.models.generate_content(
                 model="gemini-2.5-flash",
-                contents="Summarize this prompt like this. I have done this that base don prompt."+f"prompt: {question}",
+                contents="Summarize this prompt like this. I have done this that based on prompt." + f"prompt: {question}",
             )
         return response.text
-    except Exception:
-        return 'error'
+    except Exception as e:
+        if is_rate_limit_error(e):
+            return {'error': True, 'type': 'rate_limit', 'msg': 'Our AI services are experiencing high demand. Please avoid note-related requests for a few minutes.'}
+        return {'error': True, 'type': 'api_error', 'msg': f'An error occurred while processing your {action.replace("_", " ")} request. Please try again later.'}
+
 def ask_mistral(question):
     try:
         response = mistral_client.chat.complete(
-        model="mistral-large-latest",
-        response_format={"type": "json_object"},
-        messages=[{'role':'system','content':(MISTRAL_SYSTEM_PROMPT)},{'role':'user','content':question}]    
+            model="mistral-large-latest",
+            response_format={"type": "json_object"},
+            messages=[{'role': 'system', 'content': MISTRAL_SYSTEM_PROMPT}, {'role': 'user', 'content': question}]
         )
         return json.loads(response.choices[0].message.content)
-    except Exception:
-        return 'error'
+    except Exception as e:
+        if is_rate_limit_error(e):
+            return {'error': True, 'type': 'rate_limit', 'msg': 'Our note search service is experiencing high demand. Please avoid note-related requests for a few minutes.'}
+        return {'error': True, 'type': 'api_error', 'msg': 'An error occurred while searching your notes. Please try again later.'}
 

@@ -6,9 +6,9 @@ from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, JSON, DateTim
 from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm, VerificationForm
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from helpers import send_email_threaded, create_code, ask_groq, ask_mistral, ask_gemini, get_welcome_message, md_to_html
+from helpers import send_email_threaded, create_code, ask_groq, ask_mistral, ask_gemini, get_welcome_message, md_to_html, is_ai_error
 from typing import Dict,Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 
 class Base(DeclarativeBase):
@@ -19,6 +19,7 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///notes.db"
 app.config['SECRET_KEY'] = 'secretkey'
 VERIFICATION_TTL_SECONDS = 10 * 60
+NOTE_ACTION_COOLDOWN_SECONDS = 5 * 60
 
 db = SQLAlchemy(app, model_class=Base)
 
@@ -419,31 +420,52 @@ def ai_response():
     username = current_user.name
     data = request.get_json()
     message = data.get('contents')
-    all_instructions = ask_groq(contents=message,username=username,)
+
+    cooldown_until = session.get('note_action_cooldown_until')
+    is_on_cooldown = cooldown_until and datetime.now(timezone.utc).timestamp() < cooldown_until
+
+    all_instructions = ask_groq(contents=message, username=username, chat_only=is_on_cooldown)
     all_results = []
     all_get_notes = ''
     note_action_html_content = ''
     chat = None
     all_errors = []
+    hit_rate_limit = False
+
     for instruction in all_instructions:
         action = instruction['action']
         ai_reply = instruction['content']
+
         if action == 'error':
-            if ai_reply == 'create_note_error':
-                all_errors.append('An error has occured in creating note. Please try again later.')
-            if ai_reply == 'chat_error':
-                all_errors.append('NVLearn AI is currently experiencing some errors. Please try again later.')
-                chat = 'error'
-        if action == 'chat':
-            chat = ai_reply 
+            if isinstance(ai_reply, dict):
+                all_errors.append(ai_reply.get('msg', 'An unexpected error occurred. Please try again later.'))
+                if ai_reply.get('type') == 'rate_limit':
+                    hit_rate_limit = True
+            else:
+                all_errors.append('NVLearn AI encountered an unexpected error. Please try again later.')
+
+        elif action == 'chat':
+            chat = ai_reply
+
         elif action == 'create_note':
-            new_note = Note(title=ai_reply['title'],md_content=ai_reply['content'],html_content = ai_reply['html_content'],in_bin=False,user_id = current_user.id,meta_data=ai_reply['meta_data'])
-            db.session.add(new_note)
-            db.session.flush()
-            new_note.meta_data['id'] = new_note.id
-            db.session.commit()
-            completion_msg = f"Made new note '{ai_reply['title']}'"
-            all_results.append(completion_msg)
+            try:
+                new_note = Note(
+                    title=ai_reply['title'],
+                    md_content=ai_reply['content'],
+                    html_content=ai_reply['html_content'],
+                    in_bin=False,
+                    user_id=current_user.id,
+                    meta_data=ai_reply['meta_data']
+                )
+                db.session.add(new_note)
+                db.session.flush()
+                new_note.meta_data['id'] = new_note.id
+                db.session.commit()
+                all_results.append(f"Made new note '{ai_reply['title']}'")
+            except Exception:
+                db.session.rollback()
+                all_errors.append('An error occurred while saving the new note to the database. Please try again.')
+
         elif action == 'get_note':
             metadata_list = []
             notes = db.session.execute(
@@ -453,19 +475,24 @@ def ai_response():
                 if note.meta_data != 'error':
                     if 'error' not in note.meta_data['tags'] and 'is_invalid' not in note.meta_data['tags']:
                         metadata_list.append(note.meta_data)
+
             note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
-            note_content_list= ""
-            if note_ids == 'error':
-                all_errors.append(f'An error has occured in fetching notes on {ai_reply}')
+            note_content_list = ""
+
+            if is_ai_error(note_ids):
+                all_errors.append(note_ids.get('msg', f'An error occurred while fetching notes on "{ai_reply}". Please try again later.'))
+                if note_ids.get('type') == 'rate_limit':
+                    hit_rate_limit = True
             else:
                 if note_ids.get('note_ids'):
                     for note_id in note_ids['note_ids']:
-                        note = db.session.get(Note,int(note_id))
+                        note = db.session.get(Note, int(note_id))
                         if note:
-                            note_content_list += (note.html_content or "")+'\n'        
+                            note_content_list += (note.html_content or "") + '\n'
                 else:
                     all_results.append(note_ids.get('msg', 'I could not find any relevant notes.'))
             all_get_notes += note_content_list
+
         elif action == 'note_action':
             metadata_list = []
             notes = db.session.execute(
@@ -475,24 +502,59 @@ def ai_response():
                 if note.meta_data != 'error':
                     if 'error' not in note.meta_data['tags'] and 'is_invalid' not in note.meta_data['tags']:
                         metadata_list.append(note.meta_data)
+
             note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
             note_content_list = ''
-            if note_ids == 'error':
-                all_errors.append('An error has occured in performing note actions. Please try again later')
+
+            if is_ai_error(note_ids):
+                all_errors.append(note_ids.get('msg', 'An error occurred while searching for notes. Please try again later.'))
+                if note_ids.get('type') == 'rate_limit':
+                    hit_rate_limit = True
+                continue
             else:
                 if note_ids.get('note_ids'):
                     for note_id in note_ids['note_ids']:
-                        note = db.session.get(Note,int(note_id))
+                        note = db.session.get(Note, int(note_id))
                         if note:
-                            note_content_list += (note.md_content or "")+'\n'
+                            note_content_list += (note.md_content or "") + '\n'
                 else:
                     all_results.append(note_ids.get('msg', 'I could not find any relevant notes.'))
-            response, md_response = ask_gemini(action = 'note_action', question = f"Instructions:{ai_reply} content:{note_content_list}")            
-            all_results.append({'reply':md_response}) 
-            note_action_html_content += response +'\n'
-    final_result = {'results':all_results, 'errors': all_errors, 'chat': chat}
-    final_summary = ask_gemini(question = f'Summarize this thing{final_result}',action='summarize')
-    output = {'chat':md_to_html(final_summary),'notes':all_get_notes,'note_action':note_action_html_content}
+                    continue
+
+            gemini_result = ask_gemini(action='note_action', question=f"Instructions:{ai_reply} content:{note_content_list}")
+            if is_ai_error(gemini_result):
+                all_errors.append(gemini_result.get('msg', 'An error occurred while processing notes. Please try again later.'))
+                if gemini_result.get('type') == 'rate_limit':
+                    hit_rate_limit = True
+            else:
+                response_html, md_response = gemini_result
+                all_results.append({'reply': md_response})
+                note_action_html_content += response_html + '\n'
+
+    if hit_rate_limit:
+        session['note_action_cooldown_until'] = (datetime.now(timezone.utc) + timedelta(seconds=NOTE_ACTION_COOLDOWN_SECONDS)).timestamp()
+        cooldown_msg = 'Note-related features are temporarily paused due to high demand. You can still chat normally — note features will be back in about 5 minutes.'
+        if cooldown_msg not in all_errors:
+            all_errors.append(cooldown_msg)
+
+    final_result = {'results': all_results, 'errors': all_errors, 'chat': chat}
+    errors = len(all_errors)
+    results = len(all_results)
+
+    if results <= 1 and errors <= 1 and not chat:
+        if results == 1 and errors == 0 and all_get_notes == '':
+            return jsonify({'chat': all_results[0]})
+        elif results == 0 and errors == 1 and all_get_notes == '':
+            return jsonify({'chat': all_errors[0]})
+        elif results == 0 and errors == 0 and all_get_notes != '':
+            return jsonify({'chat': all_get_notes})
+    if results == 0 and errors == 0 and chat:
+        return jsonify({'chat': chat})
+
+    final_summary = ask_gemini(question=f'Summarize this thing{final_result}', action='summarize')
+    if is_ai_error(final_summary):
+        final_summary = chat or 'An error occurred while summarizing. Please try again.'
+    output = {'chat': md_to_html(final_summary), 'notes': all_get_notes, 'note_action': note_action_html_content}
     return jsonify(output)
 
 
