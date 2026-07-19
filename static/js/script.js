@@ -17,6 +17,7 @@ const logoutBtn = document.getElementById('sidebarLogout');
 const deleteNoteBtns = document.getElementsByClassName('delete-note-btn');
 
 const moveToBinBtns = document.getElementsByClassName('move-to-bin');
+const restoreBtns = document.getElementsByClassName('restore-btn');
 
 const chatInput = document.getElementById('user-input');
 const userInputContainer = document.getElementById('userInputContainer');
@@ -25,7 +26,7 @@ const readNoteContent = document.getElementById('read-note-content');
 
 const notes = document.getElementsByClassName('note');
 
-function flash(text='',category='success'){
+async function flash(text='',category='success'){
   const flashAlert = document.createElement('div');
   flashAlert.classList.add('alert',`alert-${category}`);
   const flashMsg = document.createElement('span');
@@ -39,6 +40,7 @@ function flash(text='',category='success'){
   notificationBar.appendChild(flashAlert);
   flashAlert.appendChild(flashMsg);
   flashAlert.appendChild(flashCloseBtn);
+  setTimeout(()=> flashAlert.remove(), 3000);
 }
 
 window.addEventListener('keydown', (e) => {
@@ -95,7 +97,7 @@ if (notes !== null){
     document.getElementById('contentWrapper').classList.toggle("sidebar-open");
   }
 
-function openModal(text, confirmBtnLink, modal) {
+function openModal(text, modal, action = null, note_id = null, triggerBtn = null) {
   const targetModal = modal || modalBackground; 
   
   targetModal.style.display = 'flex';
@@ -103,8 +105,38 @@ function openModal(text, confirmBtnLink, modal) {
   if (text !== null && modalText) {
     modalText.innerText = text;
   }
-  if (confirmBtnLink !== null && modalConfirmBtn) {
-    modalConfirmBtn.setAttribute('href', confirmBtnLink);
+  const newConfirmBtn = modalConfirmBtn.cloneNode(true);
+  const newCancelBtn = modalCancelBtn.cloneNode(true);
+  modalConfirmBtn.replaceWith(newConfirmBtn);
+  modalCancelBtn.replaceWith(newCancelBtn);
+
+  newCancelBtn.addEventListener('click', () => {
+    targetModal.style.display = 'none';
+  });
+
+  if (action) {
+    newConfirmBtn.addEventListener('click', async function() {
+      if (action === 'delete-note') { 
+        const response = await fetch(`/delete/${note_id}`, { method: 'POST' });
+        const response_json = await response.json();
+        targetModal.style.display = 'none';
+        flash(response_json[0], response_json[1]);
+        
+        if (response_json[1] === 'success' && triggerBtn) {
+          triggerBtn.closest('.note').remove();
+        }
+      } 
+      else if (action === 'logout') {
+        const response = await fetch('/logout', { method: 'POST' });
+        const response_json = await response.json();
+        if (response_json[1] === 'success') {
+          window.location.href = '/';
+        } else {
+          targetModal.style.display = 'none';
+          flash(response_json[0],response_json[1])
+        }
+      }      
+    });
   }
 }
 
@@ -132,18 +164,26 @@ async function fetchSearchResults(query) {
 
 logo?.addEventListener('click',toggleSidebar);
 
-  logoutBtn?.addEventListener('click',(e)=>{
-    e.preventDefault();
-    openModal('Are you sure you want to logout?','/logout',modalBackground);
+logoutBtn?.addEventListener('click', (e) => {
+  e.preventDefault();
+  openModal('Are you sure you want to logout?', modalBackground, 'logout');
+});
 
-  });
-if(deleteNoteBtns !== null){
-for (const btn of deleteNoteBtns){
-  btn?.addEventListener('click',(e)=>{
-    e.preventDefault();
-    openModal('Are you sure you want to permanently delete this note?',btn.dataset.link,modalBackground);
-  })};
-};
+if (deleteNoteBtns !== null) {
+  for (const btn of deleteNoteBtns) {
+    btn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      openModal(
+        'Are you sure you want to permanently delete this note?', 
+        modalBackground, 
+        'delete-note', 
+        btn.dataset.noteId, 
+        btn
+      );
+    });
+  }
+}
+
 
 if(moveToBinBtns){
   for(const btn of moveToBinBtns){
@@ -156,8 +196,20 @@ if(moveToBinBtns){
   }
 }
 
+if(restoreBtns){
+  for(const btn of restoreBtns){
+    btn?.addEventListener('click',async function(){
+      const response = await fetch(`/restore/${btn.dataset.noteId}`,{method:'POST'});
+      const response_json = await response.json();
+      flash(response_json[0],response_json[1]);
+      btn.closest('.note').remove();
+    })
+  }
+}
+
+
 searchBar?.addEventListener('click',()=> {
-  openModal(null,null,searchModalBg);
+  openModal(null,searchModalBg);
   modalSearchBar.classList.add('active');
   modalSearchBar.focus();
   searchBar.classList.add('hidden');
@@ -168,6 +220,8 @@ searchModalBg?.addEventListener('click',(e)=>{
     searchModalBg.style.display = 'none';
     modalSearchBar.classList.remove('active');
     searchBar.classList.remove('hidden');
+    searchBar.value = '';
+    modalSearchBar.value = '';
   }
 });
 
@@ -244,13 +298,6 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
 });
 
-modalConfirmBtn?.addEventListener('click',()=>{
-  modalBackground.style.display = 'none';
-});
-modalCancelBtn?.addEventListener('click',()=>{
-  modalBackground.style.display = 'none';
-  modalConfirmBtn.setAttribute('href','');
-});
 
 
 

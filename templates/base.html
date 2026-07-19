@@ -32,9 +32,9 @@
         <a class="sidebar-item" href="{{url_for('ai_chat')}}">
             ✨ NVLearn AI
         </a>
-        <a class="sidebar-item" id="sidebarLogout" href="">
+        <button class="sidebar-item" id="sidebarLogout" >
             ➜] Logout
-        </a>
+        </button>
         {% else %}
         <a class="sidebar-item" href="{{url_for('register')}}">
             📝 Register
@@ -57,9 +57,9 @@
 </div>
 <div class="modal-bg" id="modalBackground" style="display:none;">
 <div class="confirm-modal" id="confirmModal">
-    <p class="modal-text" id="modalText">yo</p>
+    <p class="modal-text" id="modalText"></p>
     <div class="modal-btns">
-        <a id="modalConfirmBtn" class="button" role="button">Confirm</a>
+        <button id="modalConfirmBtn" class="button">Confirm</button>
         <button id="modalCancelBtn" class="button cancel">Cancel</button>
     </div>
 </div>

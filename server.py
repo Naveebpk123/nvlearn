@@ -191,7 +191,7 @@ def note_bin():
         notes = []
     return render_template('bin.html', notes=notes)
 
-@app.route('/delete/<int:note_id>')
+@app.route('/delete/<int:note_id>',methods=['POST'])
 @login_required
 def delete(note_id):
     try:
@@ -199,13 +199,12 @@ def delete(note_id):
         if note and note.user_id == current_user.id:
             db.session.delete(note)
             db.session.commit()
-            flash("Note permanently deleted", "success")
+            return jsonify(["Note permanently deleted", "success"])
         else:
-            flash("Note not found", "error")
+            return jsonify(["Note not found", "error"])
     except SQLAlchemyError:
         db.session.rollback()
-        flash("Database execution error during record expulsion.", "error")
-    return redirect(url_for('note_bin'))
+        return jsonify(["Failed to delete note", "error"])
 
 @app.route('/restore/<int:note_id>',methods=['POST'])
 @login_required
@@ -217,10 +216,10 @@ def restore(note_id):
             db.session.commit()
             return jsonify(['Note restored', 'success'])
         else:
-            return jsonify(["Record mapping unavailable.", "error"])
+            return jsonify(["Note not found.", "error"])
     except SQLAlchemyError:
         db.session.rollback()
-        return jsonify(["Failed restoration sequence parameters.", "error"])
+        return jsonify(["Failed to restore note.", "error"])
 
 @app.route('/register', methods=['GET','POST'])
 def register():
@@ -369,12 +368,14 @@ def login():
             flash("Internal database communication mismatch.", "error")
     return render_template('login.html', form=form, show_code=False)
     
-@app.route('/logout')
+@app.route('/logout',methods=['POST'])
 @login_required
 def logout():
-    logout_user()
-    flash('Logged out successfully', 'success')
-    return redirect(url_for('home'))
+    try:
+        logout_user()
+        return jsonify(['Logged out successfully', 'success'])
+    except Exception:
+        return jsonify(['Logout failed','error'])
 
 @app.route('/search/<query>')
 @login_required

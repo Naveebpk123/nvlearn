@@ -15,8 +15,8 @@
             {{note.html_content | safe}}
         </div>
         <div class="action-buttons">
-            <a href="{{url_for('restore', note_id=note.id)}}" class="button">Restore</a>
-            <a class="button danger delete-note-btn" role="button" data-link="{{url_for('delete',note_id=note.id)}}">Delete</a>
+            <button class="button restore-btn" data-note-id="{{note.id}}">Restore</button>
+            <button class="button danger delete-note-btn" data-note-id="{{note.id}}">Delete</button>
         </div>
     </div>
     {% endfor %}

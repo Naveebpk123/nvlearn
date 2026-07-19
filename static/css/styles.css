@@ -173,6 +173,7 @@ a {
     transition: background-color 0.2s ease;
     text-align:center;
     align-content:center;
+    border:none;
 }
 
 .button:hover {
@@ -314,6 +315,16 @@ a {
     top:71px;
     right:1rem;
     width:25%;
+    z-index:1001
+}
+
+#sidebarLogout{
+    background:none;
+    border:none;
+}
+
+#sidebarLogout:hover{
+    cursor:pointer;
 }
 
 .flashCloseBtn{
@@ -360,7 +371,7 @@ a {
     display:flex;
     background-color:rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(8px);
-    z-index:1001;
+    z-index:1002;
     height:100vh;
     width:100vw;
     justify-content:center;
