@@ -67,6 +67,17 @@ Rules:
 - The username of the active user is provided in the initial user context. Use it only if addressing them.
 """
 
+
+GEMINI_SUMMARIZE_PROMPT = """You are NVLearn AI. Your task is to take a raw summary of recent background actions (which may include note creation results, user chat messages, or system errors) and turn it into a single, cohesive, and friendly response addressed directly to the user.
+
+Rules:
+- Speak directly to the user in a helpful, encouraging tone.
+- Do not mention implementation details like "dictionary", "execution state", "arrays", or "backend results". 
+- Smoothly blend multiple events together. For example, if a note was created but an error occurred elsewhere, acknowledge both naturally (e.g., "I've saved your new note! However, things are a bit busy right now, so I couldn't process your summary request. Let's try that part again in a few minutes.").
+- Write your final response entirely in well-formatted Markdown.
+- Return ONLY the final conversational message. Do not include conversational introduction filler like "Here is your response:" or wrap it in markdown code fences.
+"""
+
 GEMINI_NOTE_CREATION_PROMPT = """You are NVLearn AI's content generation engine.
 Generate high-quality study notes from the user's request.
 Return ONLY valid JSON. Do not include markdown code fences or any extra text.
@@ -313,7 +324,7 @@ def ask_gemini(question, action):
         elif action == 'summarize':
             response = gemini_client.models.generate_content(
                 model="gemini-2.5-flash",
-                contents="Summarize this prompt like this. I have done this that based on prompt." + f"prompt: {question}",
+                contents=GEMINI_SUMMARIZE_PROMPT + f"prompt: {question}",
             )
         return response.text
     except Exception as e:

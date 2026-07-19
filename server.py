@@ -551,9 +551,9 @@ def ai_response():
     if results == 0 and errors == 0 and chat:
         return jsonify({'chat': chat})
 
-    final_summary = ask_gemini(question=f'Summarize this thing{final_result}', action='summarize')
+    final_summary = ask_gemini(question=final_result, action='summarize')
     if is_ai_error(final_summary):
-        final_summary = chat or 'An error occurred while summarizing. Please try again.'
+        final_summary = chat or 'An error occurred while executing your task. Please try again.'
     output = {'chat': md_to_html(final_summary), 'notes': all_get_notes, 'note_action': note_action_html_content}
     return jsonify(output)
 
