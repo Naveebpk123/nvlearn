@@ -10,6 +10,7 @@ from helpers import send_email_threaded, create_code, ask_groq, ask_mistral, ask
 from typing import Dict,Any
 from datetime import datetime, timezone, timedelta
 import json
+from apscheduler.schedulers.background import BackgroundScheduler
 
 class Base(DeclarativeBase):
     pass
@@ -22,6 +23,8 @@ VERIFICATION_TTL_SECONDS = 10 * 60
 NOTE_ACTION_COOLDOWN_SECONDS = 5 * 60
 
 db = SQLAlchemy(app, model_class=Base)
+
+scheduler = BackgroundScheduler()
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -49,8 +52,25 @@ class User(db.Model, UserMixin):
     notes = relationship("Note", backref="author", lazy=True)
 
 def get_meta_data(content):
-    metadata = ask_groq(content,username=current_user.name,metadata=True)
+    metadata = ask_groq(content,username='',metadata=True)
     return metadata
+
+def generate_meta_data():
+    try:
+        with app.app_context():
+            error_notes = db.select(Note).where(Note.meta_data == 'error').order_by(Note.id.asc())
+            note = db.session.scalars(error_notes).first()
+            if note:
+                metadata = get_meta_data(note.md_content)
+                if metadata == 'error':
+                    return
+                metadata['id'] = note.id
+                note.meta_data = metadata
+                db.session.commit()
+            else:
+                return
+    except Exception:
+        return
 
 def _clear_pending_auth():
     session.pop('pending_register', None)
@@ -72,8 +92,17 @@ def _verification_is_valid(submitted_code):
         return False, "That verification code is incorrect."
     return True, ""
 
+scheduler.add_job(
+    generate_meta_data,
+    "interval",
+    minutes=10,
+    max_instances=1,
+    coalesce=True
+)
+
 with app.app_context():
     db.create_all()
+scheduler.start()
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -580,4 +609,4 @@ def page_not_found(error):
     return render_template('404.html'), 404
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)
