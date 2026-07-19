@@ -313,6 +313,7 @@ a {
     position:fixed;
     top:71px;
     right:1rem;
+    width:25%;
 }
 
 .flashCloseBtn{
@@ -320,31 +321,27 @@ a {
     border:none;
     font-size:larger;
     transition: background-color 0.2s ease;
-    padding:5px;
     height:35px;
     width:35px;
     border-radius:50%;
+    position:absolute;
+    right:5px;
 }
 
 .flashCloseBtn:hover{
     background-color:gray;
 }
 
-.flash-msg{
-    margin-right:auto;
-    margin-left:auto;
-}
-
 .alert {
-    padding: 12px 15px;
     border-radius: 5px;
     font-size: 0.9rem;
     font-weight: bold;
-    text-align: center;
     border: 1px solid transparent;
     display:flex;
     justify-content:center;
     align-items:center;
+    padding: 10px 8px;
+    position:relative;
 }
 
 .alert-success {

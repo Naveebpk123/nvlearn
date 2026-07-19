@@ -151,6 +151,7 @@ if(moveToBinBtns){
       const response = await fetch(`/move_to_bin/${btn.dataset.noteId}`,{method:'POST'});
       const response_json = await response.json();
       flash(response_json[0],response_json[1]);
+      btn.closest('.note').remove();
     })
   }
 }

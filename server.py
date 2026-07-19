@@ -178,7 +178,7 @@ def move_to_bin(note_id):
             return jsonify(["Note not found", "error"])
     except SQLAlchemyError:
         db.session.rollback()
-        return jsonify(["Could not change note structural path status.", "error"])
+        return jsonify(["Could not move note to bin", "error"])
 
 @app.route('/note-bin')
 @login_required
@@ -207,7 +207,7 @@ def delete(note_id):
         flash("Database execution error during record expulsion.", "error")
     return redirect(url_for('note_bin'))
 
-@app.route('/restore/<int:note_id>')
+@app.route('/restore/<int:note_id>',methods=['POST'])
 @login_required
 def restore(note_id):
     try:
@@ -215,13 +215,12 @@ def restore(note_id):
         if note and note.user_id == current_user.id:
             note.in_bin = False
             db.session.commit()
-            flash('Note restored', 'success')
+            return jsonify(['Note restored', 'success'])
         else:
-            flash("Record mapping unavailable.", "error")
+            return jsonify(["Record mapping unavailable.", "error"])
     except SQLAlchemyError:
         db.session.rollback()
-        flash("Failed restoration sequence parameters.", "error")
-    return redirect(url_for('notes'))
+        return jsonify(["Failed restoration sequence parameters.", "error"])
 
 @app.route('/register', methods=['GET','POST'])
 def register():
