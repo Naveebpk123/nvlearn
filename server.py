@@ -55,21 +55,77 @@ def get_meta_data(content):
     metadata = ask_groq(content,username='',metadata=True)
     return metadata
 
+
+def normalize_metadata(metadata, note_id=None):
+    if isinstance(metadata, dict):
+        normalized = dict(metadata)
+    else:
+        normalized = {
+            'tags': ['error'],
+            'summary': 'Metadata could not be generated for this note.',
+            'is_invalid': True,
+        }
+    tags = normalized.get('tags')
+    if not isinstance(tags, list):
+        normalized['tags'] = []
+    if not isinstance(normalized.get('summary'), str):
+        normalized['summary'] = ''
+    if note_id is not None:
+        normalized['id'] = note_id
+    return normalized
+
+
+def metadata_needs_ai(metadata):
+    if not isinstance(metadata, dict):
+        return True
+    tags = metadata.get('tags', [])
+    return metadata.get('is_invalid') is True or 'error' in tags
+
+
+def metadata_for_search(note):
+    metadata = note.meta_data
+    if not isinstance(metadata, dict):
+        return None
+    tags = metadata.get('tags', [])
+    if not isinstance(tags, list):
+        tags = []
+    if 'error' in tags or 'is_invalid' in tags or metadata.get('is_invalid') is True:
+        return None
+    return normalize_metadata(metadata, note.id)
+
+
+def backfill_metadata_ids():
+    notes = db.session.scalars(db.select(Note)).all()
+    changed = False
+    for note in notes:
+        if isinstance(note.meta_data, dict) and note.meta_data.get('id') != note.id:
+            note.meta_data = normalize_metadata(note.meta_data, note.id)
+            changed = True
+    if changed:
+        db.session.commit()
+
+
 def generate_meta_data():
     try:
         with app.app_context():
-            error_notes = db.select(Note).where(Note.meta_data == 'error').order_by(Note.id.asc())
-            note = db.session.scalars(error_notes).first()
-            if note:
-                metadata = get_meta_data(note.md_content)
-                if metadata == 'error':
+            notes = db.session.scalars(db.select(Note).order_by(Note.id.desc())).all()
+            for note in notes:
+                if isinstance(note.meta_data, dict) and note.meta_data.get('id') != note.id:
+                    note.meta_data = normalize_metadata(note.meta_data, note.id)
+                    db.session.commit()
                     return
-                metadata['id'] = note.id
-                note.meta_data = metadata
-                db.session.commit()
-            else:
+
+            note = next((n for n in notes if metadata_needs_ai(n.meta_data)), None)
+            if not note:
                 return
+
+            metadata = get_meta_data(note.md_content)
+            if metadata == 'error':
+                return
+            note.meta_data = normalize_metadata(metadata, note.id)
+            db.session.commit()
     except Exception:
+        app.logger.exception('Failed to generate note metadata')
         return
 
 def _clear_pending_auth():
@@ -95,13 +151,14 @@ def _verification_is_valid(submitted_code):
 scheduler.add_job(
     generate_meta_data,
     "interval",
-    minutes=10,
+    minutes=1,
     max_instances=1,
     coalesce=True
 )
 
 with app.app_context():
     db.create_all()
+    backfill_metadata_ids()
 scheduler.start()
 
 @login_manager.user_loader
@@ -147,11 +204,10 @@ def add_note():
         try:
             content = form.content.data
             metadata = get_meta_data(content)
-            note = Note(title=form.title.data, md_content=content,html_content = request.form.get('html_content') ,in_bin=False, user_id=current_user.id,meta_data=metadata)
+            note = Note(title=form.title.data, md_content=content,html_content = request.form.get('html_content') ,in_bin=False, user_id=current_user.id,meta_data=normalize_metadata(metadata))
             db.session.add(note)
             db.session.flush()
-            if metadata != 'error':
-                note.meta_data['id'] = note.id
+            note.meta_data = normalize_metadata(metadata, note.id)
             db.session.commit()
             flash('Note created successfully', 'success')
             return redirect(url_for('notes'))
@@ -180,9 +236,7 @@ def edit_note(note_id):
         try:
             if form.content.data != note.md_content:
                 metadata = get_meta_data(form.content.data)
-                if metadata != 'error':
-                    metadata['id'] = note.id
-                    note.meta_data = metadata
+                note.meta_data = normalize_metadata(metadata, note.id)
             note.md_content = form.content.data
             note.html_content = request.form.get('html_content')
             db.session.commit()
@@ -309,11 +363,13 @@ def register():
             session['pending_auth_code'] = verification_code
             session['pending_auth_expires_at'] = datetime.now(timezone.utc).timestamp() + VERIFICATION_TTL_SECONDS
             session['pending_auth_email'] = form.email.data
-            send_email_threaded(
+            if not send_email_threaded(
                 form.email.data,
                 "Your verification code",
                 f"Type this 6 digit code to finish your account setup: {verification_code}",
-            )
+            ):
+                raise EmailError
+            
             flash(f'Type the 6 digit code sent to {form.email.data}.', 'success')
             return render_template(
                 'register.html',
@@ -327,6 +383,9 @@ def register():
         except SQLAlchemyError:
             db.session.rollback()
             flash("An unexpected error occurred. Please try again.", "error")
+        except EmailError:
+            db.session.rollback()
+            flash("Failed to send email. Try to register again.")
     return render_template('register.html', form=form)
 
 @app.route('/login', methods=['GET','POST'])
@@ -377,7 +436,7 @@ def login():
                 verification_code = create_code()
                 session['pending_login'] = {'user_id': user.id}
                 session['pending_auth_code'] = verification_code
-                session['pending_auth_expires_at'] = time.time() + VERIFICATION_TTL_SECONDS
+                session['pending_auth_expires_at'] = datetime.now(timezone.utc).timestamp() + VERIFICATION_TTL_SECONDS
                 session['pending_auth_email'] = user.email
                 send_email_threaded(
                     user.email,
@@ -483,11 +542,11 @@ def ai_response():
                     html_content=ai_reply['html_content'],
                     in_bin=False,
                     user_id=current_user.id,
-                    meta_data=ai_reply['meta_data']
+                    meta_data=normalize_metadata(ai_reply.get('meta_data'))
                 )
                 db.session.add(new_note)
                 db.session.flush()
-                new_note.meta_data['id'] = new_note.id
+                new_note.meta_data = normalize_metadata(new_note.meta_data, new_note.id)
                 db.session.commit()
                 all_results.append(f"Made new note '{ai_reply['title']}'")
             except Exception:
@@ -496,13 +555,27 @@ def ai_response():
 
         elif action == 'get_note':
             metadata_list = []
+            search_terms = ai_reply.lower().split()
+            keywords = [word for word in search_terms if len(word)>3]
             notes = db.session.execute(
                 db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
             ).scalars().all()
             for note in notes:
-                if note.meta_data != 'error':
-                    if 'error' not in note.meta_data['tags'] and 'is_invalid' not in note.meta_data['tags']:
-                        metadata_list.append(note.meta_data)
+                metadata = metadata_for_search(note)
+                if not metadata:
+                    continue
+                if not keywords:
+                    metadata_list.append(metadata)
+                    continue
+                tags = metadata.get('tags', [])
+                tags_text = " ".join(tags).lower()
+                summary_text = metadata.get('summary','').lower()
+                md_content = (note.md_content or '').lower()
+                title = (note.title or '').lower()
+                searchable_pool = f"{title} {tags_text} {summary_text} {md_content}"
+
+                if any(keyword in searchable_pool for keyword in keywords):
+                    metadata_list.append(metadata)
 
             note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
             note_content_list = ""
@@ -514,8 +587,11 @@ def ai_response():
             else:
                 if note_ids.get('note_ids'):
                     for note_id in note_ids['note_ids']:
-                        note = db.session.get(Note, int(note_id))
-                        if note:
+                        try:
+                            note = db.session.get(Note, int(note_id))
+                        except (TypeError, ValueError):
+                            continue
+                        if note and note.user_id == current_user.id:
                             note_content_list += (note.html_content or "") + '\n'
                 else:
                     all_results.append(note_ids.get('msg', 'I could not find any relevant notes.'))
@@ -523,14 +599,26 @@ def ai_response():
 
         elif action == 'note_action':
             metadata_list = []
+            search_terms = ai_reply.lower().split()
+            keywords = [word for word in search_terms if len(word)>3]
             notes = db.session.execute(
                 db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
             ).scalars().all()
             for note in notes:
-                if note.meta_data != 'error':
-                    if 'error' not in note.meta_data['tags'] and 'is_invalid' not in note.meta_data['tags']:
-                        metadata_list.append(note.meta_data)
+                metadata = metadata_for_search(note)
+                if not metadata:
+                    continue
+                if not keywords:
+                    metadata_list.append(metadata)
+                    continue
+                tags_text = " ".join(metadata.get('tags', [])).lower()
+                summary_text = metadata.get('summary','').lower()
+                md_content = (note.md_content or '').lower()
+                title = (note.title or '').lower()
+                searchable_pool = f"{title} {tags_text} {summary_text} {md_content}"
 
+                if any(keyword in searchable_pool for keyword in keywords):
+                    metadata_list.append(metadata)
             note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
             note_content_list = ''
 
@@ -542,8 +630,11 @@ def ai_response():
             else:
                 if note_ids.get('note_ids'):
                     for note_id in note_ids['note_ids']:
-                        note = db.session.get(Note, int(note_id))
-                        if note:
+                        try:
+                            note = db.session.get(Note, int(note_id))
+                        except (TypeError, ValueError):
+                            continue
+                        if note and note.user_id == current_user.id:
                             note_content_list += (note.md_content or "") + '\n'
                 else:
                     all_results.append(note_ids.get('msg', 'I could not find any relevant notes.'))
@@ -555,8 +646,7 @@ def ai_response():
                 if gemini_result.get('type') == 'rate_limit':
                     hit_rate_limit = True
             else:
-                response_html, md_response = gemini_result
-                all_results.append({'reply': md_response})
+                response_html, _ = gemini_result
                 note_action_html_content += response_html + '\n'
 
     if hit_rate_limit:
@@ -569,7 +659,10 @@ def ai_response():
     errors = len(all_errors)
     results = len(all_results)
 
-    if results <= 1 and errors <= 1 and not chat:
+    if results == 0 and errors == 0 and not chat and note_action_html_content and all_get_notes == '':
+        return jsonify({'note_action': note_action_html_content})
+
+    if results <= 1 and errors <= 1 and not chat and not note_action_html_content:
         if results == 1 and errors == 0 and all_get_notes == '':
             return jsonify({'chat': all_results[0]})
         elif results == 0 and errors == 1 and all_get_notes == '':

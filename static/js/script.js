@@ -158,7 +158,7 @@ async function fetchSearchResults(query) {
     }
     searchResultContainer.innerHTML = htmlContent;
   } catch (error) {
-    console.log('An error occured while fetching search results')
+    return;
   }
 };
 
@@ -286,7 +286,7 @@ chatInput?.addEventListener('keydown', async function(e){
   aiBubble.innerHTML = `${aiResponse.chat || ''} \n ${aiResponse.note_action || ''} \n ${aiResponse.notes || ''}`;
   userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
   if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-      MathJax.typesetPromise([aiBubble]).catch((err) => console.log("MathJax error:", err.message));
+      MathJax.typesetPromise([aiBubble]).catch(() => {});
     }
   chatInput.disabled=false;
   chatInput.focus();
@@ -294,7 +294,7 @@ chatInput?.addEventListener('keydown', async function(e){
 
 document.addEventListener('DOMContentLoaded',()=>{
   if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-      MathJax.typesetPromise([readNoteContent]).catch((err) => console.log("MathJax error:", err.message));
+      MathJax.typesetPromise([readNoteContent]).catch(() => {});
     }
 });
 

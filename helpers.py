@@ -37,7 +37,7 @@ Rules:
 - create_note, edit_note, create_quiz, create_flashcard: Extract ONLY the topic or instructions. Do NOT generate any content.
 - get_note: Use only when the user explicitly requests the complete original note.
 - note_action: Use for any operation on an existing note (e.g. summarize, extract key points, explain, rewrite, answer questions, find information, list formulas, convert format). Extract ONLY the requested operation or instructions.
-- Support multiple actions by returning multiple entries in order.
+- Support multiple actions by returning multiple entries in order(indices must be corresponding)
 - Never invent missing information.
 
 Examples:
@@ -66,7 +66,6 @@ Rules:
 - Use LaTeX for math: Inline: `$...$` Display: `$$...$$` Escape backslashes in JSON.
 - The username of the active user is provided in the initial user context. Use it only if addressing them.
 """
-
 
 GEMINI_SUMMARIZE_PROMPT = """You are NVLearn AI. Your task is to take a raw summary of recent background actions (which may include note creation results, user chat messages, or system errors) and turn it into a single, cohesive, and friendly response addressed directly to the user.
 
@@ -184,19 +183,22 @@ def send_email(recipient, subject, msg_content):
             server.starttls()  
             server.login(EMAIL, EMAIL_PASSWORD)
             server.send_message(msg)
-        return True, f"Email sent successfully to {recipient}."
-    except Exception as e:
-        return False, f"Failed to send email to {recipient}: {e}"
+        return True
+    except Exception:
+        raise Exception
 
 
 def send_email_threaded(recipient, subject, msg_content):
-    thread = threading.Thread(
-        target=send_email,
-        args=(recipient, subject, msg_content),
-        daemon=True,
-    )
-    thread.start()
-    return True, f"Email delivery started for {recipient}."
+    try:
+        thread = threading.Thread(
+            target=send_email,
+            args=(recipient, subject, msg_content),
+            daemon=True,
+        )
+        thread.start()
+        return True
+    except Exception:
+        return False
 
 def md_to_html(content):
     html_content = markdown.markdown(content, extensions=['fenced_code', 'tables','pymdownx.arithmatex'],extension_configs={
@@ -243,6 +245,39 @@ def is_ai_error(response):
     """Check if an AI function returned a structured error dict."""
     return isinstance(response, dict) and response.get('error') is True
 
+
+def ai_error(error_type, msg):
+    return {'error': True, 'type': error_type, 'msg': msg}
+
+
+def parse_json_object(raw, msg):
+    if isinstance(raw, dict):
+        return raw
+    if not isinstance(raw, str) or not raw.strip():
+        return ai_error('invalid_json', msg)
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return ai_error('invalid_json', msg)
+    if not isinstance(parsed, dict):
+        return ai_error('invalid_json', msg)
+    return parsed
+
+
+def validate_router_response(response_json):
+    if not isinstance(response_json, dict):
+        return ai_error('invalid_json', 'NVLearn AI is currently experiencing some errors. Please try again.')
+    actions = response_json.get('action')
+    contents = response_json.get('content')
+    if not isinstance(actions, list) or not isinstance(contents, list):
+        return ai_error('invalid_json', 'NVLearn AI is currently experiencing some errors. Please try again.')
+    if len(actions) != len(contents):
+        return ai_error('invalid_json', 'NVLearn AI returned is currently experiencing some errors. Please try again.')
+    valid_actions = {'chat', 'create_note', 'get_note', 'note_action'}
+    if any(action not in valid_actions for action in actions):
+        return ai_error('invalid_action', 'NVLearn AI is currently experiencing some errors. Please try again.')
+    return None
+
 def ask_groq(contents, username, metadata=False, chat_only=False):
     instructions = []
     if metadata:
@@ -250,7 +285,9 @@ def ask_groq(contents, username, metadata=False, chat_only=False):
             result = ask_gemini(f'Return the metadata of this note:\n{contents}', action='metadata')
             if is_ai_error(result):
                 return 'error'
-            json_metadata = json.loads(result)
+            json_metadata = parse_json_object(result, 'Metadata generation returned invalid JSON.')
+            if is_ai_error(json_metadata) or not isinstance(json_metadata.get('meta_data'), dict):
+                return 'error'
             return json_metadata['meta_data']
         except Exception:
             return 'error'
@@ -270,7 +307,12 @@ def ask_groq(contents, username, metadata=False, chat_only=False):
             model="llama-3.3-70b-versatile",
             response_format={"type": "json_object"}
         )
-        response_json = json.loads(response.choices[0].message.content)
+        response_json = parse_json_object(response.choices[0].message.content, 'NVLearn AI is currently experiencing some errors. Please try again.')
+        if is_ai_error(response_json):
+            return [{'action': 'error', 'content': response_json}]
+        validation_error = validate_router_response(response_json)
+        if validation_error:
+            return [{'action': 'error', 'content': validation_error}]
     except Exception as e:
         if is_rate_limit_error(e):
             return [{'action': 'error', 'content': {'type': 'rate_limit', 'msg': 'NVLearn AI is receiving too many requests right now. Please wait a few minutes before trying again.'}}]
@@ -287,7 +329,14 @@ def ask_groq(contents, username, metadata=False, chat_only=False):
             if is_ai_error(gemini_response):
                 instructions.append({'action': 'error', 'content': gemini_response})
                 continue
-            json_gemini_response = json.loads(gemini_response)
+            json_gemini_response = parse_json_object(gemini_response, 'Note creation failed. Please try again.')
+            if is_ai_error(json_gemini_response):
+                instructions.append({'action': 'error', 'content': json_gemini_response})
+                continue
+            required_fields = {'title', 'content', 'meta_data'}
+            if not required_fields.issubset(json_gemini_response) or not isinstance(json_gemini_response.get('meta_data'), dict):
+                instructions.append({'action': 'error', 'content': ai_error('invalid_json', 'Note creation failed. Please try again.')})
+                continue
             json_gemini_response['html_content'] = markdown.markdown(json_gemini_response['content'], extensions=['fenced_code', 'tables'])
             instructions.append({'action': 'create_note', 'content': json_gemini_response})
         elif action == 'get_note':
@@ -300,7 +349,7 @@ def ask_gemini(question, action):
     try:
         if action == 'create_note':
             response = gemini_client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.5-flash",
                 contents=GEMINI_NOTE_CREATION_PROMPT + f"prompt: {question}",
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
@@ -308,14 +357,14 @@ def ask_gemini(question, action):
             )
         elif action == 'note_action':
             response = gemini_client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.1-flash-lite",
                 contents=GEMINI_NOTE_ACTION_PROMPT + f"prompt: {question}",
             )
             html_content = md_to_html(response.text)
             return html_content, response.text
         elif action == 'metadata':
             response = gemini_client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.1-flash-lite",
                 contents=GEMINI_NOTE_CREATION_PROMPT + f"prompt: {question}",
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
@@ -323,7 +372,7 @@ def ask_gemini(question, action):
             )
         elif action == 'summarize':
             response = gemini_client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.1-flash-lite",
                 contents=GEMINI_SUMMARIZE_PROMPT + f"prompt: {question}",
             )
         return response.text
@@ -339,7 +388,13 @@ def ask_mistral(question):
             response_format={"type": "json_object"},
             messages=[{'role': 'system', 'content': MISTRAL_SYSTEM_PROMPT}, {'role': 'user', 'content': question}]
         )
-        return json.loads(response.choices[0].message.content)
+        response_json = parse_json_object(response.choices[0].message.content, 'Note search failed. Please try again.')
+        if is_ai_error(response_json):
+            return response_json
+        note_ids = response_json.get('note_ids')
+        if not isinstance(note_ids, list):
+            return ai_error('invalid_json', 'Note search failed. Please try again.')
+        return response_json
     except Exception as e:
         if is_rate_limit_error(e):
             return {'error': True, 'type': 'rate_limit', 'msg': 'Our note search service is experiencing high demand. Please avoid note-related requests for a few minutes.'}
