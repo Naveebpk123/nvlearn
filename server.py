@@ -502,7 +502,8 @@ def search_results(query):
 @app.route('/ai-chat')
 @login_required
 def ai_chat():
-    return render_template('ai-chat.html')
+    welcome_message = get_welcome_message(current_user.name)
+    return render_template('ai-chat.html',welcome_message=welcome_message)
 
 @app.route('/ai-response', methods=['POST'])
 @login_required
