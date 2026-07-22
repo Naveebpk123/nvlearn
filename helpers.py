@@ -97,10 +97,12 @@ def is_ai_error(response):
 
 
 def ai_error(error_type, msg):
+    """Helper function to create JSON for error messages"""
     return {'error': True, 'type': error_type, 'msg': msg}
 
 
 def parse_json_object(raw, msg):
+    """Parse JSON and handle errors"""
     if isinstance(raw, dict):
         return raw
     if not isinstance(raw, str) or not raw.strip():
@@ -115,6 +117,7 @@ def parse_json_object(raw, msg):
 
 
 def validate_router_response(response_json):
+    """Helper function to validate actions and responses of AI"""
     if not isinstance(response_json, dict):
         return ai_error('invalid_json', 'NVLearn AI is currently experiencing some errors. Please try again.')
     actions = response_json.get('action')
