@@ -6,7 +6,7 @@ from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, JSON, DateTim
 from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm, VerificationForm
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from helpers import send_email_threaded, create_code, ask_groq, ask_mistral, ask_gemini, get_welcome_message, md_to_html, is_ai_error
+from helpers import send_email_threaded, create_code, build_ai_instructions, ask_groq, ask_mistral, ask_gemini, get_welcome_message, md_to_html, is_ai_error
 from typing import Dict,Any
 from datetime import datetime, timezone, timedelta
 import json
@@ -52,7 +52,7 @@ class User(db.Model, UserMixin):
     notes = relationship("Note", backref="author", lazy=True)
 
 def get_meta_data(content):
-    metadata = ask_groq(content,username='',metadata=True)
+    metadata = build_ai_instructions(content,username='',metadata=True)
     return metadata
 
 def normalize_metadata(metadata, note_id=None):
@@ -514,7 +514,7 @@ def ai_response():
     cooldown_until = session.get('note_action_cooldown_until')
     is_on_cooldown = cooldown_until and datetime.now(timezone.utc).timestamp() < cooldown_until
 
-    all_instructions = ask_groq(contents=message, username=username, chat_only=is_on_cooldown)
+    all_instructions = build_ai_instructions(contents=message, username=username, chat_only=is_on_cooldown)
     all_results = []
     all_get_notes = ''
     note_action_html_content = ''

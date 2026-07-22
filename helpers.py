@@ -131,20 +131,7 @@ def validate_router_response(response_json):
         return ai_error('invalid_action', 'NVLearn AI is currently experiencing some errors. Please try again.')
     return None
 
-def ask_groq(contents, username, metadata=False, chat_only=False):
-    instructions = []
-    if metadata:
-        try:
-            result = ask_gemini(f'Return the metadata of this note:\n{contents}', action='metadata')
-            if is_ai_error(result):
-                return 'error'
-            json_metadata = parse_json_object(result, 'Metadata generation returned invalid JSON.')
-            if is_ai_error(json_metadata) or not isinstance(json_metadata.get('meta_data'), dict):
-                return 'error'
-            return json_metadata['meta_data']
-        except Exception:
-            return 'error'
-
+def ask_groq(contents, username="", chat_only=False):
     system_prompt = GROQ_CHAT_ONLY_PROMPT if chat_only else GROQ_SYSTEM_PROMPT
     messages = [{'role': 'system', 'content': system_prompt + f"username of user is:{username}"}]
     for msg in contents:
@@ -162,14 +149,34 @@ def ask_groq(contents, username, metadata=False, chat_only=False):
         )
         response_json = parse_json_object(response.choices[0].message.content, 'NVLearn AI is currently experiencing some errors. Please try again.')
         if is_ai_error(response_json):
-            return [{'action': 'error', 'content': response_json}]
+            return response_json
         validation_error = validate_router_response(response_json)
         if validation_error:
-            return [{'action': 'error', 'content': validation_error}]
+            return validation_error
+        return response_json
     except Exception as e:
         if is_rate_limit_error(e):
-            return [{'action': 'error', 'content': {'type': 'rate_limit', 'msg': 'NVLearn AI is receiving too many requests right now. Please wait a few minutes before trying again.'}}]
-        return [{'action': 'error', 'content': {'type': 'api_error', 'msg': 'NVLearn AI is currently experiencing some issues. Please try again shortly.'}}]
+            return ai_error('rate_limit', 'NVLearn AI is receiving too many requests right now. Please wait a few minutes before trying again.')
+        return ai_error('api_error', 'NVLearn AI is currently experiencing some issues. Please try again shortly.')
+
+def build_ai_instructions(contents, username, metadata=False, chat_only=False):
+    instructions = []
+    if metadata:
+        try:
+            result = ask_gemini(f'Return the metadata of this note:\n{contents}', action='metadata')
+            if is_ai_error(result):
+                return 'error'
+            json_metadata = parse_json_object(result, 'Metadata generation returned invalid JSON.')
+            if is_ai_error(json_metadata) or not isinstance(json_metadata.get('meta_data'), dict):
+                return 'error'
+            return json_metadata['meta_data']
+        except Exception:
+            return 'error'
+
+    response_json = ask_groq(contents, username, chat_only=chat_only)
+    if is_ai_error(response_json):
+        return [{'action': 'error', 'content': response_json}]
+
     actions = response_json['action']
     for i, action in enumerate(actions):
         if action == 'chat':
@@ -199,40 +206,48 @@ def ask_groq(contents, username, metadata=False, chat_only=False):
     return instructions
     
 def ask_gemini(question, action):
-    try:
-        if action == 'create_note':
-            response = gemini_client.models.generate_content(
-                model="gemini-3.5-flash",
-                contents=GEMINI_NOTE_CREATION_PROMPT + f"prompt: {question}",
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
+    models = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3-flash", "gemini-3.5-flash-lite"]
+    last_error = None
+    for model in models:
+        try:
+            if action == 'create_note':
+                response = gemini_client.models.generate_content(
+                    model=model,
+                    contents=GEMINI_NOTE_CREATION_PROMPT + f"prompt: {question}",
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                    )
                 )
-            )
-        elif action == 'note_action':
-            response = gemini_client.models.generate_content(
-                model="gemini-3.1-flash-lite",
-                contents=GEMINI_NOTE_ACTION_PROMPT + f"prompt: {question}",
-            )
-            html_content = md_to_html(response.text)
-            return html_content, response.text
-        elif action == 'metadata':
-            response = gemini_client.models.generate_content(
-                model="gemini-3.1-flash-lite",
-                contents=GEMINI_NOTE_CREATION_PROMPT + f"prompt: {question}",
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
+                return response.text
+            elif action == 'note_action':
+                response = gemini_client.models.generate_content(
+                    model=model,
+                    contents=GEMINI_NOTE_ACTION_PROMPT + f"prompt: {question}",
                 )
-            )
-        elif action == 'summarize':
-            response = gemini_client.models.generate_content(
-                model="gemini-3.1-flash-lite",
-                contents=GEMINI_SUMMARIZE_PROMPT + f"prompt: {question}",
-            )
-        return response.text
-    except Exception as e:
-        if is_rate_limit_error(e):
-            return {'error': True, 'type': 'rate_limit', 'msg': 'Our AI services are experiencing high demand. Please avoid note-related requests for a few minutes.'}
-        return {'error': True, 'type': 'api_error', 'msg': f'An error occurred while processing your {action.replace("_", " ")} request. Please try again later.'}
+                html_content = md_to_html(response.text)
+                return html_content, response.text
+            elif action == 'metadata':
+                response = gemini_client.models.generate_content(
+                    model='gemini-3.5-flash-lite',
+                    contents=GEMINI_NOTE_CREATION_PROMPT + f"prompt: {question}",
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                    )
+                )
+                return response.text
+            elif action == 'summarize':
+                response = gemini_client.models.generate_content(
+                    model=model,
+                    contents=GEMINI_SUMMARIZE_PROMPT + f"prompt: {question}",
+                )
+                return response.text
+        except Exception as e:
+            last_error = e
+            continue
+
+    if last_error and is_rate_limit_error(last_error):
+        return {'error': True, 'type': 'rate_limit', 'msg': 'Our AI services are experiencing high demand. Please avoid note-related requests for a few minutes.'}
+    return {'error': True, 'type': 'api_error', 'msg': f'An error occurred while processing your {action.replace("_", " ")} request. Please try again later.'}
 
 def ask_mistral(question):
     try:
