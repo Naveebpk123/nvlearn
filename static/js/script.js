@@ -26,6 +26,8 @@ const readNoteContent = document.getElementById('read-note-content');
 
 const notes = document.getElementsByClassName('note');
 
+const flashcards = document.getElementsByClassName('flashcard');
+
 async function flash(text='',category='success'){
   const flashAlert = document.createElement('div');
   flashAlert.classList.add('alert',`alert-${category}`);
@@ -297,6 +299,14 @@ document.addEventListener('DOMContentLoaded',()=>{
       MathJax.typesetPromise([readNoteContent]).catch(() => {});
     }
 });
+
+if(flashcards){
+  for(const flashcard of flashcards){
+    flashcard.addEventListener('click',()=>{
+      flashcard.classList.toggle('flipped');
+    })
+  };
+};
 
 
 
