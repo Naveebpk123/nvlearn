@@ -697,6 +697,10 @@ def read_note(note_id):
         abort(404)
     return render_template('read_note.html',note=note)
 
+@app.route('/flashcards')
+def flashcards():
+    return render_template('flashcards.html')
+
 @app.route('/about')
 def about():
     return render_template('about.html')
