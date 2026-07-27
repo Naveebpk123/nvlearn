@@ -3,6 +3,15 @@
 {% block content %}
 <div class="outer-flashcard-container">
     <div class="inner-flashcard-container">
+        <div class="flashcard current">
+        <div class="front">
+            Hi
+        </div>
+        <div class="back">
+            Hi is a word used for greeting
+        </div>
+        </div>
+
         <div class="flashcard">
         <div class="front">
             Hi
@@ -12,5 +21,9 @@
         </div>
         </div>
     </div>
+</div>
+<div class="action-buttons">
+    <button id="previousButton" class="button">&lt;</button>
+    <button id="nextButton" class="button">&gt;</button>
 </div>
 {% endblock %}

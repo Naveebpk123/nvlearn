@@ -27,6 +27,8 @@ const readNoteContent = document.getElementById('read-note-content');
 const notes = document.getElementsByClassName('note');
 
 const flashcards = document.getElementsByClassName('flashcard');
+const nextBtn = document.getElementById('nextButton');
+const previousBtn = document.getElementById('previousButton');
 
 async function flash(text='',category='success'){
   const flashAlert = document.createElement('div');
@@ -166,6 +168,67 @@ async function fetchSearchResults(query) {
 
 logo?.addEventListener('click',toggleSidebar);
 
+const innerFlashcardContainer = document.querySelector('.inner-flashcard-container');
+
+if (flashcards && flashcards.length > 0) {
+  let currentCardIndex = 0;
+  const initialCurrentIndex = Array.from(flashcards).findIndex(card => card.classList.contains('current'));
+  if (initialCurrentIndex !== -1) {
+    currentCardIndex = initialCurrentIndex;
+  }
+
+  function updateFlashcardPosition() {
+    if (currentCardIndex < 0) currentCardIndex = 0;
+    if (currentCardIndex >= flashcards.length) currentCardIndex = flashcards.length - 1;
+
+    Array.from(flashcards).forEach((card, idx) => {
+      card.classList.remove('flipped');
+      if (idx === currentCardIndex) {
+        card.classList.add('current');
+      } else {
+        card.classList.remove('current');
+      }
+    });
+
+    if (innerFlashcardContainer) {
+      innerFlashcardContainer.style.transform = `translateX(-${currentCardIndex * 100}%)`;
+    }
+
+    if (previousBtn) {
+      previousBtn.disabled = (currentCardIndex === 0);
+    }
+    if (nextBtn) {
+      nextBtn.disabled = (currentCardIndex >= flashcards.length - 1);
+    }
+  }
+
+  updateFlashcardPosition();
+
+  Array.from(flashcards).forEach(flashcard => {
+    flashcard.addEventListener('click', () => {
+      flashcard.classList.toggle('flipped');
+    });
+  });
+
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      if (currentCardIndex < flashcards.length - 1) {
+        currentCardIndex++;
+        updateFlashcardPosition();
+      }
+    });
+  }
+
+  if (previousBtn) {
+    previousBtn.addEventListener('click', () => {
+      if (currentCardIndex > 0) {
+        currentCardIndex--;
+        updateFlashcardPosition();
+      }
+    });
+  }
+}
+
 logoutBtn?.addEventListener('click', (e) => {
   e.preventDefault();
   openModal('Are you sure you want to logout?', modalBackground, 'logout');
@@ -300,13 +363,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
 });
 
-if(flashcards){
-  for(const flashcard of flashcards){
-    flashcard.addEventListener('click',()=>{
-      flashcard.classList.toggle('flipped');
-    })
-  };
-};
+
 
 
 
