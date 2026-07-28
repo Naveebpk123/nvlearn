@@ -3,27 +3,44 @@
 {% block content %}
 <div class="outer-flashcard-container">
     <div class="inner-flashcard-container">
-        <div class="flashcard current">
-        <div class="front">
-            Hi
-        </div>
-        <div class="back">
-            Hi is a word used for greeting
-        </div>
-        </div>
-
+        {% if flashcards %}
+        {% for card in flashcards %}
         <div class="flashcard">
         <div class="front">
-            Hi
+        {{card['front']}}
         </div>
         <div class="back">
-            Hi is a word used for greeting
+            {{card['back']}}
         </div>
         </div>
+        {% endfor %}
+        {% else %}
+        <div class="flashcard">
+        <div class="front">
+        An error occurred while generating flashcards
+        </div>
+        <div class="back">
+            Please try again later.
+        </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 <div class="action-buttons">
     <button id="previousButton" class="button">&lt;</button>
     <button id="nextButton" class="button">&gt;</button>
 </div>
+<script>
+    window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      processEscapes: true
+    },
+    options: {
+      processHtmlClass: 'math|arithmatex'
+    }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 {% endblock %}
