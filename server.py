@@ -51,6 +51,12 @@ class User(db.Model, UserMixin):
     name: Mapped[str] = mapped_column(String(250), nullable=False)
     notes = relationship("Note", backref="author", lazy=True)
 
+class Flashcard(db.Model):
+    __tablename__ = 'flashcards'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    card_data: Mapped[Dict[str,Any]] = mapped_column(JSON)
+    in_bin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
 def get_meta_data(content):
     metadata = build_ai_instructions(content,username='',metadata=True)
     return metadata
@@ -519,6 +525,7 @@ def ai_response():
     all_results = []
     all_get_notes = ''
     note_action_html_content = ''
+    flashcards = None
     chat = None
     all_errors = []
     hit_rate_limit = False
