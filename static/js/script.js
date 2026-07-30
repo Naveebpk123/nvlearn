@@ -349,6 +349,13 @@ chatInput?.addEventListener('keydown', async function(e){
   const aiBubble = document.createElement('div');
   aiBubble.classList.add('ai-bubble');
   aiBubble.innerHTML = `${aiResponse.chat || ''} \n ${aiResponse.note_action || ''} \n ${aiResponse.notes || ''}`;
+  if (aiResponse.flashcard_id){
+    const flashcardLink = document.createElement('a');
+    flashcardLink.className = 'button';
+    flashcardLink.href = `/flashcards/${aiResponse.flashcard_id}`;
+    flashcardLink.textContent = 'View Flashcards';
+    aiBubble.appendChild(flashcardLink);
+  };
   userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
   if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
       MathJax.typesetPromise([aiBubble]).catch(() => {});

@@ -126,7 +126,10 @@ def validate_router_response(response_json):
         return ai_error('invalid_json', 'NVLearn AI is currently experiencing some errors. Please try again.')
     if len(actions) != len(contents):
         return ai_error('invalid_json', 'NVLearn AI returned is currently experiencing some errors. Please try again.')
-    valid_actions = {'chat', 'create_note', 'get_note', 'note_action'}
+    for i in range(len(actions)):
+        if actions[i] == 'create_flashcard':
+            actions[i] = 'create_flashcards'
+    valid_actions = {'chat', 'create_note', 'get_note', 'note_action', 'create_flashcards'}
     if any(action not in valid_actions for action in actions):
         return ai_error('invalid_action', 'NVLearn AI is currently experiencing some errors. Please try again.')
     return None
@@ -203,10 +206,12 @@ def build_ai_instructions(contents, username, metadata=False, chat_only=False):
             instructions.append({'action': 'get_note', 'content': response_json['content'][i]})
         elif action == 'note_action':
             instructions.append({'action': 'note_action', 'content': response_json['content'][i]})
+        elif action == 'create_flashcards':
+            instructions.append({'action': 'create_flashcards', 'content': response_json['content'][i]})
     return instructions
     
 def ask_gemini(question, action):
-    models = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3-flash", "gemini-3.5-flash-lite"]
+    models = ["gemini-3.6-flash", "gemini-3.5-flash","gemini-3.0-flash","gemini-2.5-flash","gemini-3.5-flash-lite"]
     last_error = None
     for model in models:
         try:
@@ -228,7 +233,7 @@ def ask_gemini(question, action):
                 return html_content, response.text
             elif action == 'metadata':
                 response = gemini_client.models.generate_content(
-                    model='gemini-3.5-flash-lite',
+                    model='gemini-2.5-flash',
                     contents=GEMINI_NOTE_CREATION_PROMPT + f"prompt: {question}",
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
@@ -250,7 +255,7 @@ def ask_gemini(question, action):
                     )
                 )
                 try:
-                    json.loads(response.text)
+                    return json.loads(response.text)
                 except Exception:
                     return 'error'
         except Exception as e:

@@ -564,7 +564,7 @@ body.editor-lock-scroll {
 .outer-flashcard-container {
   width: 30%;             
   min-width: 280px;
-  height: 12rem;            
+  height: 50vh;            
   overflow: hidden;         
   perspective: 1000px;
   flex-shrink:0;

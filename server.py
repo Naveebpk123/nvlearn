@@ -56,6 +56,7 @@ class Flashcard(db.Model):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     card_data: Mapped[Dict[str,Any]] = mapped_column(JSON)
     in_bin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
 
 def get_meta_data(content):
     metadata = build_ai_instructions(content,username='',metadata=True)
@@ -166,6 +167,12 @@ scheduler.add_job(
 
 with app.app_context():
     db.create_all()
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(db.text("ALTER TABLE flashcards ADD COLUMN user_id INTEGER REFERENCES users(id)"))
+            conn.commit()
+    except Exception:
+        pass
     backfill_metadata_ids()
 scheduler.start() # STart the background process
 
@@ -525,7 +532,7 @@ def ai_response():
     all_results = []
     all_get_notes = ''
     note_action_html_content = ''
-    flashcards = None
+    flashcard_id = None
     chat = None
     all_errors = []
     hit_rate_limit = False
@@ -661,6 +668,9 @@ def ai_response():
                 note_action_html_content += response_html + '\n'
 
         elif action == 'create_flashcards':
+            metadata_list = []
+            search_terms = ai_reply.lower().split()
+            keywords = [word for word in search_terms if len(word) > 3]
             notes = db.session.execute(
                 db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
             ).scalars().all()
@@ -683,10 +693,7 @@ def ai_response():
             note_content_list = ''
 
             if is_ai_error(note_ids):
-                all_errors.append(note_ids.get('msg', 'An error occurred while searching for notes. Please try again later.'))
-                if note_ids.get('type') == 'rate_limit':
-                    hit_rate_limit = True
-                continue
+                note_content_list = f"Topic: {ai_reply}"
             else:
                 if note_ids.get('note_ids'):
                     for note_id in note_ids['note_ids']:
@@ -696,17 +703,20 @@ def ai_response():
                             continue
                         if note and note.user_id == current_user.id:
                             note_content_list += (note.md_content or "") + '\n'
-                else:
-                    all_results.append(note_ids.get('msg', 'I could not find any relevant notes.'))
-                    continue
+                if not note_content_list:
+                    note_content_list = f"Topic: {ai_reply}"
+
             gemini_result = ask_gemini(action='create_flashcards',question=note_content_list)
             if is_ai_error(gemini_result):
                 all_errors.append(gemini_result.get('msg', 'An error occurred while processing notes. Flashcard could not be created. Please try again later.'))
                 if gemini_result.get('type') == 'rate_limit':
                     hit_rate_limit = True
             else:
-                flashcards = gemini_result
-                all_results.append(f'Created flashcards on topic:{ai_reply}')
+                flashcard = Flashcard(card_data = gemini_result, user_id = current_user.id)
+                db.session.add(flashcard)
+                db.session.commit()
+                flashcard_id = flashcard.id
+                all_results.append(f'Created flashcards on topic: {ai_reply}')
                             
     if hit_rate_limit:
         session['note_action_cooldown_until'] = (datetime.now(timezone.utc) + timedelta(seconds=NOTE_ACTION_COOLDOWN_SECONDS)).timestamp()
@@ -719,24 +729,23 @@ def ai_response():
     results = len(all_results)
 
     if results == 0 and errors == 0 and not chat and note_action_html_content and all_get_notes == '':
-        return jsonify({'note_action': note_action_html_content})
+        return jsonify({'note_action': note_action_html_content, 'flashcard_id': flashcard_id})
 
     if results <= 1 and errors <= 1 and not chat and not note_action_html_content:
         if results == 1 and errors == 0 and all_get_notes == '':
-            return jsonify({'chat': all_results[0]})
+            return jsonify({'chat': all_results[0], 'flashcard_id': flashcard_id})
         elif results == 0 and errors == 1 and all_get_notes == '':
-            return jsonify({'chat': all_errors[0]})
+            return jsonify({'chat': all_errors[0], 'flashcard_id': flashcard_id})
         elif results == 0 and errors == 0 and all_get_notes != '':
-            return jsonify({'chat': all_get_notes})
+            return jsonify({'chat': all_get_notes, 'flashcard_id': flashcard_id})
     if results == 0 and errors == 0 and chat:
-        return jsonify({'chat': chat})
+        return jsonify({'chat': chat, 'flashcard_id': flashcard_id})
 
     final_summary = ask_gemini(question=final_result, action='summarize')
     if is_ai_error(final_summary):
         final_summary = chat or 'An error occurred while executing your task. Please try again.'
-    output = {'chat': md_to_html(final_summary), 'notes': all_get_notes, 'note_action': note_action_html_content,'flashcards':flashcards}
+    output = {'chat': md_to_html(final_summary), 'notes': all_get_notes, 'note_action': note_action_html_content,'flashcard_id':flashcard_id}
     return jsonify(output)
-
 
 @app.route('/read_note/<int:note_id>')
 @login_required
@@ -751,9 +760,13 @@ def read_note(note_id):
         abort(404)
     return render_template('read_note.html',note=note)
 
-@app.route('/flashcards')
-def flashcards():
-    return render_template('flashcards.html')
+@app.route('/flashcards/<int:flashcard_id>')
+@login_required
+def flashcards(flashcard_id):
+    flashcard_obj = db.session.get(Flashcard, flashcard_id)
+    if not flashcard_obj or flashcard_obj.user_id != current_user.id:
+        abort(404)
+    return render_template('flashcards.html', flashcards=flashcard_obj.card_data)
 
 @app.route('/about')
 def about():

@@ -13,7 +13,7 @@ Valid actions:
 - create_note
 - edit_note
 - create_quiz
-- create_flashcard
+- create_flashcards
 - get_note
 - note_action
 
@@ -135,10 +135,7 @@ Rules:
 - Break large topics into multiple flashcards instead of creating overly long cards.
 - Keep both front and back concise while preserving essential information.
 - Avoid duplicate or redundant flashcards.
-- Use LaTeX for mathematics:
-  - Inline: `$...$`
-  - Display: `$$...$$`
-  - Escape backslashes in JSON (e.g. `"\\\\frac{a}{b}"`).
+- Avoid using latex.
 - Do not explain your reasoning.
 """
 
