@@ -653,6 +653,54 @@ def ai_response():
                 response_html, _ = gemini_result
                 note_action_html_content += response_html + '\n'
 
+        elif action == 'create_flashcards':
+            notes = db.session.execute(
+                db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
+            ).scalars().all()
+            for note in notes:
+                metadata = metadata_for_search(note)
+                if not metadata:
+                    continue
+                if not keywords:
+                    metadata_list.append(metadata)
+                    continue
+                tags_text = " ".join(metadata.get('tags', [])).lower()
+                summary_text = metadata.get('summary','').lower()
+                md_content = (note.md_content or '').lower()
+                title = (note.title or '').lower()
+                searchable_pool = f"{title} {tags_text} {summary_text} {md_content}"
+
+                if any(keyword in searchable_pool for keyword in keywords):
+                    metadata_list.append(metadata)
+            note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
+            note_content_list = ''
+
+            if is_ai_error(note_ids):
+                all_errors.append(note_ids.get('msg', 'An error occurred while searching for notes. Please try again later.'))
+                if note_ids.get('type') == 'rate_limit':
+                    hit_rate_limit = True
+                continue
+            else:
+                if note_ids.get('note_ids'):
+                    for note_id in note_ids['note_ids']:
+                        try:
+                            note = db.session.get(Note, int(note_id))
+                        except (TypeError, ValueError):
+                            continue
+                        if note and note.user_id == current_user.id:
+                            note_content_list += (note.md_content or "") + '\n'
+                else:
+                    all_results.append(note_ids.get('msg', 'I could not find any relevant notes.'))
+                    continue
+            gemini_result = ask_gemini(action='create_flashcards',question=note_content_list)
+            if is_ai_error(gemini_result):
+                all_errors.append(gemini_result.get('msg', 'An error occurred while processing notes. Flashcard could not be created. Please try again later.'))
+                if gemini_result.get('type') == 'rate_limit':
+                    hit_rate_limit = True
+            else:
+                flashcards = gemini_result
+                all_results.append(f'Created flashcards on topic:{ai_reply}')
+                            
     if hit_rate_limit:
         session['note_action_cooldown_until'] = (datetime.now(timezone.utc) + timedelta(seconds=NOTE_ACTION_COOLDOWN_SECONDS)).timestamp()
         cooldown_msg = 'Note-related features are temporarily paused due to high demand. You can still chat normally — note features will be back in about 5 minutes.'
@@ -679,9 +727,8 @@ def ai_response():
     final_summary = ask_gemini(question=final_result, action='summarize')
     if is_ai_error(final_summary):
         final_summary = chat or 'An error occurred while executing your task. Please try again.'
-    output = {'chat': md_to_html(final_summary), 'notes': all_get_notes, 'note_action': note_action_html_content}
+    output = {'chat': md_to_html(final_summary), 'notes': all_get_notes, 'note_action': note_action_html_content,'flashcards':flashcards}
     return jsonify(output)
-
 
 
 @app.route('/read_note/<int:note_id>')

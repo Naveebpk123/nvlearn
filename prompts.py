@@ -19,7 +19,7 @@ Valid actions:
 
 Rules:
 - chat: Respond directly to the user in Markdown.
-- create_note, edit_note, create_quiz, create_flashcard: Extract ONLY the topic or instructions. Do NOT generate any content.
+- create_note, edit_note, create_quiz, create_flashcards: Extract ONLY the topic or instructions. Do NOT generate any content.
 - get_note: Use only when the user explicitly requests the complete original note.
 - note_action: Use for any operation on an existing note (e.g. summarize, extract key points, explain, rewrite, answer questions, find information, list formulas, convert format). Extract ONLY the requested operation or instructions.
 - Support multiple actions by returning multiple entries in order(indices must be corresponding)

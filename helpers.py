@@ -241,6 +241,18 @@ def ask_gemini(question, action):
                     contents=GEMINI_SUMMARIZE_PROMPT + f"prompt: {question}",
                 )
                 return response.text
+            elif action == 'create_flashcards':
+                response = gemini_client.models.generate_content(
+                    model=model,
+                    contents=GEMINI_FLASHCARD_CREATION_PROMPT + f"prompt: {question}",
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                    )
+                )
+                try:
+                    json.loads(response.text)
+                except Exception:
+                    return 'error'
         except Exception as e:
             last_error = e
             continue
