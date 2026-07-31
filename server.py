@@ -6,7 +6,7 @@ from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, JSON, DateTim
 from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm, VerificationForm
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from helpers import send_email_threaded, create_code, build_ai_instructions, ask_groq, ask_mistral, ask_gemini, get_welcome_message, md_to_html, is_ai_error
+from helpers import send_email_threaded, create_code, build_ai_instructions, ask_mistral, ask_gemini, get_welcome_message, md_to_html, is_ai_error
 from typing import Dict,Any
 from datetime import datetime, timezone, timedelta
 import json
@@ -156,11 +156,29 @@ def _verification_is_valid(submitted_code):
         return False, "That verification code is incorrect."
     return True, ""
 
+def delete_flashcards(flashcard_id):
+    """Delete unsaved flashcards"""
+    all_flashcards = db.session.scalars(db.select(FLashcard).where(Flashcard.is_saved == False)).all()
+    flashcards = next((n for n in notes if metadata_needs_ai(n.meta_data)), None)
+    if flashcards:
+        db.session.delete(flashcards)
+        db.session.commit()
+    return
+
 # Add the background job of generating metadata
 scheduler.add_job(
     generate_meta_data,
     "interval",
-    minutes=1,
+    minutes=10,
+    max_instances=1,
+    coalesce=True
+)
+
+# Add background job of deleting unsaved flashcards
+scheduler.add_job(
+    delete_flashcards,
+    "interval",
+    minutes=10,
     max_instances=1,
     coalesce=True
 )
