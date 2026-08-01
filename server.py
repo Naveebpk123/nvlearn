@@ -16,7 +16,7 @@ class Base(DeclarativeBase):
     pass
 
 app=Flask(__name__)
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0 # To ensure styling updates properly
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0 # Ensure styling updates properly
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///notes.db"
 app.config['SECRET_KEY'] = 'secretkey'
 VERIFICATION_TTL_SECONDS = 10 * 60
@@ -120,9 +120,8 @@ def generate_meta_data():
             for note in notes:
                 if isinstance(note.meta_data, dict) and note.meta_data.get('id') != note.id:
                     note.meta_data = normalize_metadata(note.meta_data, note.id)
-                    db.session.commit()
-                    return
-            # Select the first note with needs proper metadata
+            db.session.commit()
+            # Select the first note which needs proper metadata
             note = next((n for n in notes if metadata_needs_ai(n.meta_data)), None)
             if not note:
                 return
@@ -158,11 +157,11 @@ def _verification_is_valid(submitted_code):
 
 def delete_flashcards():
     """Delete unsaved flashcards"""
-    all_flashcards = db.session.scalars(db.select(FLashcard).where(Flashcard.is_saved == False)).all()
-    flashcards = next((n for n in notes),None)
-    if flashcards:
-        db.session.delete(flashcards)
-        db.session.commit()
+    all_flashcards = db.session.scalars(db.select(Flashcard).where(Flashcard.is_saved == False)).all()
+    if all_flashcards:
+        for flashcards in all_flashcards:
+            db.session.delete(flashcards)
+            db.session.commit()
     return
 
 # Add the background job of generating metadata
@@ -402,7 +401,7 @@ def register():
                 "Your verification code",
                 f"Type this 6 digit code to finish your account setup: {verification_code}",
             ):
-                raise EmailError
+                raise RuntimeError("Failed to send verification email.")
             
             flash(f'Type the 6 digit code sent to {form.email.data}.', 'success')
             return render_template(
@@ -417,18 +416,13 @@ def register():
         except SQLAlchemyError:
             db.session.rollback()
             flash("An unexpected error occurred. Please try again.", "error")
-        except EmailError:
+        except Exception:
             db.session.rollback()
             flash("Failed to send email. Try to register again.","error")
     return render_template('register.html', form=form)
 
 @app.route('/login', methods=['GET','POST'])
 def login():
-    #-----------FOR TESTING-------------------
-    user=db.session.get(User,1)
-    login_user(user)
-    return redirect(url_for('home'))
-    #-----------------------------------------------
     if session.get('pending_login'):
         form = VerificationForm()
         if form.validate_on_submit():
@@ -591,7 +585,7 @@ def ai_response():
 
         elif action == 'get_note':
             metadata_list = []
-            search_terms = ai_reply.lower().split()
+            search_terms = str(ai_reply).lower().split()
             keywords = [word for word in search_terms if len(word)>3]
             notes = db.session.execute(
                 db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
@@ -635,7 +629,7 @@ def ai_response():
 
         elif action == 'note_action':
             metadata_list = []
-            search_terms = ai_reply.lower().split()
+            search_terms = str(ai_reply).lower().split()
             keywords = [word for word in search_terms if len(word)>3]
             notes = db.session.execute(
                 db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
@@ -687,7 +681,7 @@ def ai_response():
 
         elif action == 'create_flashcards':
             metadata_list = []
-            search_terms = ai_reply.lower().split()
+            search_terms = str(ai_reply).lower().split()
             keywords = [word for word in search_terms if len(word) > 3]
             notes = db.session.execute(
                 db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
@@ -780,11 +774,11 @@ def read_note(note_id):
 
 @app.route('/flashcards/<int:flashcard_id>')
 @login_required
-def flashcards(flashcard_id):
+def view_flashcards(flashcard_id):
     flashcard_obj = db.session.get(Flashcard, flashcard_id)
     if not flashcard_obj or flashcard_obj.user_id != current_user.id:
         abort(404)
-    return render_template('flashcards.html', flashcards=flashcard_obj.card_data,cards_id = flashcard_obj.id)
+    return render_template('view-flashcards.html', flashcards=flashcard_obj.card_data[1:],cards_id = flashcard_obj.id,is_saved=flashcard_obj.is_saved)
 
 @app.route('/save-flashcards/<int:flashcard_id>',methods=['POST'])
 @login_required
@@ -795,6 +789,22 @@ def save_flashcard(flashcard_id):
         db.session.commit()
         return jsonify({'status':'saved'})
     return jsonify({'status':'failed'})
+
+@app.route('/delete-flashcards/<int:flashcard_id>',methods=['POST'])
+@login_required
+def delete_flashcard(flashcard_id):
+    flashcard_obj = db.session.get(Flashcard, flashcard_id)
+    if flashcard_obj and flashcard_obj.user_id == current_user.id:
+        db.session.delete(flashcard_obj)
+        db.session.commit()
+        return jsonify(['Set deleted', 'success'])
+    return jsonify(['Failed to delete', 'error'])
+
+@app.route('/flashcards')
+@login_required
+def flashcards():
+    all_flashcards = db.session.scalars(db.select(Flashcard).where(Flashcard.user_id == current_user.id).where(Flashcard.is_saved == True)).all()
+    return render_template('flashcards.html', flashcards=all_flashcards)
 
 @app.route('/about')
 def about():

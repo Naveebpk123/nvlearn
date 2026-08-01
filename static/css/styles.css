@@ -387,6 +387,25 @@ a {
     top:0;
 }
 
+.card{
+    padding:10px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-evenly;
+    align-items:center;
+    background-color:white;
+    box-shadow: 0 4px 10px var(--shadow-color);
+    border: 1px solid var(--border-color);
+    border-radius:15px;
+    transition: box-shadow 0.2s ease transform 0.2 ease;
+}
+
+.card:hover{
+    cursor:pointer;
+    box-shadow: 0 4px 15px var(--shadow-color);
+    transform: translateY(-2px);
+}
+
 .confirm-modal{
     padding:10px;
     display:flex;

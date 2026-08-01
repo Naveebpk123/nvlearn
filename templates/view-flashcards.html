@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Flashcards{% endblock %}
+{% block content %}
+<div class="outer-flashcard-container">
+    <div class="inner-flashcard-container">
+        {% if flashcards %}
+        {% for card in flashcards %}
+        <div class="flashcard">
+        <div class="front">
+        {{card['front']}}
+        </div>
+        <div class="back">
+            {{card['back']}}
+        </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="flashcard">
+        <div class="front">
+        An error occurred while generating flashcards
+        </div>
+        <div class="back">
+            Please try again later.
+        </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+<div class="action-buttons">
+    <button id="previousButton" class="button">&lt;</button>
+    <button id="nextButton" class="button">&gt;</button>
+</div>
+{% if not is_saved %}
+<button class="button" id="saveFlashcardsBtn" data-id="{{cards_id}}" style="margin:0.5rem;">Save flashcards</button>
+{% endif %}
+<script>
+    window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      processEscapes: true
+    },
+    options: {
+      processHtmlClass: 'math|arithmatex'
+    }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+{% endblock %}

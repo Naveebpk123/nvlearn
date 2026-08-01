@@ -31,6 +31,7 @@ const nextBtn = document.getElementById('nextButton');
 const previousBtn = document.getElementById('previousButton');
 const saveFlashcardsBtn = document.getElementById('saveFlashcardsBtn');
 const innerFlashcardContainer = document.querySelector('.inner-flashcard-container');
+const deleteFlashcardsBtn = document.getElementsByClassName('delete-flashcard-btn');
 
 async function flash(text='',category='success'){
   const flashAlert = document.createElement('div');
@@ -103,7 +104,7 @@ if (notes !== null){
     document.getElementById('contentWrapper').classList.toggle("sidebar-open");
   }
 
-function openModal(text, modal, action = null, note_id = null, triggerBtn = null) {
+function openModal(text, modal, action = null, id = null, triggerBtn = null) {
   const targetModal = modal || modalBackground; 
   
   targetModal.style.display = 'flex';
@@ -123,7 +124,7 @@ function openModal(text, modal, action = null, note_id = null, triggerBtn = null
   if (action) {
     newConfirmBtn.addEventListener('click', async function() {
       if (action === 'delete-note') { 
-        const response = await fetch(`/delete/${note_id}`, { method: 'POST' });
+        const response = await fetch(`/delete/${id}`, { method: 'POST' });
         const response_json = await response.json();
         targetModal.style.display = 'none';
         flash(response_json[0], response_json[1]);
@@ -141,8 +142,15 @@ function openModal(text, modal, action = null, note_id = null, triggerBtn = null
           targetModal.style.display = 'none';
           flash(response_json[0],response_json[1])
         }
-      }      
-    });
+      }else if (action === 'delete-flashcards') {
+        const response = await fetch(`/delete-flashcards/${id}`, { method: 'POST' });
+        const response_json = await response.json();
+        targetModal.style.display = 'none';
+        flash(response_json[0], response_json[1]);      
+        if (response_json[1] === 'success' && triggerBtn) {
+          triggerBtn.closest('.flashcard-set').remove();
+        }
+    }});
   }
 }
 
@@ -248,6 +256,21 @@ if (deleteNoteBtns !== null) {
     });
   }
 }
+
+if (deleteFlashcardsBtn !== null) {
+  for (const btn of deleteFlashcardsBtn) {
+    btn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      openModal(
+        'Are you sure you want to permanently delete this flashcard set?', 
+        modalBackground, 
+        'delete-flashcards', 
+        btn.dataset.flashcardId, 
+        btn
+      );
+    });
+  }
+};
 
 if(saveFlashcardsBtn){
   saveFlashcardsBtn.addEventListener('click',async function(){

@@ -1,47 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Flashcards{% endblock %}
+
 {% block content %}
-<div class="outer-flashcard-container">
-    <div class="inner-flashcard-container">
-        {% if flashcards %}
-        {% for card in flashcards %}
-        <div class="flashcard">
-        <div class="front">
-        {{card['front']}}
-        </div>
-        <div class="back">
-            {{card['back']}}
-        </div>
-        </div>
+    <h1>My Flashcards</h1>
+    {% if flashcards %}
+    <div class="note-container">
+        {% for flashcard in flashcards %}
+            <div class="card flashcard-set" data-flashcard-id="{{ flashcard.id }}">
+                <h3>{{ flashcard.card_data[0] }}</h3>
+                <div class="action-buttons">
+                    <a href="{{url_for('view_flashcards', flashcard_id=flashcard.id)}}" class="button cancel">View Set</a>
+                    <button class="button danger delete-flashcard-btn" data-flashcard-id="{{ flashcard.id }}">Delete Set</button>                    
+                </div>
+            </div>
         {% endfor %}
-        {% else %}
-        <div class="flashcard">
-        <div class="front">
-        An error occurred while generating flashcards
-        </div>
-        <div class="back">
-            Please try again later.
-        </div>
-        </div>
-        {% endif %}
     </div>
-</div>
-<div class="action-buttons">
-    <button id="previousButton" class="button">&lt;</button>
-    <button id="nextButton" class="button">&gt;</button>
-</div>
-<button class="button" id="saveFlashcardsBtn" data-id="{{cards_id}}" style="margin:0.5rem;">Save flashcards</button>
-<script>
-    window.MathJax = {
-    tex: {
-      inlineMath: [['$', '$'], ['\\(', '\\)']],
-      displayMath: [['$$', '$$'], ['\\[', '\\]']],
-      processEscapes: true
-    },
-    options: {
-      processHtmlClass: 'math|arithmatex'
-    }
-  };
-</script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    {% else %}
+        <p>You do not have any flashcard sets saved yet.</p>
+    {% endif %}
 {% endblock %}

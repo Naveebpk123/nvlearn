@@ -115,7 +115,7 @@ Generate high-quality study flashcards from the user's request.
 Return ONLY valid JSON. Do not include markdown code fences or any extra text.
 
 Schema:
-  [
+  ['title for flashcard set',
     {
       "front": "Question, term, or prompt",
       "back": "Answer, definition, explanation, or solution"
@@ -137,6 +137,7 @@ Rules:
 - Avoid duplicate or redundant flashcards.
 - Avoid using latex.
 - Do not explain your reasoning.
+- The first index of the returned array should be a string representing the title of the flashcard set.
 """
 
 MISTRAL_SYSTEM_PROMPT = r"""

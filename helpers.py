@@ -148,8 +148,9 @@ def ask_groq(contents, username="", chat_only=False):
         response = groq_client.chat.completions.create(
             messages=messages,
             model="llama-3.3-70b-versatile",
-            response_format={"type": "json_object"}
-        )
+            response_format={"type": "json_object"},
+            temperature=0.7,
+            max_output_tokens=2000)
         response_json = parse_json_object(response.choices[0].message.content, 'NVLearn AI is currently experiencing some errors. Please try again.')
         if is_ai_error(response_json):
             return response_json
@@ -254,10 +255,12 @@ def ask_gemini(question, action):
                         response_mime_type="application/json",
                     )
                 )
-                try:
-                    return json.loads(response.text)
-                except Exception:
-                    return 'error'
+                parsed = parse_json_object(response.text, 'Flashcard generation returned invalid format.')
+                if is_ai_error(parsed):
+                    return ai_error('invalid_json', 'Flashcard generation failed. Please try again.')
+                if not isinstance(parsed, list):
+                    return ai_error('invalid_json', 'Flashcard generation returned invalid format.')
+                return parsed
         except Exception as e:
             last_error = e
             continue
