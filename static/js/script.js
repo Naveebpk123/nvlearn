@@ -29,6 +29,8 @@ const notes = document.getElementsByClassName('note');
 const flashcards = document.getElementsByClassName('flashcard');
 const nextBtn = document.getElementById('nextButton');
 const previousBtn = document.getElementById('previousButton');
+const saveFlashcardsBtn = document.getElementById('saveFlashcardsBtn');
+const innerFlashcardContainer = document.querySelector('.inner-flashcard-container');
 
 async function flash(text='',category='success'){
   const flashAlert = document.createElement('div');
@@ -168,8 +170,6 @@ async function fetchSearchResults(query) {
 
 logo?.addEventListener('click',toggleSidebar);
 
-const innerFlashcardContainer = document.querySelector('.inner-flashcard-container');
-
 if (flashcards && flashcards.length > 0) {
   let currentCardIndex = 0;
   const initialCurrentIndex = Array.from(flashcards).findIndex(card => card.classList.contains('current'));
@@ -249,6 +249,22 @@ if (deleteNoteBtns !== null) {
   }
 }
 
+if(saveFlashcardsBtn){
+  saveFlashcardsBtn.addEventListener('click',async function(){
+    const response = await fetch(`/save-flashcards/${saveFlashcardsBtn.dataset.id}`,{
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+  }});
+    const responseJSON = await response.json();
+    if (responseJSON.status == 'saved'){
+      saveFlashcardsBtn.disabled = true;
+      flash('Saved flashcards','success');
+    }else{
+      flash('Unable to save','error')
+    };
+});
+};
 
 if(moveToBinBtns){
   for(const btn of moveToBinBtns){

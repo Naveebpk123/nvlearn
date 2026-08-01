@@ -55,7 +55,7 @@ class Flashcard(db.Model):
     __tablename__ = 'flashcards'
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     card_data: Mapped[Dict[str,Any]] = mapped_column(JSON)
-    in_bin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_saved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
 
 def get_meta_data(content):
@@ -156,10 +156,10 @@ def _verification_is_valid(submitted_code):
         return False, "That verification code is incorrect."
     return True, ""
 
-def delete_flashcards(flashcard_id):
+def delete_flashcards():
     """Delete unsaved flashcards"""
     all_flashcards = db.session.scalars(db.select(FLashcard).where(Flashcard.is_saved == False)).all()
-    flashcards = next((n for n in notes if metadata_needs_ai(n.meta_data)), None)
+    flashcards = next((n for n in notes),None)
     if flashcards:
         db.session.delete(flashcards)
         db.session.commit()
@@ -784,7 +784,17 @@ def flashcards(flashcard_id):
     flashcard_obj = db.session.get(Flashcard, flashcard_id)
     if not flashcard_obj or flashcard_obj.user_id != current_user.id:
         abort(404)
-    return render_template('flashcards.html', flashcards=flashcard_obj.card_data)
+    return render_template('flashcards.html', flashcards=flashcard_obj.card_data,cards_id = flashcard_obj.id)
+
+@app.route('/save-flashcards/<int:flashcard_id>',methods=['POST'])
+@login_required
+def save_flashcard(flashcard_id):
+    flashcard_obj = db.session.get(Flashcard, flashcard_id)
+    if flashcard_obj:
+        flashcard_obj.is_saved = True
+        db.session.commit()
+        return jsonify({'status':'saved'})
+    return jsonify({'status':'failed'})
 
 @app.route('/about')
 def about():
