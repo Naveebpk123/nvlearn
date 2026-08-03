@@ -393,6 +393,7 @@ chatInput?.addEventListener('keydown', async function(e){
     flashcardLink.className = 'button';
     flashcardLink.href = `/flashcards/${aiResponse.flashcard_id}`;
     flashcardLink.textContent = 'View Flashcards';
+    flashcardLink.target = '_blank';
     aiBubble.appendChild(flashcardLink);
   };
   userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
