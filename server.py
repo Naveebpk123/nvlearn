@@ -58,6 +58,12 @@ class Flashcard(db.Model):
     is_saved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
 
+class Quiz(db.Model):
+    __tablename__ = 'quizzes'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    quiz_data: Mapped[Dict[str,Any]] = mapped_column(JSON)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+
 def get_meta_data(content):
     metadata = build_ai_instructions(content,username='',metadata=True)
     return metadata
@@ -805,6 +811,12 @@ def delete_flashcard(flashcard_id):
 def flashcards():
     all_flashcards = db.session.scalars(db.select(Flashcard).where(Flashcard.user_id == current_user.id).where(Flashcard.is_saved == True)).all()
     return render_template('flashcards.html', flashcards=all_flashcards)
+
+@app.route('/quiz/<int:quiz_id>')
+@login_required
+def take_quiz(quiz_id):
+    # Implementation for taking a quiz
+    pass
 
 @app.route('/about')
 def about():
