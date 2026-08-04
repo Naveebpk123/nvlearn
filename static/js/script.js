@@ -396,6 +396,14 @@ chatInput?.addEventListener('keydown', async function(e){
     flashcardLink.target = '_blank';
     aiBubble.appendChild(flashcardLink);
   };
+  if(aiResponse.quiz_id){
+    const quizLink = document.createElement('a');
+    quizLink.className = 'button';
+    quizLink.href = `/quizzes/${aiResponse.quiz_id}`;
+    quizLink.textContent = 'View Quiz';
+    quizLink.target = '_blank';
+    aiBubble.appendChild(quizLink);
+  }
   userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
   if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
       MathJax.typesetPromise([aiBubble]).catch(() => {});
