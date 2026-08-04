@@ -815,8 +815,7 @@ def flashcards():
 @app.route('/quiz/<int:quiz_id>')
 @login_required
 def take_quiz(quiz_id):
-    # Implementation for taking a quiz
-    pass
+    return render_template('take-quiz.html')
 
 @app.route('/about')
 def about():
