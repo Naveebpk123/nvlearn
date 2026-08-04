@@ -7,22 +7,84 @@
     <link rel="stylesheet" href="../static/css/styles.css">
 </head>
 <body>
-    <div class="quiz-container">
+    <div class="quiz-container hidden">
         <div class="question">
-            Sample Question: What is the primary purpose of HTML in web development?
         </div>
 
         <div class="options-container">
-            <div class="option">Option A: To define the structure and content of a web page</div>
-            <div class="option">Option B: To style and format the visual layout</div>
-            <div class="option">Option C: To implement client-side interactive programming logic</div>
-            <div class="option">Option D: To manage backend database connections</div>
+            <div class="option"></div>
+            <div class="option"></div>
+            <div class="option"></div>
+            <div class="option"></div>
         </div>
 
+        <div class="quiz-tracker" id="quizTracker" style="text-align: center; margin: 1rem 0; font-weight: bold;"></div>
+
         <div class="quiz-actions">
-            <button class="button">Previous</button>
-            <button class="button">Next</button>
+            <button class="button" id="quizPreviousBtn">Previous</button>
+            <button class="button" id="quizNextBtn">Next</button>
         </div>
-    </div>>
+    </div>
+    <script>
+        let quizData = [];
+        let currentIndex = 0;
+
+        const questionEl = document.querySelector('.question');
+        const optionEls = document.querySelectorAll('.option');
+        const trackerEl = document.getElementById('quizTracker');
+        const prevBtn = document.getElementById('quizPreviousBtn');
+        const nextBtn = document.getElementById('quizNextBtn');
+        const quizContainer = document.querySelector('.quiz-container');
+
+        function renderQuestion(index) {
+            if (!quizData || quizData.length === 0) return;
+            const currentQuiz = quizData[index];
+            questionEl.textContent = currentQuiz.q;
+
+            optionEls.forEach((optEl, i) => {
+                if (currentQuiz.options && currentQuiz.options[i] !== undefined) {
+                    optEl.textContent = currentQuiz.options[i];
+                    optEl.style.display = 'flex';
+                } else {
+                    optEl.style.display = 'none';
+                }
+            });
+
+            trackerEl.textContent = `${index + 1}/${quizData.length}`;
+        }
+
+        prevBtn.addEventListener('click', function() {
+            if (!quizData || quizData.length === 0) return;
+            currentIndex = (currentIndex - 1 + quizData.length) % quizData.length;
+            renderQuestion(currentIndex);
+        });
+
+        nextBtn.addEventListener('click', function() {
+            if (!quizData || quizData.length === 0) return;
+            currentIndex = (currentIndex + 1) % quizData.length;
+            renderQuestion(currentIndex);
+        });
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            const quizId = '{{ quiz_id }}';
+            try {
+                const response = await fetch(`/get-quiz-data/${quizId}`, { method: 'POST' });
+                quizData = await response.json();
+                
+                if (!quizData || !Array.isArray(quizData) || quizData.length === 0) {
+                    const errorElement = document.createElement('p');
+                    errorElement.textContent = 'Failed to load quiz data.';
+                    document.body.appendChild(errorElement);
+                } else {
+                    quizContainer.classList.remove('hidden');
+                    renderQuestion(currentIndex);
+                }
+            } catch (err) {
+                const errorElement = document.createElement('p');
+                errorElement.textContent = 'Failed to load quiz data.';
+                document.body.appendChild(errorElement);
+            }
+        });
+    </script>
 </body>
 </html>

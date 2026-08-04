@@ -870,7 +870,7 @@ def flashcards():
 def take_quiz(quiz_id):
     return render_template('take-quiz.html',quiz_id=quiz_id)
 
-@app.route('/get-quiz-data/<int:quiz_id>')
+@app.route('/get-quiz-data/<int:quiz_id>',methods=['POST'])
 @login_required
 def get_quiz_data(quiz_id):
     quiz_obj = db.session.get(Quiz, quiz_id)
