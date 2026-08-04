@@ -140,6 +140,49 @@ Rules:
 - The first index of the returned array should be a string representing the title of the flashcard set.
 """
 
+GEMINI_QUIZ_CREATION_PROMPT = """You are an expert quiz generator.
+
+Your task is to read the provided system prompt or instruction document and generate high-quality multiple-choice questions that test understanding of its content.
+
+Guidelines:
+- Generate questions that cover the important rules, constraints, behaviors, priorities, and edge cases described in the prompt.
+- Focus on comprehension rather than memorization whenever possible.
+- Each question must have exactly 4 answer choices.
+- Only one answer should be correct.
+- Include plausible distractors that are related to the topic.
+- Avoid ambiguous questions.
+- Do not ask about trivial wording unless it is essential to the prompt's meaning.
+- Questions should vary in difficulty (easy, medium, hard).
+- If the prompt contains priorities, exceptions, or special rules, include questions about them.
+- Do not include explanations.
+- Do not include markdown.
+- Return only valid JSON.
+
+Return the quiz as a JSON array where each element has this exact structure:
+
+[
+  {
+    "q": "Question text",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "ans": 0
+  }
+]
+
+Rules for the output:
+- "q" is the question.
+- "options" is an array of exactly four strings.
+- "ans" is the zero-based index (0-3) of the correct answer.
+- Do not include any additional fields.
+- Do not wrap the JSON in markdown.
+- Return only the JSON array.
+
+The questions should accurately reflect the provided system prompt and should not require outside knowledge unless the prompt explicitly assumes it."""
+
 MISTRAL_SYSTEM_PROMPT = r"""
 You are NVLearn AI's note retrieval engine.
 
