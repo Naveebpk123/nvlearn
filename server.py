@@ -868,7 +868,15 @@ def flashcards():
 @app.route('/quiz/<int:quiz_id>')
 @login_required
 def take_quiz(quiz_id):
-    return render_template('take-quiz.html')
+    return render_template('take-quiz.html',quiz_id=quiz_id)
+
+@app.route('/get-quiz-data/<int:quiz_id>')
+@login_required
+def get_quiz_data(quiz_id):
+    quiz_obj = db.session.get(Quiz, quiz_id)
+    if not quiz_obj or quiz_obj.user_id != current_user.id:
+        return None
+    return jsonify(quiz_obj.quiz_data)
 
 @app.route('/about')
 def about():
