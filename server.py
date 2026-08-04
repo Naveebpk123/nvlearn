@@ -62,6 +62,7 @@ class Quiz(db.Model):
     __tablename__ = 'quizzes'
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     quiz_data: Mapped[Dict[str,Any]] = mapped_column(JSON)
+    is_saved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
 
 def get_meta_data(content):
@@ -551,6 +552,7 @@ def ai_response():
     all_get_notes = ''
     note_action_html_content = ''
     flashcard_id = None
+    quiz_id = None
     chat = None
     all_errors = []
     hit_rate_limit = False
@@ -735,7 +737,58 @@ def ai_response():
                 db.session.commit()
                 flashcard_id = flashcard.id
                 all_results.append(f'Created flashcards on topic: {ai_reply}')
-                            
+
+        elif action == 'create_quiz':
+            metadata_list = []
+            search_terms = str(ai_reply).lower().split()
+            keywords = [word for word in search_terms if len(word) > 3]
+            notes = db.session.execute(
+                db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
+            ).scalars().all()
+            for note in notes:
+                metadata = metadata_for_search(note)
+                if not metadata:
+                    continue
+                if not keywords:
+                    metadata_list.append(metadata)
+                    continue
+                tags_text = " ".join(metadata.get('tags', [])).lower()
+                summary_text = metadata.get('summary','').lower()
+                md_content = (note.md_content or '').lower()
+                title = (note.title or '').lower()
+                searchable_pool = f"{title} {tags_text} {summary_text} {md_content}"
+
+                if any(keyword in searchable_pool for keyword in keywords):
+                    metadata_list.append(metadata)
+            note_ids = ask_mistral(f"Instruction: {ai_reply} Metadata list: {metadata_list}")
+            note_content_list = ''
+
+            if is_ai_error(note_ids):
+                note_content_list = f"Topic: {ai_reply}"
+            else:
+                if note_ids.get('note_ids'):
+                    for note_id in note_ids['note_ids']:
+                        try:
+                            note = db.session.get(Note, int(note_id))
+                        except (TypeError, ValueError):
+                            continue
+                        if note and note.user_id == current_user.id:
+                            note_content_list += (note.md_content or "") + '\n'
+                if not note_content_list:
+                    note_content_list = f"Topic: {ai_reply}"
+
+            gemini_result = ask_gemini(action='create_quiz',question=note_content_list)
+            if is_ai_error(gemini_result):
+                all_errors.append(gemini_result.get('msg', 'An error occurred while processing notes. Quiz could not be created. Please try again later.'))
+                if gemini_result.get('type') == 'rate_limit':
+                    hit_rate_limit = True
+            else:
+                quiz_obj = Quiz(quiz_data=gemini_result, user_id=current_user.id)
+                db.session.add(quiz_obj)
+                db.session.commit()
+                quiz_id = quiz_obj.id
+                all_results.append(f'Created quiz on topic: {ai_reply}')
+
     if hit_rate_limit:
         session['note_action_cooldown_until'] = (datetime.now(timezone.utc) + timedelta(seconds=NOTE_ACTION_COOLDOWN_SECONDS)).timestamp()
         cooldown_msg = 'Note-related features are temporarily paused due to high demand. You can still chat normally — note features will be back in about 5 minutes.'

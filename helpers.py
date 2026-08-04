@@ -261,10 +261,24 @@ def ask_gemini(question, action):
                 if not isinstance(parsed, list):
                     return ai_error('invalid_json', 'Flashcard generation returned invalid format.')
                 return parsed
+            elif action == 'create_quiz':
+                response = gemini_client.models.generate_content(
+                    model=model,
+                    contents=GEMINI_QUIZ_CREATION_PROMPT + f"prompt: {question}",
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                    )
+                )
+                parsed = parse_json_object(response.text, 'quiz generation returned invalid format.')
+                if is_ai_error(parsed):
+                    return ai_error('invalid_json', 'Quiz generation failed. Please try again.')
+                if not isinstance(parsed, list):
+                    return ai_error('invalid_json', 'Quiz generation returned invalid format.')
+                return parsed
         except Exception as e:
             last_error = e
             continue
-
+        
     if last_error and is_rate_limit_error(last_error):
         return {'error': True, 'type': 'rate_limit', 'msg': 'Our AI services are experiencing high demand. Please avoid note-related requests for a few minutes.'}
     return {'error': True, 'type': 'api_error', 'msg': f'An error occurred while processing your {action.replace("_", " ")} request. Please try again later.'}
