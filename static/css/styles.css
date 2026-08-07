@@ -313,53 +313,64 @@ a {
     background-color:rgb(180, 7, 7);
 }
 
-#notificationBar{
-    display:flex;
-    flex-direction:column;
-    overflow-y:auto;
-    max-height:15rem;
-    position:fixed;
-    top:71px;
-    right:1rem;
-    width:25%;
-    z-index:1001
+#notificationBar {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    max-height: 20rem;
+    position: fixed;
+    top: 71px;
+    right: 1rem;
+    width: 380px;
+    max-width: 90vw;
+    gap: 8px;
+    z-index: 1001;
 }
 
-#sidebarLogout{
-    background:none;
-    border:none;
+#sidebarLogout {
+    background: none;
+    border: none;
 }
 
-#sidebarLogout:hover{
-    cursor:pointer;
+#sidebarLogout:hover {
+    cursor: pointer;
 }
 
-.flashCloseBtn{
-    background:none;
-    border:none;
-    font-size:larger;
+.flashCloseBtn {
+    background: none;
+    border: none;
+    font-size: 0.8rem;
+    font-weight: bold;
     transition: background-color 0.2s ease;
-    height:35px;
-    width:35px;
-    border-radius:50%;
-    position:absolute;
-    right:5px;
+    height: 22px;
+    width: 22px;
+    border-radius: 50%;
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
 }
 
-.flashCloseBtn:hover{
-    background-color:gray;
+.flashCloseBtn:hover {
+    background-color: rgba(0, 0, 0, 0.15);
 }
 
 .alert {
-    border-radius: 5px;
+    border-radius: 8px;
     font-size: 0.9rem;
-    font-weight: bold;
+    font-weight: 600;
     border: 1px solid transparent;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    padding: 10px 8px;
-    position:relative;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 12px 36px 12px 14px;
+    position: relative;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    line-height: 1.4;
 }
 
 .alert-success {
@@ -372,6 +383,12 @@ a {
     background-color: rgb(239, 212, 212);
     color: rgb(120, 40, 31);
     border-color: rgb(245, 183, 177);
+}
+
+.alert-info {
+    background-color: rgb(212, 230, 241);
+    color: rgb(27, 79, 114);
+    border-color: rgb(169, 204, 227);
 }
 
 .modal-bg{
