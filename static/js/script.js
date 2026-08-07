@@ -52,9 +52,9 @@ async function flash(text='',category='success'){
 
 window.addEventListener('keydown', (e) => {
   let activeModal = null;
-  if (modalBackground.style.display === 'flex') {
+  if (modalBackground && modalBackground.style.display === 'flex') {
     activeModal = modalBackground;
-  } else if (searchModalBg.style.display === 'flex') {
+  } else if (searchModalBg && searchModalBg.style.display === 'flex') {
     activeModal = searchModalBg;
   }
 
@@ -413,7 +413,7 @@ chatInput?.addEventListener('keydown', async function(e){
 }});
 
 document.addEventListener('DOMContentLoaded',()=>{
-  if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+  if (readNoteContent && window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
       MathJax.typesetPromise([readNoteContent]).catch(() => {});
     }
 });

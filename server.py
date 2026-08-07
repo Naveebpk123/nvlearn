@@ -73,7 +73,6 @@ class Quiz(db.Model):
     __tablename__ = 'quizzes'
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     quiz_data: Mapped[Dict[str,Any]] = mapped_column(JSON)
-    is_saved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
 
 def get_meta_data(content):
@@ -179,12 +178,30 @@ def _verification_is_valid(submitted_code):
 
 def delete_flashcards():
     """Delete unsaved flashcards"""
-    all_flashcards = db.session.scalars(db.select(Flashcard).where(Flashcard.is_saved == False)).all()
-    if all_flashcards:
-        for flashcards in all_flashcards:
-            db.session.delete(flashcards)
-            db.session.commit()
-    return
+    try:
+        with app.app_context():
+            all_flashcards = db.session.scalars(db.select(Flashcard).where(Flashcard.is_saved == False)).all()
+            if all_flashcards:
+                for flashcards in all_flashcards:
+                    db.session.delete(flashcards)
+                db.session.commit()
+    except Exception as e:
+        app.logger.error("Failed to delete flashcards in background job: %s", e)
+        db.session.rollback()
+
+def delete_quizzes():
+    """Delete quizzes every 10 minutes"""
+    try:
+        with app.app_context():
+            all_quizzes = db.session.scalars(db.select(Quiz)).all()
+            if all_quizzes:
+                for quiz in all_quizzes:
+                    db.session.delete(quiz)
+                db.session.commit()
+                app.logger.info("Successfully deleted temporary quizzes.")
+    except Exception as e:
+        app.logger.error("Failed to delete quizzes in background job: %s", e)
+        db.session.rollback()
 
 # Add the background job of generating metadata
 scheduler.add_job(
@@ -198,6 +215,15 @@ scheduler.add_job(
 # Add background job of deleting unsaved flashcards
 scheduler.add_job(
     delete_flashcards,
+    "interval",
+    minutes=10,
+    max_instances=1,
+    coalesce=True
+)
+
+# Add background job of deleting quizzes
+scheduler.add_job(
+    delete_quizzes,
     "interval",
     minutes=10,
     max_instances=1,
