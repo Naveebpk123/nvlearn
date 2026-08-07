@@ -10,6 +10,7 @@ from helpers import send_email_threaded, create_code, build_ai_instructions, ask
 from typing import Dict,Any
 from datetime import datetime, timezone, timedelta
 import json
+import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 
 class Base(DeclarativeBase):
@@ -21,6 +22,16 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///notes.db"
 app.config['SECRET_KEY'] = 'secretkey'
 VERIFICATION_TTL_SECONDS = 10 * 60
 NOTE_ACTION_COOLDOWN_SECONDS = 5 * 60
+
+# ── Logging Configuration ──────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+# Set Flask's built-in logger to DEBUG so all app.logger calls show up
+app.logger.setLevel(logging.DEBUG)
+app.logger.info("Flask application initialized — logging is active.")
 
 db = SQLAlchemy(app, model_class=Base)
 
@@ -118,6 +129,7 @@ def backfill_metadata_ids():
             changed = True
     if changed:
         db.session.commit()
+        app.logger.info("Backfilled metadata IDs for notes with missing or mismatched IDs.")
 
 def generate_meta_data():
     """Generates meta data for notes with error notes or missing ids"""
@@ -135,10 +147,13 @@ def generate_meta_data():
 
             metadata = get_meta_data(note.md_content)
             if metadata == 'error':
+                app.logger.warning("Metadata generation returned 'error' for note_id=%s. Skipping.", note.id)
                 return
             note.meta_data = normalize_metadata(metadata, note.id)
             db.session.commit()
+            app.logger.info("Successfully generated metadata for note_id=%s.", note.id)
     except Exception:
+        app.logger.exception("Unhandled exception in generate_meta_data background job.")
         return
 
 def _clear_pending_auth():
@@ -191,20 +206,24 @@ scheduler.add_job(
 
 with app.app_context():
     db.create_all()
+    app.logger.info("Database tables created / verified.")
     try:
         with db.engine.connect() as conn:
             conn.execute(db.text("ALTER TABLE flashcards ADD COLUMN user_id INTEGER REFERENCES users(id)"))
             conn.commit()
+            app.logger.info("Added user_id column to flashcards table.")
     except Exception:
-        pass
+        app.logger.debug("user_id column already exists in flashcards table (migration skipped).")
     backfill_metadata_ids()
-scheduler.start() # STart the background process
+scheduler.start() # Start the background process
+app.logger.info("Background scheduler started.")
 
 @login_manager.user_loader
 def load_user(user_id):
     try:
         return db.session.get(User, int(user_id))
-    except (SQLAlchemyError, ValueError):
+    except (SQLAlchemyError, ValueError) as e:
+        app.logger.error("Failed to load user_id=%s: %s", user_id, e)
         return None
 
 @app.route('/')
@@ -218,7 +237,8 @@ def home():
                         db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id).order_by(Note.last_opened.desc())
                     ) 
             recent_notes = result.scalars().all()
-        except Exception:
+        except Exception as e:
+            app.logger.error("[home] Failed to fetch recent notes for user_id=%s: %s", current_user.id, e)
             recent_notes = []   
     return render_template('index.html', welcome_msg = welcome_msg, recent_notes = recent_notes[:5])
 
@@ -230,7 +250,8 @@ def notes():
             db.select(Note).where(Note.in_bin != True).where(Note.user_id == current_user.id)
         )
         notes = result.scalars().all()
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
+        app.logger.error("[notes] DB error fetching notes for user_id=%s: %s", current_user.id, e)
         flash("An error occurred while fetching your notes. Please retry.", "error")
         notes = []
     return render_template('notes.html', notes=notes)
@@ -250,8 +271,9 @@ def add_note():
             db.session.commit()
             flash('Note created successfully', 'success')
             return redirect(url_for('notes'))
-        except SQLAlchemyError:
+        except SQLAlchemyError as e:
             db.session.rollback()
+            app.logger.error("[add_note] DB error creating note for user_id=%s: %s", current_user.id, e)
             flash("Failed to create note due to a database error. Try again.", "error")
     return render_template('add_note.html', form=form)
 
@@ -261,9 +283,11 @@ def edit_note(note_id):
     try:
         note = db.session.get(Note, note_id)
         if not note or note.user_id != current_user.id:
+            app.logger.warning("[edit_note] Note not found or unauthorized — note_id=%s, user_id=%s", note_id, current_user.id)
             flash("Note not found.", "error")
             return redirect(url_for('notes'))
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
+        app.logger.error("[edit_note] DB error fetching note_id=%s for user_id=%s: %s", note_id, current_user.id, e)
         flash("Error pulling note transaction records.", "error")
         return redirect(url_for('notes'))
 
@@ -281,8 +305,9 @@ def edit_note(note_id):
             db.session.commit()
             flash("Changes saved successfully!", "success")
             return redirect(url_for('notes'))
-        except SQLAlchemyError:
+        except SQLAlchemyError as e:
             db.session.rollback()
+            app.logger.error("[edit_note] DB error updating note_id=%s for user_id=%s: %s", note_id, current_user.id, e)
             flash("Could not update changes. Please check parameters.", "error")
             
     return render_template('edit_note.html', note=note, form=form)
@@ -297,9 +322,11 @@ def move_to_bin(note_id):
             db.session.commit()
             return jsonify(['Note moved to bin','success'])
         else:
+            app.logger.warning("[move_to_bin] Note not found or unauthorized — note_id=%s, user_id=%s", note_id, current_user.id)
             return jsonify(["Note not found", "error"])
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         db.session.rollback()
+        app.logger.error("[move_to_bin] DB error for note_id=%s, user_id=%s: %s", note_id, current_user.id, e)
         return jsonify(["Could not move note to bin", "error"])
 
 @app.route('/note-bin')
@@ -308,7 +335,8 @@ def note_bin():
     try:
         result = db.session.execute(db.select(Note).where(Note.in_bin == True).where(Note.user_id == current_user.id))
         notes = result.scalars().all()
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
+        app.logger.error("[note_bin] DB error fetching binned notes for user_id=%s: %s", current_user.id, e)
         flash("Error checking database trash allocations.", "error")
         notes = []
     return render_template('bin.html', notes=notes)
@@ -323,9 +351,11 @@ def delete(note_id):
             db.session.commit()
             return jsonify(["Note permanently deleted", "success"])
         else:
+            app.logger.warning("[delete] Note not found or unauthorized — note_id=%s, user_id=%s", note_id, current_user.id)
             return jsonify(["Note not found", "error"])
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         db.session.rollback()
+        app.logger.error("[delete] DB error permanently deleting note_id=%s for user_id=%s: %s", note_id, current_user.id, e)
         return jsonify(["Failed to delete note", "error"])
 
 @app.route('/restore/<int:note_id>',methods=['POST'])
@@ -338,9 +368,11 @@ def restore(note_id):
             db.session.commit()
             return jsonify(['Note restored', 'success'])
         else:
+            app.logger.warning("[restore] Note not found or unauthorized — note_id=%s, user_id=%s", note_id, current_user.id)
             return jsonify(["Note not found.", "error"])
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         db.session.rollback()
+        app.logger.error("[restore] DB error restoring note_id=%s for user_id=%s: %s", note_id, current_user.id, e)
         return jsonify(["Failed to restore note.", "error"])
 
 @app.route('/register', methods=['GET','POST'])
@@ -370,12 +402,14 @@ def register():
                 _clear_pending_auth()
                 flash(f'Created new account for {user.name}', 'success')
                 return redirect(url_for('notes'))
-            except IntegrityError:
+            except IntegrityError as e:
                 db.session.rollback()
                 _clear_pending_auth()
+                app.logger.warning("[register] Duplicate email on verification commit: %s", e)
                 flash("That email address is already registered.", "error")
-            except SQLAlchemyError:
+            except SQLAlchemyError as e:
                 db.session.rollback()
+                app.logger.error("[register] DB error creating user account: %s", e)
                 flash("An unexpected error occurred. Please try again.", "error")
         return render_template(
             'register.html',
@@ -417,14 +451,17 @@ def register():
                 show_code=True,
                 verification_email=form.email.data,
             )
-        except IntegrityError:
+        except IntegrityError as e:
             db.session.rollback()
+            app.logger.warning("[register] Duplicate email during registration: %s", e)
             flash("That email address is already registered.", "error")
-        except SQLAlchemyError:
+        except SQLAlchemyError as e:
             db.session.rollback()
+            app.logger.error("[register] DB error during registration flow: %s", e)
             flash("An unexpected error occurred. Please try again.", "error")
-        except Exception:
+        except Exception as e:
             db.session.rollback()
+            app.logger.exception("[register] Unexpected error during registration (email send or other): %s", e)
             flash("Failed to send email. Try to register again.","error")
     return render_template('register.html', form=form)
 
@@ -453,7 +490,8 @@ def login():
                 _clear_pending_auth()
                 flash(f'Welcome back {user.name}', 'success')
                 return redirect(url_for('notes'))
-            except SQLAlchemyError:
+            except SQLAlchemyError as e:
+                app.logger.error("[login] DB error during login verification for user_id=%s: %s", pending_login.get('user_id'), e)
                 flash("Internal database communication mismatch.", "error")
         return render_template(
             'login.html',
@@ -487,7 +525,8 @@ def login():
                 )
             else:
                 flash('Incorrect login credentials.', 'error')
-        except SQLAlchemyError:
+        except SQLAlchemyError as e:
+            app.logger.error("[login] DB error during login for email=%s: %s", form.email.data, e)
             flash("Internal database communication mismatch.", "error")
     return render_template('login.html', form=form, show_code=False)
     
@@ -496,8 +535,10 @@ def login():
 def logout():
     try:
         logout_user()
+        app.logger.info("[logout] User logged out successfully.")
         return jsonify(['Logged out successfully', 'success'])
-    except Exception:
+    except Exception as e:
+        app.logger.error("[logout] Logout failed: %s", e)
         return jsonify(['Logout failed','error'])
 
 @app.route('/search/<query>')
@@ -513,7 +554,8 @@ def search(query):
         notes = result.scalars().all()
         results = [{"id": note.id, "title": note.title} for note in notes]
         return jsonify({"results": results})
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
+        app.logger.error("[search] DB error searching notes for user_id=%s, query='%s': %s", current_user.id, query, e)
         return jsonify({"results": []})
 
 @app.route('/search-results/<query>')
@@ -528,7 +570,8 @@ def search_results(query):
         )
         notes = result.scalars().all()
         return render_template('search-results.html', query=query, notes=notes)
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
+        app.logger.error("[search_results] DB error for user_id=%s, query='%s': %s", current_user.id, query, e)
         return render_template('search-results.html', query=query, notes=[])
 
 @app.route('/ai-chat')
@@ -563,10 +606,12 @@ def ai_response():
 
         if action == 'error':
             if isinstance(ai_reply, dict):
+                app.logger.error("[ai_response] AI error (type=%s): %s", ai_reply.get('type'), ai_reply.get('msg'))
                 all_errors.append(ai_reply.get('msg', 'An unexpected error occurred. Please try again later.'))
                 if ai_reply.get('type') == 'rate_limit':
                     hit_rate_limit = True
             else:
+                app.logger.error("[ai_response] AI returned unexpected non-dict error: %s", ai_reply)
                 all_errors.append('NVLearn AI encountered an unexpected error. Please try again later.')
 
         elif action == 'chat':
@@ -587,8 +632,9 @@ def ai_response():
                 new_note.meta_data = normalize_metadata(new_note.meta_data, new_note.id)
                 db.session.commit()
                 all_results.append(f"Made new note '{ai_reply['title']}'")
-            except Exception:
+            except Exception as e:
                 db.session.rollback()
+                app.logger.error("[ai_response/create_note] DB error saving AI-created note for user_id=%s: %s", current_user.id, e)
                 all_errors.append('An error occurred while saving the new note to the database. Please try again.')
 
         elif action == 'get_note':
@@ -619,6 +665,7 @@ def ai_response():
             note_content_list = ""
 
             if is_ai_error(note_ids):
+                app.logger.error("[ai_response/get_note] Mistral error (type=%s): %s", note_ids.get('type'), note_ids.get('msg'))
                 all_errors.append(note_ids.get('msg', f'An error occurred while fetching notes on "{ai_reply}". Please try again later.'))
                 if note_ids.get('type') == 'rate_limit':
                     hit_rate_limit = True
@@ -661,6 +708,7 @@ def ai_response():
             note_content_list = ''
 
             if is_ai_error(note_ids):
+                app.logger.error("[ai_response/note_action] Mistral search error (type=%s): %s", note_ids.get('type'), note_ids.get('msg'))
                 all_errors.append(note_ids.get('msg', 'An error occurred while searching for notes. Please try again later.'))
                 if note_ids.get('type') == 'rate_limit':
                     hit_rate_limit = True
@@ -680,6 +728,7 @@ def ai_response():
 
             gemini_result = ask_gemini(action='note_action', question=f"Instructions:{ai_reply} content:{note_content_list}")
             if is_ai_error(gemini_result):
+                app.logger.error("[ai_response/note_action] Gemini error (type=%s): %s", gemini_result.get('type'), gemini_result.get('msg'))
                 all_errors.append(gemini_result.get('msg', 'An error occurred while processing notes. Please try again later.'))
                 if gemini_result.get('type') == 'rate_limit':
                     hit_rate_limit = True
@@ -713,6 +762,7 @@ def ai_response():
             note_content_list = ''
 
             if is_ai_error(note_ids):
+                app.logger.warning("[ai_response/create_flashcards] Mistral note search failed (type=%s), falling back to topic. msg=%s", note_ids.get('type'), note_ids.get('msg'))
                 note_content_list = f"Topic: {ai_reply}"
             else:
                 if note_ids.get('note_ids'):
@@ -728,6 +778,7 @@ def ai_response():
 
             gemini_result = ask_gemini(action='create_flashcards',question=note_content_list)
             if is_ai_error(gemini_result):
+                app.logger.error("[ai_response/create_flashcards] Gemini flashcard generation failed (type=%s): %s", gemini_result.get('type'), gemini_result.get('msg'))
                 all_errors.append(gemini_result.get('msg', 'An error occurred while processing notes. Flashcard could not be created. Please try again later.'))
                 if gemini_result.get('type') == 'rate_limit':
                     hit_rate_limit = True
@@ -764,6 +815,7 @@ def ai_response():
             note_content_list = ''
 
             if is_ai_error(note_ids):
+                app.logger.warning("[ai_response/create_quiz] Mistral note search failed (type=%s), falling back to topic. msg=%s", note_ids.get('type'), note_ids.get('msg'))
                 note_content_list = f"Topic: {ai_reply}"
             else:
                 if note_ids.get('note_ids'):
@@ -779,6 +831,7 @@ def ai_response():
 
             gemini_result = ask_gemini(action='create_quiz',question=note_content_list)
             if is_ai_error(gemini_result):
+                app.logger.error("[ai_response/create_quiz] Gemini quiz generation failed (type=%s): %s", gemini_result.get('type'), gemini_result.get('msg'))
                 all_errors.append(gemini_result.get('msg', 'An error occurred while processing notes. Quiz could not be created. Please try again later.'))
                 if gemini_result.get('type') == 'rate_limit':
                     hit_rate_limit = True
@@ -814,6 +867,7 @@ def ai_response():
 
     final_summary = ask_gemini(question=final_result, action='summarize')
     if is_ai_error(final_summary):
+        app.logger.error("[ai_response] Gemini summarize failed (type=%s): %s", final_summary.get('type'), final_summary.get('msg'))
         final_summary = chat or 'An error occurred while executing your task. Please try again.'
     output = {'chat': md_to_html(final_summary), 'notes': all_get_notes, 'note_action': note_action_html_content,'flashcard_id':flashcard_id}
     return jsonify(output)
@@ -826,8 +880,10 @@ def read_note(note_id):
         note.last_opened = datetime.now(timezone.utc)
         db.session.commit()
         if not note or note.user_id != current_user.id:
+            app.logger.warning("[read_note] Note not found or unauthorized — note_id=%s, user_id=%s", note_id, current_user.id)
             abort(404)
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
+        app.logger.error("[read_note] DB error reading note_id=%s for user_id=%s: %s", note_id, current_user.id, e)
         abort(404)
     return render_template('read_note.html',note=note)
 
@@ -836,6 +892,7 @@ def read_note(note_id):
 def view_flashcards(flashcard_id):
     flashcard_obj = db.session.get(Flashcard, flashcard_id)
     if not flashcard_obj or flashcard_obj.user_id != current_user.id:
+        app.logger.warning("[view_flashcards] Flashcard not found or unauthorized — flashcard_id=%s, user_id=%s", flashcard_id, current_user.id)
         abort(404)
     return render_template('view-flashcards.html', flashcards=flashcard_obj.card_data[1:],cards_id = flashcard_obj.id,is_saved=flashcard_obj.is_saved)
 
@@ -875,6 +932,7 @@ def take_quiz(quiz_id):
 def get_quiz_data(quiz_id):
     quiz_obj = db.session.get(Quiz, quiz_id)
     if not quiz_obj or quiz_obj.user_id != current_user.id:
+        app.logger.warning("[get_quiz_data] Quiz not found or unauthorized — quiz_id=%s, user_id=%s", quiz_id, current_user.id)
         return None
     return jsonify(quiz_obj.quiz_data)
 
@@ -884,6 +942,7 @@ def about():
 
 @app.errorhandler(404)
 def page_not_found(error):
+    app.logger.warning("[404] Page not found: %s %s", request.method, request.url)
     return render_template('404.html'), 404
 
 if __name__ == "__main__":

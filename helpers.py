@@ -4,6 +4,7 @@ import dotenv
 import os
 import random
 import threading
+import logging
 from google import genai
 from google.genai import types
 import markdown
@@ -11,6 +12,8 @@ from groq import Groq
 from mistralai.client import Mistral
 import json
 from prompts import *
+
+logger = logging.getLogger(__name__)
 
 dotenv.load_dotenv()
 
@@ -33,8 +36,10 @@ def send_email(recipient, subject, msg_content):
             server.starttls()  
             server.login(EMAIL, EMAIL_PASSWORD)
             server.send_message(msg)
+        logger.info("[send_email] Email sent successfully to %s (subject: %s)", recipient, subject)
         return True
-    except Exception:
+    except Exception as e:
+        logger.exception("[send_email] Failed to send email to %s (subject: %s): %s", recipient, subject, e)
         raise Exception
 
 
@@ -47,7 +52,8 @@ def send_email_threaded(recipient, subject, msg_content):
         )
         thread.start()
         return True
-    except Exception:
+    except Exception as e:
+        logger.error("[send_email_threaded] Failed to start email thread for %s: %s", recipient, e)
         return False
 
 def md_to_html(content):
@@ -109,7 +115,8 @@ def parse_json_object(raw, msg):
         return ai_error('invalid_json', msg)
     try:
         parsed = json.loads(raw)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        logger.error("[parse_json_object] JSON decode error: %s | raw=%s", e, raw[:200])
         return ai_error('invalid_json', msg)
     if not isinstance(parsed, dict):
         return ai_error('invalid_json', msg)
@@ -129,8 +136,10 @@ def validate_router_response(response_json):
     for i in range(len(actions)):
         if actions[i] == 'create_flashcard':
             actions[i] = 'create_flashcards'
-    valid_actions = {'chat', 'create_note', 'get_note', 'note_action', 'create_flashcards'}
+    valid_actions = {'chat', 'create_note', 'get_note', 'note_action', 'create_flashcards','create_quiz'}
     if any(action not in valid_actions for action in actions):
+        invalid = [a for a in actions if a not in valid_actions]
+        logger.warning("[validate_router_response] Invalid actions found: %s", invalid)
         return ai_error('invalid_action', 'NVLearn AI is currently experiencing some errors. Please try again.')
     return None
 
@@ -150,7 +159,7 @@ def ask_groq(contents, username="", chat_only=False):
             model="llama-3.3-70b-versatile",
             response_format={"type": "json_object"},
             temperature=0.7,
-            max_output_tokens=2000)
+            )
         response_json = parse_json_object(response.choices[0].message.content, 'NVLearn AI is currently experiencing some errors. Please try again.')
         if is_ai_error(response_json):
             return response_json
@@ -160,7 +169,9 @@ def ask_groq(contents, username="", chat_only=False):
         return response_json
     except Exception as e:
         if is_rate_limit_error(e):
+            logger.warning("[ask_groq] Rate limit hit: %s", e)
             return ai_error('rate_limit', 'NVLearn AI is receiving too many requests right now. Please wait a few minutes before trying again.')
+        logger.exception("[ask_groq] API error: %s", e)
         return ai_error('api_error', 'NVLearn AI is currently experiencing some issues. Please try again shortly.')
 
 def build_ai_instructions(contents, username, metadata=False, chat_only=False):
@@ -174,7 +185,8 @@ def build_ai_instructions(contents, username, metadata=False, chat_only=False):
             if is_ai_error(json_metadata) or not isinstance(json_metadata.get('meta_data'), dict):
                 return 'error'
             return json_metadata['meta_data']
-        except Exception:
+        except Exception as e:
+            logger.exception("[build_ai_instructions] Metadata generation failed: %s", e)
             return 'error'
 
     response_json = ask_groq(contents, username, chat_only=chat_only)
@@ -209,6 +221,8 @@ def build_ai_instructions(contents, username, metadata=False, chat_only=False):
             instructions.append({'action': 'note_action', 'content': response_json['content'][i]})
         elif action == 'create_flashcards':
             instructions.append({'action': 'create_flashcards', 'content': response_json['content'][i]})
+        elif action == 'create_quiz':
+            instructions.append({'action': 'create_quiz', 'content': response_json['content'][i]})
     return instructions
     
 def ask_gemini(question, action):
@@ -277,10 +291,13 @@ def ask_gemini(question, action):
                 return parsed
         except Exception as e:
             last_error = e
+            logger.warning("[ask_gemini] Model '%s' failed for action='%s': %s", model, action, e)
             continue
         
     if last_error and is_rate_limit_error(last_error):
+        logger.warning("[ask_gemini] All models exhausted (rate limited) for action='%s'", action)
         return {'error': True, 'type': 'rate_limit', 'msg': 'Our AI services are experiencing high demand. Please avoid note-related requests for a few minutes.'}
+    logger.error("[ask_gemini] All models exhausted for action='%s'. Last error: %s", action, last_error)
     return {'error': True, 'type': 'api_error', 'msg': f'An error occurred while processing your {action.replace("_", " ")} request. Please try again later.'}
 
 def ask_mistral(question):
@@ -299,6 +316,8 @@ def ask_mistral(question):
         return response_json
     except Exception as e:
         if is_rate_limit_error(e):
+            logger.warning("[ask_mistral] Rate limit hit: %s", e)
             return {'error': True, 'type': 'rate_limit', 'msg': 'Our note search service is experiencing high demand. Please avoid note-related requests for a few minutes.'}
+        logger.exception("[ask_mistral] API error: %s", e)
         return {'error': True, 'type': 'api_error', 'msg': 'An error occurred while searching your notes. Please try again later.'}
 
