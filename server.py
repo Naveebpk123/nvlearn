@@ -853,23 +853,23 @@ def ai_response():
     results = len(all_results)
 
     if results == 0 and errors == 0 and not chat and note_action_html_content and all_get_notes == '':
-        return jsonify({'note_action': note_action_html_content, 'flashcard_id': flashcard_id})
+        return jsonify({'note_action': note_action_html_content, 'flashcard_id': flashcard_id, 'quiz_id': quiz_id})
 
     if results <= 1 and errors <= 1 and not chat and not note_action_html_content:
         if results == 1 and errors == 0 and all_get_notes == '':
-            return jsonify({'chat': all_results[0], 'flashcard_id': flashcard_id})
+            return jsonify({'chat': all_results[0], 'flashcard_id': flashcard_id, 'quiz_id': quiz_id})
         elif results == 0 and errors == 1 and all_get_notes == '':
-            return jsonify({'chat': all_errors[0], 'flashcard_id': flashcard_id})
+            return jsonify({'chat': all_errors[0], 'flashcard_id': flashcard_id, 'quiz_id': quiz_id})
         elif results == 0 and errors == 0 and all_get_notes != '':
-            return jsonify({'chat': all_get_notes, 'flashcard_id': flashcard_id})
+            return jsonify({'chat': all_get_notes, 'flashcard_id': flashcard_id, 'quiz_id': quiz_id})
     if results == 0 and errors == 0 and chat:
-        return jsonify({'chat': chat, 'flashcard_id': flashcard_id})
+        return jsonify({'chat': chat, 'flashcard_id': flashcard_id, 'quiz_id': quiz_id})
 
     final_summary = ask_gemini(question=final_result, action='summarize')
     if is_ai_error(final_summary):
         app.logger.error("[ai_response] Gemini summarize failed (type=%s): %s", final_summary.get('type'), final_summary.get('msg'))
         final_summary = chat or 'An error occurred while executing your task. Please try again.'
-    output = {'chat': md_to_html(final_summary), 'notes': all_get_notes, 'note_action': note_action_html_content,'flashcard_id':flashcard_id}
+    output = {'chat': md_to_html(final_summary), 'notes': all_get_notes, 'note_action': note_action_html_content, 'flashcard_id': flashcard_id, 'quiz_id': quiz_id}
     return jsonify(output)
 
 @app.route('/read_note/<int:note_id>')
@@ -933,7 +933,7 @@ def get_quiz_data(quiz_id):
     quiz_obj = db.session.get(Quiz, quiz_id)
     if not quiz_obj or quiz_obj.user_id != current_user.id:
         app.logger.warning("[get_quiz_data] Quiz not found or unauthorized — quiz_id=%s, user_id=%s", quiz_id, current_user.id)
-        return None
+        return jsonify({'error': 'Quiz not found'}), 404
     return jsonify(quiz_obj.quiz_data)
 
 @app.route('/about')

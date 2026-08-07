@@ -3,65 +3,182 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiz</title>
-    <link rel="stylesheet" href="../static/css/styles.css">
+    <title>Quiz - NVLearn</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
-<body>
-    <div class="quiz-container hidden">
-        <div class="question">
+<body class="site-layout">
+    <nav>
+        <a href="{{ url_for('home') }}" class="button cancel">← Home</a>
+        <h2 style="color: white; margin: 0 auto;">NVLearn Quiz</h2>
+    </nav>
+    <main class="content-wrapper" style="margin-left: 0; width: 100%;">
+        <div class="quiz-container hidden" id="quizContainer">
+            <div class="question" id="quizQuestion"></div>
+
+            <div class="options-container" id="optionsContainer">
+                <div class="option" data-index="0"></div>
+                <div class="option" data-index="1"></div>
+                <div class="option" data-index="2"></div>
+                <div class="option" data-index="3"></div>
+            </div>
+
+            <div class="quiz-tracker" id="quizTracker" style="text-align: center; margin: 1rem 0; font-weight: bold;"></div>
+
+            <div class="quiz-actions">
+                <button class="button cancel" id="quizPreviousBtn">Previous</button>
+                <button class="button" id="quizNextBtn">Next</button>
+                <button class="button" id="quizDoneBtn" style="display: none; background-color: #28a745;">Done</button>
+            </div>
         </div>
 
-        <div class="options-container">
-            <div class="option"></div>
-            <div class="option"></div>
-            <div class="option"></div>
-            <div class="option"></div>
+        <div id="quizSummary" style="display: none; text-align: center; margin: 2rem auto; max-width: 500px; padding: 2rem; background: var(--bg-card); border-radius: 12px; box-shadow: 0 4px 15px var(--shadow-color);">
+            <h1 style="margin-top: 0; color: var(--primary-blue);">🎉 Quiz Completed!</h1>
+            <div id="quizScorePercent" style="font-size: 2.5rem; font-weight: bold; margin: 1rem 0;"></div>
+            
+            <div style="display: flex; justify-content: space-around; margin: 2rem 0; gap: 10px;">
+                <div style="flex: 1; padding: 10px; background: #d4edda; border-radius: 8px; color: #155724;">
+                    <div style="font-size: 1.5rem; font-weight: bold;" id="correctCount">0</div>
+                    <div>Correct</div>
+                </div>
+                <div style="flex: 1; padding: 10px; background: #f8d7da; border-radius: 8px; color: #721c24;">
+                    <div style="font-size: 1.5rem; font-weight: bold;" id="wrongCount">0</div>
+                    <div>Wrong</div>
+                </div>
+                <div style="flex: 1; padding: 10px; background: #e2e3e5; border-radius: 8px; color: #383d41;">
+                    <div style="font-size: 1.5rem; font-weight: bold;" id="unansweredCount">0</div>
+                    <div>Unanswered</div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: center; gap: 15px; margin-top: 1.5rem;">
+                <button class="button" id="retakeBtn">Retake Quiz</button>
+                <a href="{{ url_for('home') }}" class="button cancel">Return Home</a>
+            </div>
         </div>
 
-        <div class="quiz-tracker" id="quizTracker" style="text-align: center; margin: 1rem 0; font-weight: bold;"></div>
-
-        <div class="quiz-actions">
-            <button class="button" id="quizPreviousBtn">Previous</button>
-            <button class="button" id="quizNextBtn">Next</button>
+        <div id="quizError" style="display: none; text-align: center; margin-top: 3rem;">
+            <h2>Failed to load quiz data.</h2>
+            <p>The quiz might not exist or you do not have permission to view it.</p>
+            <a href="{{ url_for('home') }}" class="button" style="margin-top: 1rem; display: inline-block;">Return Home</a>
         </div>
-    </div>
+    </main>
+
     <script>
         let quizData = [];
+        let userAnswers = {};
         let currentIndex = 0;
 
-        const questionEl = document.querySelector('.question');
+        const questionEl = document.getElementById('quizQuestion');
         const optionEls = document.querySelectorAll('.option');
         const trackerEl = document.getElementById('quizTracker');
         const prevBtn = document.getElementById('quizPreviousBtn');
         const nextBtn = document.getElementById('quizNextBtn');
-        const quizContainer = document.querySelector('.quiz-container');
+        const doneBtn = document.getElementById('quizDoneBtn');
+        const quizContainer = document.getElementById('quizContainer');
+        const quizSummary = document.getElementById('quizSummary');
+        const quizError = document.getElementById('quizError');
+        const retakeBtn = document.getElementById('retakeBtn');
+
+        const correctCountEl = document.getElementById('correctCount');
+        const wrongCountEl = document.getElementById('wrongCount');
+        const unansweredCountEl = document.getElementById('unansweredCount');
+        const quizScorePercentEl = document.getElementById('quizScorePercent');
 
         function renderQuestion(index) {
             if (!quizData || quizData.length === 0) return;
             const currentQuiz = quizData[index];
             questionEl.textContent = currentQuiz.q;
 
+            const selectedOption = userAnswers[index];
+
             optionEls.forEach((optEl, i) => {
+                optEl.className = 'option';
                 if (currentQuiz.options && currentQuiz.options[i] !== undefined) {
                     optEl.textContent = currentQuiz.options[i];
                     optEl.style.display = 'flex';
+
+                    if (selectedOption !== undefined) {
+                        optEl.classList.add('disabled');
+                        if (i === currentQuiz.ans) {
+                            optEl.classList.add('correct');
+                        } else if (i === selectedOption) {
+                            optEl.classList.add('incorrect');
+                        }
+                    }
                 } else {
                     optEl.style.display = 'none';
                 }
             });
 
-            trackerEl.textContent = `${index + 1}/${quizData.length}`;
+            trackerEl.textContent = `Question ${index + 1} of ${quizData.length}`;
+            prevBtn.disabled = index === 0;
+
+            if (index === quizData.length - 1) {
+                nextBtn.style.display = 'none';
+                doneBtn.style.display = 'inline-block';
+            } else {
+                nextBtn.style.display = 'inline-block';
+                doneBtn.style.display = 'none';
+            }
         }
 
+        optionEls.forEach(optEl => {
+            optEl.addEventListener('click', function() {
+                if (userAnswers[currentIndex] !== undefined) return;
+
+                const selectedIdx = parseInt(this.dataset.index, 10);
+                userAnswers[currentIndex] = selectedIdx;
+                renderQuestion(currentIndex);
+            });
+        });
+
         prevBtn.addEventListener('click', function() {
-            if (!quizData || quizData.length === 0) return;
-            currentIndex = (currentIndex - 1 + quizData.length) % quizData.length;
-            renderQuestion(currentIndex);
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderQuestion(currentIndex);
+            }
         });
 
         nextBtn.addEventListener('click', function() {
-            if (!quizData || quizData.length === 0) return;
-            currentIndex = (currentIndex + 1) % quizData.length;
+            if (currentIndex < quizData.length - 1) {
+                currentIndex++;
+                renderQuestion(currentIndex);
+            }
+        });
+
+        doneBtn.addEventListener('click', function() {
+            let correct = 0;
+            let wrong = 0;
+            let unanswered = 0;
+
+            quizData.forEach((item, i) => {
+                const userAns = userAnswers[i];
+                if (userAns === undefined) {
+                    unanswered++;
+                } else if (userAns === item.ans) {
+                    correct++;
+                } else {
+                    wrong++;
+                }
+            });
+
+            const scorePercent = Math.round((correct / quizData.length) * 100);
+
+            correctCountEl.textContent = correct;
+            wrongCountEl.textContent = wrong;
+            unansweredCountEl.textContent = unanswered;
+            quizScorePercentEl.textContent = `${scorePercent}% Score`;
+
+            quizContainer.style.display = 'none';
+            quizSummary.style.display = 'block';
+        });
+
+        retakeBtn.addEventListener('click', function() {
+            userAnswers = {};
+            currentIndex = 0;
+            quizSummary.style.display = 'none';
+            quizContainer.style.display = 'block';
+            quizContainer.classList.remove('hidden');
             renderQuestion(currentIndex);
         });
 
@@ -69,20 +186,19 @@
             const quizId = '{{ quiz_id }}';
             try {
                 const response = await fetch(`/get-quiz-data/${quizId}`, { method: 'POST' });
+                if (!response.ok) {
+                    throw new Error('Failed response');
+                }
                 quizData = await response.json();
                 
                 if (!quizData || !Array.isArray(quizData) || quizData.length === 0) {
-                    const errorElement = document.createElement('p');
-                    errorElement.textContent = 'Failed to load quiz data.';
-                    document.body.appendChild(errorElement);
+                    quizError.style.display = 'block';
                 } else {
                     quizContainer.classList.remove('hidden');
                     renderQuestion(currentIndex);
                 }
             } catch (err) {
-                const errorElement = document.createElement('p');
-                errorElement.textContent = 'Failed to load quiz data.';
-                document.body.appendChild(errorElement);
+                quizError.style.display = 'block';
             }
         });
     </script>

@@ -107,9 +107,9 @@ def ai_error(error_type, msg):
     return {'error': True, 'type': error_type, 'msg': msg}
 
 
-def parse_json_object(raw, msg):
+def parse_json_object(raw, msg, allow_list=False):
     """Parse JSON and handle errors"""
-    if isinstance(raw, dict):
+    if isinstance(raw, (dict, list)):
         return raw
     if not isinstance(raw, str) or not raw.strip():
         return ai_error('invalid_json', msg)
@@ -118,7 +118,8 @@ def parse_json_object(raw, msg):
     except json.JSONDecodeError as e:
         logger.error("[parse_json_object] JSON decode error: %s | raw=%s", e, raw[:200])
         return ai_error('invalid_json', msg)
-    if not isinstance(parsed, dict):
+    valid_types = (dict, list) if allow_list else dict
+    if not isinstance(parsed, valid_types):
         return ai_error('invalid_json', msg)
     return parsed
 
@@ -269,7 +270,7 @@ def ask_gemini(question, action):
                         response_mime_type="application/json",
                     )
                 )
-                parsed = parse_json_object(response.text, 'Flashcard generation returned invalid format.')
+                parsed = parse_json_object(response.text, 'Flashcard generation returned invalid format.', allow_list=True)
                 if is_ai_error(parsed):
                     return ai_error('invalid_json', 'Flashcard generation failed. Please try again.')
                 if not isinstance(parsed, list):
@@ -283,7 +284,7 @@ def ask_gemini(question, action):
                         response_mime_type="application/json",
                     )
                 )
-                parsed = parse_json_object(response.text, 'quiz generation returned invalid format.')
+                parsed = parse_json_object(response.text, 'quiz generation returned invalid format.', allow_list=True)
                 if is_ai_error(parsed):
                     return ai_error('invalid_json', 'Quiz generation failed. Please try again.')
                 if not isinstance(parsed, list):
