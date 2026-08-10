@@ -119,6 +119,15 @@ def metadata_for_search(note):
         return None
     return normalize_metadata(metadata, note.id)
 
+def make_searchable_pool(note, metadata):
+    """Creates a searchable string pool combining note title, metadata tags, summary, and md_content."""
+    tags_text = " ".join(metadata.get('tags', [])).lower()
+    summary_text = metadata.get('summary', '').lower()
+    md_content = (note.md_content or '').lower()
+    title = (note.title or '').lower()
+    return f"{title} {tags_text} {summary_text} {md_content}"
+
+
 def backfill_metadata_ids():
     """Sets metadata['id'] if not already set."""
     notes = db.session.scalars(db.select(Note)).all()
@@ -681,12 +690,7 @@ def ai_response():
                 if not keywords:
                     metadata_list.append(metadata)
                     continue
-                tags = metadata.get('tags', [])
-                tags_text = " ".join(tags).lower()
-                summary_text = metadata.get('summary','').lower()
-                md_content = (note.md_content or '').lower()
-                title = (note.title or '').lower()
-                searchable_pool = f"{title} {tags_text} {summary_text} {md_content}"
+                searchable_pool = make_searchable_pool(note, metadata)
 
                 if any(keyword in searchable_pool for keyword in keywords):
                     metadata_list.append(metadata)
@@ -726,11 +730,7 @@ def ai_response():
                 if not keywords:
                     metadata_list.append(metadata)
                     continue
-                tags_text = " ".join(metadata.get('tags', [])).lower()
-                summary_text = metadata.get('summary','').lower()
-                md_content = (note.md_content or '').lower()
-                title = (note.title or '').lower()
-                searchable_pool = f"{title} {tags_text} {summary_text} {md_content}"
+                searchable_pool = make_searchable_pool(note, metadata)
 
                 if any(keyword in searchable_pool for keyword in keywords):
                     metadata_list.append(metadata)
@@ -780,11 +780,7 @@ def ai_response():
                 if not keywords:
                     metadata_list.append(metadata)
                     continue
-                tags_text = " ".join(metadata.get('tags', [])).lower()
-                summary_text = metadata.get('summary','').lower()
-                md_content = (note.md_content or '').lower()
-                title = (note.title or '').lower()
-                searchable_pool = f"{title} {tags_text} {summary_text} {md_content}"
+                searchable_pool = make_searchable_pool(note, metadata)
 
                 if any(keyword in searchable_pool for keyword in keywords):
                     metadata_list.append(metadata)
@@ -833,11 +829,7 @@ def ai_response():
                 if not keywords:
                     metadata_list.append(metadata)
                     continue
-                tags_text = " ".join(metadata.get('tags', [])).lower()
-                summary_text = metadata.get('summary','').lower()
-                md_content = (note.md_content or '').lower()
-                title = (note.title or '').lower()
-                searchable_pool = f"{title} {tags_text} {summary_text} {md_content}"
+                searchable_pool = make_searchable_pool(note, metadata)
 
                 if any(keyword in searchable_pool for keyword in keywords):
                     metadata_list.append(metadata)
