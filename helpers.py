@@ -157,7 +157,7 @@ def ask_groq(contents, username="", chat_only=False):
     try:
         response = groq_client.chat.completions.create(
             messages=messages,
-            model="llama-3.3-70b-versatile",
+            model="qwen/qwen3.6-27b",
             response_format={"type": "json_object"},
             temperature=0.7,
             )

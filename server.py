@@ -14,13 +14,15 @@ import re
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 
+import os
+
 class Base(DeclarativeBase):
     pass
 
 app=Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0 # Ensure styling updates properly
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///notes.db"
-app.config['SECRET_KEY'] = 'secretkey'
+app.config['SECRET_KEY'] = os.urandom(24)
 VERIFICATION_TTL_SECONDS = 10 * 60
 NOTE_ACTION_COOLDOWN_SECONDS = 5 * 60
 
@@ -187,30 +189,33 @@ def _verification_is_valid(submitted_code):
     return True, ""
 
 def delete_flashcards():
-    """Delete unsaved flashcards"""
+    """Delete the single oldest unsaved flashcard"""
     try:
         with app.app_context():
-            all_flashcards = db.session.scalars(db.select(Flashcard).where(Flashcard.is_saved == False)).all()
-            if all_flashcards:
-                for flashcards in all_flashcards:
-                    db.session.delete(flashcards)
+            oldest_flashcard = db.session.scalars(
+                db.select(Flashcard).where(Flashcard.is_saved == False).order_by(Flashcard.id.asc())
+            ).first()
+            if oldest_flashcard:
+                db.session.delete(oldest_flashcard)
                 db.session.commit()
+                app.logger.info("Successfully deleted oldest unsaved flashcard (id=%s).", oldest_flashcard.id)
     except Exception as e:
-        app.logger.error("Failed to delete flashcards in background job: %s", e)
+        app.logger.error("Failed to delete flashcard in background job: %s", e)
         db.session.rollback()
 
 def delete_quizzes():
-    """Delete quizzes every 10 minutes"""
+    """Delete the single oldest quiz every 10 minutes"""
     try:
         with app.app_context():
-            all_quizzes = db.session.scalars(db.select(Quiz)).all()
-            if all_quizzes:
-                for quiz in all_quizzes:
-                    db.session.delete(quiz)
+            oldest_quiz = db.session.scalars(
+                db.select(Quiz).order_by(Quiz.id.asc())
+            ).first()
+            if oldest_quiz:
+                db.session.delete(oldest_quiz)
                 db.session.commit()
-                app.logger.info("Successfully deleted temporary quizzes.")
+                app.logger.info("Successfully deleted oldest quiz (id=%s).", oldest_quiz.id)
     except Exception as e:
-        app.logger.error("Failed to delete quizzes in background job: %s", e)
+        app.logger.error("Failed to delete quiz in background job: %s", e)
         db.session.rollback()
 
 # Add the background job of generating metadata
