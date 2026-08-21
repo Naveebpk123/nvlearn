@@ -227,7 +227,7 @@ def build_ai_instructions(contents, username, metadata=False, chat_only=False):
     return instructions
     
 def ask_gemini(question, action):
-    models = ["gemini-3.6-flash", "gemini-3.5-flash","gemini-3.0-flash","gemini-2.5-flash","gemini-3.5-flash-lite"]
+    models = ["gemini-3.7-flash","gemini-3.6-flash", "gemini-3.5-flash","gemini-3.0-flash","gemini-3.5-flash-lite","gemini-3.1-flash-lite"]
     last_error = None
     for model in models:
         try:
@@ -249,7 +249,7 @@ def ask_gemini(question, action):
                 return html_content, response.text
             elif action == 'metadata':
                 response = gemini_client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-3.1-flash-lite',
                     contents=GEMINI_NOTE_CREATION_PROMPT + f"prompt: {question}",
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
