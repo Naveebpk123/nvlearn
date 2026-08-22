@@ -9,9 +9,9 @@
 <body class="site-layout">
     <nav>
         <a href="{{ url_for('home') }}" class="button cancel">← Home</a>
-        <h2 style="color: white; margin: 0 auto;">NVLearn Quiz</h2>
+        <h2 class="quiz-nav-title">NVLearn Quiz</h2>
     </nav>
-    <main class="content-wrapper" style="margin-left: 0; width: 100%;">
+    <main class="content-wrapper quiz-content-wrapper">
         <div class="quiz-container hidden" id="quizContainer">
             <div class="question" id="quizQuestion"></div>
 
@@ -22,44 +22,45 @@
                 <div class="option" data-index="3"></div>
             </div>
 
-            <div class="quiz-tracker" id="quizTracker" style="text-align: center; margin: 1rem 0; font-weight: bold;"></div>
+            <div class="quiz-tracker quiz-tracker-text" id="quizTracker"></div>
 
             <div class="quiz-actions">
                 <button class="button cancel" id="quizPreviousBtn">Previous</button>
                 <button class="button" id="quizNextBtn">Next</button>
-                <button class="button" id="quizDoneBtn" style="display: none; background-color: #28a745;">Done</button>
+                <button class="button btn-done" id="quizDoneBtn">Done</button>
             </div>
         </div>
 
-        <div id="quizSummary" style="display: none; text-align: center; margin: 2rem auto; max-width: 500px; padding: 2rem; background: var(--bg-card); border-radius: 12px; box-shadow: 0 4px 15px var(--shadow-color);">
-            <h1 style="margin-top: 0; color: var(--primary-blue);">🎉 Quiz Completed!</h1>
-            <div id="quizScorePercent" style="font-size: 2.5rem; font-weight: bold; margin: 1rem 0;"></div>
+        <div id="quizSummary" class="quiz-summary-card">
+            <h1 class="quiz-summary-title">🎉 Quiz Completed!</h1>
+            <div id="quizScorePercent" class="quiz-score-percent"></div>
             
-            <div style="display: flex; justify-content: space-around; margin: 2rem 0; gap: 10px;">
-                <div style="flex: 1; padding: 10px; background: #d4edda; border-radius: 8px; color: #155724;">
-                    <div style="font-size: 1.5rem; font-weight: bold;" id="correctCount">0</div>
+            <div class="quiz-stats-row">
+                <div class="stat-box correct">
+                    <div class="stat-number" id="correctCount">0</div>
                     <div>Correct</div>
                 </div>
-                <div style="flex: 1; padding: 10px; background: #f8d7da; border-radius: 8px; color: #721c24;">
-                    <div style="font-size: 1.5rem; font-weight: bold;" id="wrongCount">0</div>
+                <div class="stat-box wrong">
+                    <div class="stat-number" id="wrongCount">0</div>
                     <div>Wrong</div>
                 </div>
-                <div style="flex: 1; padding: 10px; background: #e2e3e5; border-radius: 8px; color: #383d41;">
-                    <div style="font-size: 1.5rem; font-weight: bold;" id="unansweredCount">0</div>
+                <div class="stat-box unanswered">
+                    <div class="stat-number" id="unansweredCount">0</div>
                     <div>Unanswered</div>
                 </div>
             </div>
 
-            <div style="display: flex; justify-content: center; gap: 15px; margin-top: 1.5rem;">
+            <div class="quiz-summary-actions">
                 <button class="button" id="retakeBtn">Retake Quiz</button>
+                <button class="button" id="saveQuizBtn">Save Quiz</button>
                 <a href="{{ url_for('home') }}" class="button cancel">Return Home</a>
             </div>
         </div>
 
-        <div id="quizError" style="display: none; text-align: center; margin-top: 3rem;">
+        <div id="quizError" class="quiz-error-card">
             <h2>Failed to load quiz data.</h2>
             <p>The quiz might not exist or you do not have permission to view it.</p>
-            <a href="{{ url_for('home') }}" class="button" style="margin-top: 1rem; display: inline-block;">Return Home</a>
+            <a href="{{ url_for('home') }}" class="button btn-return-home">Return Home</a>
         </div>
     </main>
 
