@@ -77,6 +77,7 @@ class Quiz(db.Model):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     quiz_data: Mapped[Dict[str,Any]] = mapped_column(JSON)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    is_saved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 def get_meta_data(content):
     metadata = build_ai_instructions(content,username='',metadata=True)
