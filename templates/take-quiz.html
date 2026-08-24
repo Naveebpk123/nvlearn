@@ -79,6 +79,8 @@
         const quizSummary = document.getElementById('quizSummary');
         const quizError = document.getElementById('quizError');
         const retakeBtn = document.getElementById('retakeBtn');
+        const saveQuizBtn = document.getElementById('saveQuizBtn');
+
 
         const correctCountEl = document.getElementById('correctCount');
         const wrongCountEl = document.getElementById('wrongCount');
@@ -202,6 +204,24 @@
                 quizError.style.display = 'block';
             }
         });
+
+        if(saveQuizBtn){
+  saveQuizBtn.addEventListener('click',async function(){
+    const response = await fetch(`/save-quiz/${saveQuizBtn.dataset.id}`,{
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    const responseJSON = await response.json();
+    if (responseJSON.status == 'saved'){
+      saveQuizBtn.disabled = true;
+      flash('Saved quiz','success');
+    }else{
+      flash('Unable to save quiz','error')
+    };
+  });
+}
     </script>
 </body>
 </html>

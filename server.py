@@ -970,10 +970,10 @@ def save_quiz(quiz_id):
     quiz_obj = db.session.get(Quiz, quiz_id)
     if not quiz_obj or quiz_obj.user_id != current_user.id:
         app.logger.warning("[get_quiz_data] Quiz not found or unauthorized — quiz_id=%s, user_id=%s", quiz_id, current_user.id)
-        return jsonify({'error': 'Unable to save quiz'})
+        return jsonify({'error': 'failed'})
     quiz_obj.is_saved = True
     db.session.commit()
-    return jsonify({'success':'Quiz saved successfully'})
+    return jsonify({'status':'saved'})
 
 @app.route('/about')
 def about():
