@@ -983,6 +983,10 @@ def save_quiz(quiz_id):
     db.session.commit()
     return jsonify({'status':'saved'})
 
+@app.route('/practice-hub')
+def practice_hub():
+    return render_template('practice-hub.html')
+
 @app.route('/about')
 def about():
     return render_template('about.html')
