@@ -976,6 +976,10 @@ def save_quiz(quiz_id):
         app.logger.warning("[get_quiz_data] Quiz not found or unauthorized — quiz_id=%s, user_id=%s", quiz_id, current_user.id)
         return jsonify({'error': 'failed'})
     quiz_obj.is_saved = True
+    quiz_obj.total_questions = request.json.get('total_questions', 0)
+    quiz_obj.correct_answers = request.json.get('correct_answers', 0)
+    quiz_obj.incorrect_answers = request.json.get('incorrect_answers', 0)
+    quiz_obj.percentage_score = request.json.get('percentage_score', 0.0)
     db.session.commit()
     return jsonify({'status':'saved'})
 

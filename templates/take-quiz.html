@@ -211,7 +211,13 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({
+        total_questions: quizData.length,
+        correct_answers: parseInt(correctCountEl.textContent),
+        incorrect_answers: parseInt(wrongCountEl.textContent),
+        percentage_score: parseFloat(quizScorePercentEl.textContent.replace('% Score','').trim())
+      })
     });
     const responseJSON = await response.json();
     if (responseJSON.status == 'saved'){
