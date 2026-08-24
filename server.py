@@ -963,6 +963,17 @@ def get_quiz_data(quiz_id):
         return jsonify({'error': 'Quiz not found'}), 404
     return jsonify(quiz_obj.quiz_data)
 
+@app.route('/save-quiz/<int:quiz_id>',methods=['POST'])
+@login_required
+def save_quiz(quiz_id):
+    quiz_obj = db.session.get(Quiz, quiz_id)
+    if not quiz_obj or quiz_obj.user_id != current_user.id:
+        app.logger.warning("[get_quiz_data] Quiz not found or unauthorized — quiz_id=%s, user_id=%s", quiz_id, current_user.id)
+        return jsonify({'error': 'Unable to save quiz'})
+    quiz_obj.is_saved = True
+    db.session.commit()
+    return jsonify({'success':'Quiz saved successfully'})
+
 @app.route('/about')
 def about():
     return render_template('about.html')
