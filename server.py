@@ -78,6 +78,10 @@ class Quiz(db.Model):
     quiz_data: Mapped[Dict[str,Any]] = mapped_column(JSON)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     is_saved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    total_questions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    correct_answers: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    incorrect_answers: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    percentage_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
 def get_meta_data(content):
     metadata = build_ai_instructions(content,username='',metadata=True)
