@@ -814,4 +814,25 @@ body.editor-lock-scroll {
 .btn-return-home {
     margin-top: 1rem;
     display: inline-block;
-}
+}
+
+.tab-container {
+    display: flex;
+    justify-content: center;
+    margin: 2rem 0;
+    gap: 10px;
+}
+
+.tab {
+    padding: 10px 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--bg-card);
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.tab:hover {
+    background-color: var(--primary-blue);
+    color: var(--text-light);
+}

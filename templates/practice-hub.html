@@ -3,4 +3,12 @@
 
 {% block content %}
   <h1>Practice Hub</h1>
+  <div class="tab-container">
+    <div class="tab" id="flashcardsTab">
+        Saved Flashcards({{ saved_flashcards }})
+    </div>
+    <div class="tab" id="quizzesTab">
+        Saved Quizzes({{ saved_quizzes }})
+    </div>
+  </div>
 {% endblock %}
