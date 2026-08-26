@@ -36,7 +36,9 @@ const deleteFlashcardsBtn = document.getElementsByClassName('delete-flashcard-bt
 const flashcardsTab = document.getElementById('flashcardsTab');
 const quizzesTab = document.getElementById('quizzesTab');
 const flashcardsContent = document.getElementById('flashcardsContent');
+const quizContent = document.getElementById('quizContent');
 const tabcontainer = document.getElementsByClassName('tab-container')[0];
+const backBtn = document.getElementById('backBtn');
 
 async function flash(text='',category='success'){
   const flashAlert = document.createElement('div');
@@ -242,6 +244,14 @@ if (flashcards && flashcards.length > 0) {
   }
 }
 
+if (backBtn) {
+  backBtn.addEventListener('click', () => {
+    tabcontainer.classList.remove('hidden');
+    flashcardsContent.classList.add('hidden');
+    quizContent.classList.add('hidden');
+  });
+}
+
 logoutBtn?.addEventListener('click', (e) => {
   e.preventDefault();
   openModal('Are you sure you want to logout?', modalBackground, 'logout');
@@ -281,13 +291,15 @@ if(flashcardsTab){
   flashcardsTab.addEventListener('click',()=>{
     tabcontainer.classList.add('hidden');
     flashcardsContent.classList.remove('hidden');
+    backBtn.classList.remove('hidden');
   });
 }
 
 if(quizzesTab){
   quizzesTab.addEventListener('click',()=>{
-    tabcontainer.classList.remove('hidden');
-    flashcardsContent.classList.add('hidden');
+    tabcontainer.classList.add('hidden');
+    quizContent.classList.remove('hidden');
+    backBtn.classList.remove('hidden');
   });
 }
 

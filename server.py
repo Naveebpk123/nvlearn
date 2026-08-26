@@ -1013,9 +1013,21 @@ def save_quiz(quiz_id):
     return jsonify({'status':'saved'})
 
 @app.route('/practice-hub')
+@login_required
 def practice_hub():
-    all_flashcards = db.session.scalars(db.select(Flashcard).where(Flashcard.user_id == current_user.id).where(Flashcard.is_saved == True)).all()
-    return render_template('practice-hub.html',flashcards = all_flashcards)
+    all_flashcards = db.session.scalars(
+        db.select(Flashcard).where(Flashcard.user_id == current_user.id).where(Flashcard.is_saved == True)
+    ).all()
+    all_quizzes = db.session.scalars(
+        db.select(Quiz).where(Quiz.user_id == current_user.id).where(Quiz.is_saved == True)
+    ).all()
+    return render_template(
+        'practice-hub.html',
+        flashcards=all_flashcards,
+        quizzes=all_quizzes,
+        saved_flashcards=len(all_flashcards),
+        saved_quizzes=len(all_quizzes)
+    )
 
 @app.route('/about')
 def about():

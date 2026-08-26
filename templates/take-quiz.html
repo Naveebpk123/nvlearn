@@ -72,8 +72,8 @@
         const questionEl = document.getElementById('quizQuestion');
         const optionEls = document.querySelectorAll('.option');
         const trackerEl = document.getElementById('quizTracker');
-        const prevBtn = document.getElementById('quizPreviousBtn');
-        const nextBtn = document.getElementById('quizNextBtn');
+        const quizPrevBtn = document.getElementById('quizPreviousBtn');
+        const quizNextBtn = document.getElementById('quizNextBtn');
         const doneBtn = document.getElementById('quizDoneBtn');
         const quizContainer = document.getElementById('quizContainer');
         const quizSummary = document.getElementById('quizSummary');
@@ -118,13 +118,13 @@
             });
 
             trackerEl.textContent = `Question ${index + 1} of ${quizData.length}`;
-            prevBtn.disabled = index === 0;
+            quizPrevBtn.disabled = index === 0;
 
             if (index === quizData.length - 1) {
-                nextBtn.style.display = 'none';
+                quizNextBtn.style.display = 'none';
                 doneBtn.style.display = 'inline-block';
             } else {
-                nextBtn.style.display = 'inline-block';
+                quizNextBtn.style.display = 'inline-block';
                 doneBtn.style.display = 'none';
             }
         }
@@ -139,14 +139,14 @@
             });
         });
 
-        prevBtn.addEventListener('click', function() {
+        quizPrevBtn.addEventListener('click', function() {
             if (currentIndex > 0) {
                 currentIndex--;
                 renderQuestion(currentIndex);
             }
         });
 
-        nextBtn.addEventListener('click', function() {
+        quizNextBtn.addEventListener('click', function() {
             if (currentIndex < quizData.length - 1) {
                 currentIndex++;
                 renderQuestion(currentIndex);
