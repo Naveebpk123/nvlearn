@@ -33,6 +33,11 @@ const saveFlashcardsBtn = document.getElementById('saveFlashcardsBtn');
 const innerFlashcardContainer = document.querySelector('.inner-flashcard-container');
 const deleteFlashcardsBtn = document.getElementsByClassName('delete-flashcard-btn');
 
+const flashcardsTab = document.getElementById('flashcardsTab');
+const quizzesTab = document.getElementById('quizzesTab');
+const flashcardsContent = document.getElementById('flashcardsContent');
+const tabcontainer = document.getElementsByClassName('tab-container')[0];
+
 async function flash(text='',category='success'){
   const flashAlert = document.createElement('div');
   flashAlert.classList.add('alert',`alert-${category}`);
@@ -271,6 +276,13 @@ if (deleteFlashcardsBtn !== null) {
     });
   }
 };
+
+if(flashcardsTab){
+  flashcardsTab.addEventListener('click',()=>{
+    tabcontainer.classList.add('hidden');
+    flashcardsContent.classList.remove('hidden');
+  });
+}
 
 if(saveFlashcardsBtn){
   saveFlashcardsBtn.addEventListener('click',async function(){

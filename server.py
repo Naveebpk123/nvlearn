@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, JSON, DateTime
+from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, JSON, DateTime, Float, List
 from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm, VerificationForm
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -82,6 +82,8 @@ class Quiz(db.Model):
     correct_answers: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     incorrect_answers: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     percentage_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    tags: Mapped[List[str]] = mapped_column(JSON, nullable=True, default=list)
+
 
 def get_meta_data(content):
     metadata = build_ai_instructions(content,username='',metadata=True)
@@ -209,16 +211,16 @@ def delete_flashcards():
         db.session.rollback()
 
 def delete_quizzes():
-    """Delete the single oldest quiz every 10 minutes"""
+    """Delete the single oldest unsaved quiz every 10 minutes"""
     try:
         with app.app_context():
             oldest_quiz = db.session.scalars(
-                db.select(Quiz).order_by(Quiz.id.asc())
+                db.select(Quiz).where(Quiz.is_saved == False).order_by(Quiz.id.asc())
             ).first()
             if oldest_quiz:
                 db.session.delete(oldest_quiz)
                 db.session.commit()
-                app.logger.info("Successfully deleted oldest quiz (id=%s).", oldest_quiz.id)
+                app.logger.info("Successfully deleted oldest unsaved quiz (id=%s).", oldest_quiz.id)
     except Exception as e:
         app.logger.error("Failed to delete quiz in background job: %s", e)
         db.session.rollback()
@@ -957,7 +959,24 @@ def flashcards():
 @app.route('/quiz/<int:quiz_id>')
 @login_required
 def take_quiz(quiz_id):
-    return render_template('take-quiz.html',quiz_id=quiz_id)
+    quiz_obj = db.session.get(Quiz, quiz_id)
+    if not quiz_obj or quiz_obj.user_id != current_user.id:
+        app.logger.warning("[take_quiz] Quiz not found or unauthorized — quiz_id=%s, user_id=%s", quiz_id, current_user.id)
+        return render_template('take-quiz.html', quiz_id=quiz_id, quiz_data_json="[]", error=True)
+    
+    raw_data = quiz_obj.quiz_data
+    if isinstance(raw_data, str):
+        try:
+            raw_data = json.loads(raw_data)
+        except Exception:
+            pass
+
+    if isinstance(raw_data, dict) and "questions" in raw_data:
+        raw_data = raw_data["questions"]
+    elif isinstance(raw_data, dict) and "quiz" in raw_data:
+        raw_data = raw_data["quiz"]
+        
+    return render_template('take-quiz.html', quiz_id=quiz_id, quiz_data_json=json.dumps(raw_data), error=False)
 
 @app.route('/get-quiz-data/<int:quiz_id>',methods=['POST'])
 @login_required
@@ -985,7 +1004,8 @@ def save_quiz(quiz_id):
 
 @app.route('/practice-hub')
 def practice_hub():
-    return render_template('practice-hub.html')
+    all_flashcards = db.session.scalars(db.select(Flashcard).where(Flashcard.user_id == current_user.id).where(Flashcard.is_saved == True)).all()
+    return render_template('practice-hub.html',flashcards = all_flashcards)
 
 @app.route('/about')
 def about():
