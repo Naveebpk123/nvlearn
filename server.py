@@ -2,17 +2,18 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, JSON, DateTime, Float, List
+from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, JSON, DateTime, Float
 from forms import AddNoteForm, EditNoteForm, LoginForm, RegisterForm, VerificationForm
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from helpers import send_email_threaded, create_code, build_ai_instructions, ask_mistral, ask_gemini, get_welcome_message, md_to_html, is_ai_error
-from typing import Dict,Any
+from typing import Dict, Any, List
 from datetime import datetime, timezone, timedelta
 import json
 import re
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
+from collections import Counter
 
 import os
 
@@ -852,14 +853,17 @@ def ai_response():
                 app.logger.warning("[ai_response/create_quiz] Mistral note search failed (type=%s), falling back to topic. msg=%s", note_ids.get('type'), note_ids.get('msg'))
                 note_content_list = f"Topic: {ai_reply}"
             else:
+                collected_tags = []
                 if note_ids.get('note_ids'):
                     for note_id in note_ids['note_ids']:
-                        try:
+                        try:                            
                             note = db.session.get(Note, int(note_id))
+                            if note and note.user_id == current_user.id:
+                                if isinstance(note.meta_data, dict):
+                                    collected_tags.extend(note.meta_data.get('tags', []))
+                                note_content_list += (note.md_content or "") + '\n'
                         except (TypeError, ValueError):
                             continue
-                        if note and note.user_id == current_user.id:
-                            note_content_list += (note.md_content or "") + '\n'
                 if not note_content_list:
                     note_content_list = f"Topic: {ai_reply}"
 
@@ -870,8 +874,14 @@ def ai_response():
                 if gemini_result.get('type') == 'rate_limit':
                     hit_rate_limit = True
             else:
-                quiz_obj = Quiz(quiz_data=gemini_result, user_id=current_user.id)
-                db.session.add(quiz_obj)
+                if collected_tags:
+                    tag_counts = Counter(collected_tags)
+                    quiz_tags = [tag for tag, count in tag_counts.most_common(5)]
+                else:
+                    quiz_tags = [ai_reply.strip()]
+
+                quiz_obj = Quiz(quiz_data=gemini_result, user_id=current_user.id,tags=quiz_tags)
+                db.session.add(quiz_obj)    
                 db.session.commit()
                 quiz_id = quiz_obj.id
                 all_results.append(f'Created quiz on topic: {ai_reply}')
