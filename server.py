@@ -960,12 +960,6 @@ def delete_flashcard(flashcard_id):
         return jsonify(['Set deleted', 'success'])
     return jsonify(['Failed to delete', 'error'])
 
-@app.route('/flashcards')
-@login_required
-def flashcards():
-    all_flashcards = db.session.scalars(db.select(Flashcard).where(Flashcard.user_id == current_user.id).where(Flashcard.is_saved == True)).all()
-    return render_template('flashcards.html', flashcards=all_flashcards)
-
 @app.route('/quiz/<int:quiz_id>')
 @login_required
 def take_quiz(quiz_id):

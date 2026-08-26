@@ -36,7 +36,7 @@ const deleteFlashcardsBtn = document.getElementsByClassName('delete-flashcard-bt
 const flashcardsTab = document.getElementById('flashcardsTab');
 const quizzesTab = document.getElementById('quizzesTab');
 const flashcardsContent = document.getElementById('flashcardsContent');
-const quizContent = document.getElementById('quizContent');
+const quizzesContent = document.getElementById('quizzesContent');
 const tabcontainer = document.getElementsByClassName('tab-container')[0];
 const backBtn = document.getElementById('backBtn');
 
@@ -247,8 +247,8 @@ if (flashcards && flashcards.length > 0) {
 if (backBtn) {
   backBtn.addEventListener('click', () => {
     tabcontainer.classList.remove('hidden');
-    flashcardsContent.classList.add('hidden');
-    quizContent.classList.add('hidden');
+    flashcardsContent?.classList.add('hidden');
+    quizzesContent?.classList.add('hidden');
   });
 }
 
@@ -298,7 +298,7 @@ if(flashcardsTab){
 if(quizzesTab){
   quizzesTab.addEventListener('click',()=>{
     tabcontainer.classList.add('hidden');
-    quizContent.classList.remove('hidden');
+    quizzesContent?.classList.remove('hidden');
     backBtn.classList.remove('hidden');
   });
 }
