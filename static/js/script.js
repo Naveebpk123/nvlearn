@@ -284,6 +284,13 @@ if(flashcardsTab){
   });
 }
 
+if(quizzesTab){
+  quizzesTab.addEventListener('click',()=>{
+    tabcontainer.classList.remove('hidden');
+    flashcardsContent.classList.add('hidden');
+  });
+}
+
 if(saveFlashcardsBtn){
   saveFlashcardsBtn.addEventListener('click',async function(){
     const response = await fetch(`/save-flashcards/${saveFlashcardsBtn.dataset.id}`,{

@@ -11,6 +11,7 @@
         Saved Quizzes({{ saved_quizzes }})
     </div>
   </div>
+  <button class="button hidden" id="backBtn">↩ Back</button>
   <div class="hidden" id="flashcardsContent">
     <h2>My Flashcards</h2>
     {% if flashcards %}
@@ -45,5 +46,43 @@
     <div class="tab-content" id="flashcardsContent" style="display: none;">
         <p>You do not have any flashcard sets saved yet.</p>
         </div>
+    {% endif %}
+    </div>
+    {% if quizzes %}
+    <div class="hidden" id="quizzesContent">
+        <h2>My Quizzes</h2>
+        {% for quiz in quizzes %}
+            <div class="quiz-card" data-quiz-id="{{ quiz.id }}">
+                <h3 class="quiz-title">{{ quiz.title }}</h3>
+                 <div class="tags">
+                    {% for tag in quiz.tags %}
+                        <span class="quiz-tag">{{ tag }}</span>
+                    {% endfor %}                    
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item score">
+                    <span class="stat-value">{{quiz.percentage_score}}</span>
+                    <span class="stat-label">Score</span>
+                    </div>
+                    <div class="stat-item correct">
+                    <span class="stat-value">{{quiz.correct_answers}}</span>
+                    <span class="stat-label">Correct</span>
+                    </div>
+                    <div class="stat-item incorrect">
+                    <span class="stat-value">{{quiz.incorrect_answers}}</span>
+                    <span class="stat-label">Incorrect</span>
+                    </div>
+                    <div class="stat-item unanswered">
+                    <span class="stat-value">{{quiz.total_questions - quiz.correct_answers - quiz.incorrect_answers}}</span>
+                    <span class="stat-label">Unanswered</span>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <a href="{{url_for('view_quiz', quiz_id=quiz.id)}}" class="button cancel">View Quiz</a>
+                    <button class="button danger delete-quiz-btn" data-quiz-id="{{ quiz.id }}">Delete Quiz</button>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
     {% endif %}
 {% endblock %}

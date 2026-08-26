@@ -3,11 +3,18 @@
     --bg-card: white;
     --bg-dark: rgb(41, 41, 42);
     --text-light: white;
-    --text-muted: rgba(255, 255, 255, 0.6);
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
     --primary-blue: rgb(13, 110, 253);
     --primary-hover: rgb(9, 91, 214);
     --border-color: rgba(0, 0, 0, 0.1);
     --shadow-color: rgba(0, 0, 0, 0.1);
+
+    --color-correct: #10b981;
+    --color-incorrect: #ef4444;
+    --color-unanswered: #f59e0b;
+    --color-primary: #4f46e5;
+    --color-danger: #dc2626;
 }
 
 * {
@@ -835,4 +842,136 @@ body.editor-lock-scroll {
 .tab:hover {
     background-color: var(--primary-blue);
     color: var(--text-light);
+}
+
+/* ── Quiz Card Components ────────────────────────────────────────── */
+.quiz-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 380px;
+  box-shadow: 0 4px 6px -1px var(--shadow-color);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quiz-title {
+  margin: 0;
+  font-size: 1.125rem;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  background-color: #f3f4f6;
+  color: #4b5563;
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-weight: 500;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  background-color: #f9fafb;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.score .stat-value { color: var(--color-primary); }
+.correct .stat-value { color: var(--color-correct); }
+.incorrect .stat-value { color: var(--color-incorrect); }
+.unanswered .stat-value { color: var(--color-unanswered); }
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background-color: #ffffff;
+  color: var(--text-main);
+  transition: all 0.15s ease;
+  text-decoration: none;
+  text-align: center;
+}
+
+.btn:hover {
+  background-color: #f9fafb;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+}
+
+.btn-primary:hover {
+  background-color: #4338ca;
+}
+
+.btn-delete {
+  color: var(--color-danger);
+  border-color: #fecaca;
+}
+
+.btn-delete:hover {
+  background-color: #fef2f2;
+}
+
+.back-btn {
+  display: inline-block;
+  padding: 8px 12px;
+  background-color: var(--primary-blue);
+  color: var(--text-light);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+  position: fixed;
+  top: 80px;
+  left: 20px;
 }
