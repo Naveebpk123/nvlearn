@@ -1006,6 +1006,16 @@ def save_quiz(quiz_id):
     db.session.commit()
     return jsonify({'status':'saved'})
 
+@app.route('/delete-quiz/<int:quiz_id>',methods=['POST'])
+@login_required
+def delete_quiz(quiz_id):
+    quiz_obj = db.session.get(Quiz, quiz_id)
+    if quiz_obj and quiz_obj.user_id == current_user.id:
+        db.session.delete(quiz_obj)
+        db.session.commit()
+        return jsonify(['Quiz deleted', 'success'])
+    return jsonify(['Failed to delete', 'error'])
+
 @app.route('/practice-hub')
 @login_required
 def practice_hub():

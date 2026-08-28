@@ -39,6 +39,7 @@ const flashcardsContent = document.getElementById('flashcardsContent');
 const quizzesContent = document.getElementById('quizzesContent');
 const tabcontainer = document.getElementsByClassName('tab-container')[0];
 const backBtn = document.getElementById('backBtn');
+const deleteQuizBtns = document.getElementsByClassName('delete-quiz-btn');
 
 async function flash(text='',category='success'){
   const flashAlert = document.createElement('div');
@@ -145,9 +146,6 @@ function openModal(text, modal, action = null, id = null, triggerBtn = null) {
         const response_json = await response.json();
         if (response_json[1] === 'success') {
           window.location.href = '/';
-        } else {
-          targetModal.style.display = 'none';
-          flash(response_json[0],response_json[1])
         }
       }else if (action === 'delete-flashcards') {
         const response = await fetch(`/delete-flashcards/${id}`, { method: 'POST' });
@@ -157,7 +155,15 @@ function openModal(text, modal, action = null, id = null, triggerBtn = null) {
         if (response_json[1] === 'success' && triggerBtn) {
           triggerBtn.closest('.flashcard-set').remove();
         }
-    }});
+    }else if(action === 'delete-quiz'){
+          const response = await fetch(`/delete-quiz/${id}`, { method: 'POST' });
+          const response_json = await response.json();
+          if (response_json[1] === 'success' && triggerBtn) {
+            triggerBtn.closest('.quiz-card').remove();
+          }; 
+          targetModal.style.display = 'none';
+          flash(response_json[0],response_json[1]);}}        
+          );
   }
 }
 
@@ -256,6 +262,21 @@ logoutBtn?.addEventListener('click', (e) => {
   e.preventDefault();
   openModal('Are you sure you want to logout?', modalBackground, 'logout');
 });
+
+if (deleteQuizBtns !== null) {
+  for (const btn of deleteQuizBtns) {
+    btn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      openModal(
+        'Are you sure you want to permanently delete this quiz?', 
+        modalBackground, 
+        'delete-quiz', 
+        btn.dataset.quizId, 
+        btn
+      );
+    });
+  }
+}
 
 if (deleteNoteBtns !== null) {
   for (const btn of deleteNoteBtns) {
