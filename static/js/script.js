@@ -41,6 +41,9 @@ const tabcontainer = document.getElementsByClassName('tab-container')[0];
 const backBtn = document.getElementById('backBtn');
 const deleteQuizBtns = document.getElementsByClassName('delete-quiz-btn');
 
+const sortBtn = document.getElementById('sort-btn');
+const sortMenu = document.getElementById('sort-menu');
+
 async function flash(text='',category='success'){
   const flashAlert = document.createElement('div');
   flashAlert.classList.add('alert',`alert-${category}`);

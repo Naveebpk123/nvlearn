@@ -1008,3 +1008,37 @@ body.editor-lock-scroll {
   top: 80px;
   left: 20px;
 }
+
+
+.dropdown-wrapper {
+  position: relative; 
+  display: inline-block;
+  align-self: flex-end;
+}
+
+.dropdown-btn {
+  background-color: #e0e0e0;
+  padding: 8px 12px;
+  border: none;
+  cursor: pointer;
+}
+
+.dropdown-menu {
+  position: absolute; 
+  top: 100%;
+  left: 0;
+  background-color: #f9f9f9;
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0 0;
+  border: 1px solid #ccc;
+}
+
+.dropdown-menu li {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.dropdown-menu li:hover {
+  background-color: #ddd;
+}

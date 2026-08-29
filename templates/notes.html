@@ -5,8 +5,18 @@
 <header>
     <h1>My Notes</h1>
 </header>
-
 <a class="button" href="{{url_for('add_note')}}">Add Note</a>
+<div class="dropdown-wrapper">
+  <button id="sort-btn" class="dropdown-btn">
+    Sort By <span class="arrow">▼</span>
+  </button>
+  
+  <ul id="sort-menu" class="dropdown-menu hidden">
+    <li data-sort="az">Title: A to Z</li>
+    <li data-sort="za">Title: Z to A</li>
+    <li data-sort="newest">Date: Newest First</li>
+  </ul>
+</div>
 <div class="note-container">
     {% if notes %}
 {% for note in notes %}
