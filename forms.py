@@ -2,26 +2,40 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, PasswordField, EmailField, TextAreaField
 from wtforms.validators import DataRequired, Length, Email, Regexp
 
+
 class AddNoteForm(FlaskForm):
-    title = StringField('Note title',validators=[DataRequired(),Length(min=4,max=30)])
-    content = TextAreaField('Note Content', validators=[DataRequired()])
-    submit = SubmitField('Add Note')
+    title = StringField(
+        "Note title", validators=[DataRequired(), Length(min=4, max=30)]
+    )
+    content = TextAreaField("Note Content", validators=[DataRequired()])
+    submit = SubmitField("Add Note")
+
 
 class EditNoteForm(FlaskForm):
-    content=TextAreaField('Edit Note Content', validators=[DataRequired()])
-    submit = SubmitField('Save Changes')
+    content = TextAreaField("Edit Note Content", validators=[DataRequired()])
+    submit = SubmitField("Save Changes")
+
 
 class RegisterForm(FlaskForm):
-    name = StringField('Name', validators=[DataRequired(), Length(max=250)])
-    email = EmailField('Email', validators=[DataRequired(), Email(), Length(max=100)])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
-    submit = SubmitField('Create Account')
+    name = StringField("Name", validators=[DataRequired(), Length(max=250)])
+    email = EmailField("Email", validators=[DataRequired(), Email(), Length(max=100)])
+    password = PasswordField("Password", validators=[DataRequired(), Length(min=6)])
+    submit = SubmitField("Create Account")
+
 
 class LoginForm(FlaskForm):
-    email = EmailField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    submit = SubmitField('Login')
+    email = EmailField("Email", validators=[DataRequired(), Email()])
+    password = PasswordField("Password", validators=[DataRequired()])
+    submit = SubmitField("Login")
+
 
 class VerificationForm(FlaskForm):
-    code = StringField('Verification code', validators=[DataRequired(), Length(min=6, max=6), Regexp(r'^\d{6}$', message='The code must be 6 digits.')])
-    submit = SubmitField('Verify Code')
+    code = StringField(
+        "Verification code",
+        validators=[
+            DataRequired(),
+            Length(min=6, max=6),
+            Regexp(r"^\d{6}$", message="The code must be 6 digits."),
+        ],
+    )
+    submit = SubmitField("Verify Code")

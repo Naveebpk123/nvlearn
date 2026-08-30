@@ -3,28 +3,28 @@
 {% block title %}Bin{% endblock %}
 
 {% block content %}
-<header>
-    <h1>Bin</h1>
-</header>
-<div class="note-container">
-    {% if notes %}
-{% for note in notes %}
-    <div class="note" data-id="{{note.id}}">
-        <div class="note-title">{{note.title}}</div>
-        <div class="note-preview">
-            {{note.html_content | safe}}
-        </div>
-        <div class="action-buttons">
-            <button class="button restore-btn" data-note-id="{{note.id}}">Restore</button>
-            <button class="button danger delete-note-btn" data-note-id="{{note.id}}">Delete</button>
-        </div>
-    </div>
-    {% endfor %}
-    {% else %}
-    <div class="note" data-id="_">
-        <div class="note-title">Bin is empty</div>
+    <header>
+        <h1>Bin</h1>
+    </header>
+    <div class="note-container">
+        {% if notes %}
+            {% for note in notes %}
+                <div class="note" data-id="{{note.id}}">
+                    <div class="note-title">{{note.title}}</div>
+                    <div class="note-preview">
+                        {{note.html_content | safe}}
+                    </div>
+                    <div class="action-buttons">
+                        <button class="button restore-btn" data-note-id="{{note.id}}">Restore</button>
+                        <button class="button danger delete-note-btn" data-note-id="{{note.id}}">Delete</button>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="note" data-id="_">
+                <div class="note-title">Bin is empty</div>
 
-        </div>
+            </div>
         {% endif %}
-</div>
+    </div>
 {% endblock %}

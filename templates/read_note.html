@@ -2,24 +2,24 @@
 {% block title %}Read Note{% endblock %}
 
 {% block content %}
-<header>
-    <h1>{{note.title}}</h1>
-</header>
-<div id="read-note-content">
-{{note.html_content|safe}}
-</div>
-<script>
-    window.MathJax = {
-    tex: {
-      inlineMath: [['$', '$'], ['\\(', '\\)']],
-      displayMath: [['$$', '$$'], ['\\[', '\\]']],
-      processEscapes: true
-    },
-    options: {
-      processHtmlClass: 'math|arithmatex'
-    }
-  };
-</script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <header>
+        <h1>{{note.title}}</h1>
+    </header>
+    <div id="read-note-content">
+        {{note.html_content|safe}}
+    </div>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                processHtmlClass: 'math|arithmatex'
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
 {% endblock %}

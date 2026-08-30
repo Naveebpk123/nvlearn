@@ -1,23 +1,23 @@
 {% extends "base.html" %}
 {% block title %}AI Chat{% endblock %}
 {% block content %}
-<header>
-    <h1>{{welcome_message}}</h1>
-</header>
+    <header>
+        <h1>{{welcome_message}}</h1>
+    </header>
     <div class="user-input-box" id="userInputContainer">
         <textarea id="user-input" placeholder="Ask anything..."></textarea>
     </div>
-<script>
-  window.MathJax = {
-    tex: {
-      inlineMath: [['$', '$'], ['\\(', '\\)']],
-      displayMath: [['$$', '$$'], ['\\[', '\\]']],
-      processEscapes: true
-    },
-    options: {
-      processHtmlClass: 'math|arithmatex'
-    }
-  };
-</script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                processHtmlClass: 'math|arithmatex'
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 {% endblock %}

@@ -1,265 +1,265 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiz - NVLearn</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-</head>
-<body class="site-layout">
-    <nav>
-        <a href="{{ url_for('home') }}" class="button cancel">← Home</a>
-        <h2 class="quiz-nav-title">NVLearn Quiz</h2>
-    </nav>
-    <main class="content-wrapper quiz-content-wrapper">
-        <div class="quiz-container hidden" id="quizContainer">
-            <div class="question" id="quizQuestion"></div>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Quiz - NVLearn</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    </head>
+    <body class="site-layout">
+        <nav>
+            <a href="{{ url_for('home') }}" class="button cancel">← Home</a>
+            <h2 class="quiz-nav-title">NVLearn Quiz</h2>
+        </nav>
+        <main class="content-wrapper quiz-content-wrapper">
+            <div class="quiz-container hidden" id="quizContainer">
+                <div class="question" id="quizQuestion"></div>
 
-            <div class="options-container" id="optionsContainer">
-                <div class="option" data-index="0"></div>
-                <div class="option" data-index="1"></div>
-                <div class="option" data-index="2"></div>
-                <div class="option" data-index="3"></div>
-            </div>
-
-            <div class="quiz-tracker quiz-tracker-text" id="quizTracker"></div>
-
-            <div class="quiz-actions">
-                <button class="button cancel" id="quizPreviousBtn">Previous</button>
-                <button class="button" id="quizNextBtn">Next</button>
-                <button class="button btn-done" id="quizDoneBtn">Done</button>
-            </div>
-        </div>
-
-        <div id="quizSummary" class="quiz-summary-card">
-            <h1 class="quiz-summary-title">🎉 Quiz Completed!</h1>
-            <div id="quizScorePercent" class="quiz-score-percent"></div>
-            
-            <div class="quiz-stats-row">
-                <div class="stat-box correct">
-                    <div class="stat-number" id="correctCount">0</div>
-                    <div>Correct</div>
+                <div class="options-container" id="optionsContainer">
+                    <div class="option" data-index="0"></div>
+                    <div class="option" data-index="1"></div>
+                    <div class="option" data-index="2"></div>
+                    <div class="option" data-index="3"></div>
                 </div>
-                <div class="stat-box wrong">
-                    <div class="stat-number" id="wrongCount">0</div>
-                    <div>Wrong</div>
-                </div>
-                <div class="stat-box unanswered">
-                    <div class="stat-number" id="unansweredCount">0</div>
-                    <div>Unanswered</div>
+
+                <div class="quiz-tracker quiz-tracker-text" id="quizTracker"></div>
+
+                <div class="quiz-actions">
+                    <button class="button cancel" id="quizPreviousBtn">Previous</button>
+                    <button class="button" id="quizNextBtn">Next</button>
+                    <button class="button btn-done" id="quizDoneBtn">Done</button>
                 </div>
             </div>
 
-            <div class="quiz-summary-actions">
-                <button class="button" id="retakeBtn">Retake Quiz</button>
-                <button class="button" id="saveQuizBtn" data-id="{{ quiz_id }}">Save Quiz</button>
-                <a href="{{ url_for('home') }}" class="button cancel">Return Home</a>
+            <div id="quizSummary" class="quiz-summary-card">
+                <h1 class="quiz-summary-title">🎉 Quiz Completed!</h1>
+                <div id="quizScorePercent" class="quiz-score-percent"></div>
+
+                <div class="quiz-stats-row">
+                    <div class="stat-box correct">
+                        <div class="stat-number" id="correctCount">0</div>
+                        <div>Correct</div>
+                    </div>
+                    <div class="stat-box wrong">
+                        <div class="stat-number" id="wrongCount">0</div>
+                        <div>Wrong</div>
+                    </div>
+                    <div class="stat-box unanswered">
+                        <div class="stat-number" id="unansweredCount">0</div>
+                        <div>Unanswered</div>
+                    </div>
+                </div>
+
+                <div class="quiz-summary-actions">
+                    <button class="button" id="retakeBtn">Retake Quiz</button>
+                    <button class="button" id="saveQuizBtn" data-id="{{ quiz_id }}">Save Quiz</button>
+                    <a href="{{ url_for('home') }}" class="button cancel">Return Home</a>
+                </div>
             </div>
-        </div>
 
-        <div id="quizError" class="quiz-error-card">
-            <h2>Failed to load quiz data.</h2>
-            <p>The quiz might not exist or you do not have permission to view it.</p>
-            <a href="{{ url_for('home') }}" class="button btn-return-home">Return Home</a>
-        </div>
-    </main>
-<script src="{{ url_for('static', filename='js/script.js') }}"></script>
-    <script>
-        let quizData = [];
-        let userAnswers = {};
-        let currentIndex = 0;
+            <div id="quizError" class="quiz-error-card">
+                <h2>Failed to load quiz data.</h2>
+                <p>The quiz might not exist or you do not have permission to view it.</p>
+                <a href="{{ url_for('home') }}" class="button btn-return-home">Return Home</a>
+            </div>
+        </main>
+        <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+        <script>
+            let quizData = [];
+            let userAnswers = {};
+            let currentIndex = 0;
 
-        const questionEl = document.getElementById('quizQuestion');
-        const optionEls = document.querySelectorAll('.option');
-        const trackerEl = document.getElementById('quizTracker');
-        const quizPrevBtn = document.getElementById('quizPreviousBtn');
-        const quizNextBtn = document.getElementById('quizNextBtn');
-        const doneBtn = document.getElementById('quizDoneBtn');
-        const quizContainer = document.getElementById('quizContainer');
-        const quizSummary = document.getElementById('quizSummary');
-        const quizError = document.getElementById('quizError');
-        const retakeBtn = document.getElementById('retakeBtn');
-        const saveQuizBtn = document.getElementById('saveQuizBtn');
+            const questionEl = document.getElementById('quizQuestion');
+            const optionEls = document.querySelectorAll('.option');
+            const trackerEl = document.getElementById('quizTracker');
+            const quizPrevBtn = document.getElementById('quizPreviousBtn');
+            const quizNextBtn = document.getElementById('quizNextBtn');
+            const doneBtn = document.getElementById('quizDoneBtn');
+            const quizContainer = document.getElementById('quizContainer');
+            const quizSummary = document.getElementById('quizSummary');
+            const quizError = document.getElementById('quizError');
+            const retakeBtn = document.getElementById('retakeBtn');
+            const saveQuizBtn = document.getElementById('saveQuizBtn');
 
 
-        const correctCountEl = document.getElementById('correctCount');
-        const wrongCountEl = document.getElementById('wrongCount');
-        const unansweredCountEl = document.getElementById('unansweredCount');
-        const quizScorePercentEl = document.getElementById('quizScorePercent'); 
+            const correctCountEl = document.getElementById('correctCount');
+            const wrongCountEl = document.getElementById('wrongCount');
+            const unansweredCountEl = document.getElementById('unansweredCount');
+            const quizScorePercentEl = document.getElementById('quizScorePercent');
 
-        function renderQuestion(index) {
-            if (!quizData || quizData.length === 0) return;
-            const currentQuiz = quizData[index];
-            const qText = currentQuiz.q || currentQuiz.question || currentQuiz.question_text || '';
-            const options = currentQuiz.options || currentQuiz.choices || currentQuiz.answers || [];
-            const ansIdx = currentQuiz.ans !== undefined ? currentQuiz.ans : (currentQuiz.answer !== undefined ? currentQuiz.answer : currentQuiz.correct);
+            function renderQuestion(index) {
+                if (!quizData || quizData.length === 0) return;
+                const currentQuiz = quizData[index];
+                const qText = currentQuiz.q || currentQuiz.question || currentQuiz.question_text || '';
+                const options = currentQuiz.options || currentQuiz.choices || currentQuiz.answers || [];
+                const ansIdx = currentQuiz.ans !== undefined ? currentQuiz.ans : (currentQuiz.answer !== undefined ? currentQuiz.answer : currentQuiz.correct);
 
-            questionEl.textContent = qText;
+                questionEl.textContent = qText;
 
-            const selectedOption = userAnswers[index];
+                const selectedOption = userAnswers[index];
 
-            optionEls.forEach((optEl, i) => {
-                optEl.className = 'option';
-                if (options && options[i] !== undefined) {
-                    optEl.textContent = options[i];
-                    optEl.style.display = 'flex';
+                optionEls.forEach((optEl, i) => {
+                    optEl.className = 'option';
+                    if (options && options[i] !== undefined) {
+                        optEl.textContent = options[i];
+                        optEl.style.display = 'flex';
 
-                    if (selectedOption !== undefined) {
-                        optEl.classList.add('disabled');
-                        if (i === ansIdx) {
-                            optEl.classList.add('correct');
-                        } else if (i === selectedOption) {
-                            optEl.classList.add('incorrect');
+                        if (selectedOption !== undefined) {
+                            optEl.classList.add('disabled');
+                            if (i === ansIdx) {
+                                optEl.classList.add('correct');
+                            } else if (i === selectedOption) {
+                                optEl.classList.add('incorrect');
+                            }
                         }
-                    }
-                } else {
-                    optEl.style.display = 'none';
-                }
-            });
-
-            trackerEl.textContent = `Question ${index + 1} of ${quizData.length}`;
-            quizPrevBtn.disabled = index === 0;
-
-            if (index === quizData.length - 1) {
-                quizNextBtn.style.display = 'none';
-                doneBtn.style.display = 'inline-block';
-            } else {
-                quizNextBtn.style.display = 'inline-block';
-                doneBtn.style.display = 'none';
-            }
-        }
-
-        optionEls.forEach(optEl => {
-            optEl.addEventListener('click', function() {
-                if (userAnswers[currentIndex] !== undefined) return;
-
-                const selectedIdx = parseInt(this.dataset.index, 10);
-                userAnswers[currentIndex] = selectedIdx;
-                renderQuestion(currentIndex);
-            });
-        });
-
-        quizPrevBtn.addEventListener('click', function() {
-            if (currentIndex > 0) {
-                currentIndex--;
-                renderQuestion(currentIndex);
-            }
-        });
-
-        quizNextBtn.addEventListener('click', function() {
-            if (currentIndex < quizData.length - 1) {
-                currentIndex++;
-                renderQuestion(currentIndex);
-            }
-        });
-
-        doneBtn.addEventListener('click', function() {
-            let correct = 0;
-            let wrong = 0;
-            let unanswered = 0;
-
-            quizData.forEach((item, i) => {
-                const userAns = userAnswers[i];
-                const ansIdx = item.ans !== undefined ? item.ans : (item.answer !== undefined ? item.answer : item.correct);
-                if (userAns === undefined) {
-                    unanswered++;
-                } else if (userAns === ansIdx) {
-                    correct++;
-                } else {
-                    wrong++;
-                }
-            });
-
-            const scorePercent = Math.round((correct / quizData.length) * 100);
-
-            correctCountEl.textContent = correct;
-            wrongCountEl.textContent = wrong;
-            unansweredCountEl.textContent = unanswered;
-            quizScorePercentEl.textContent = `${scorePercent}% Score`;
-
-            quizContainer.style.display = 'none';
-            quizSummary.style.display = 'block';
-        });
-
-        retakeBtn.addEventListener('click', function() {
-            userAnswers = {};
-            currentIndex = 0;
-            quizSummary.style.display = 'none';
-            quizContainer.style.display = 'block';
-            quizContainer.classList.remove('hidden');
-            renderQuestion(currentIndex);
-        });
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const isError = {{ 'true' if error else 'false' }};
-            if (isError) {
-                quizError.style.display = 'block';
-                return;
-            }
-
-            try {
-                let rawQuizData = {{ quiz_data_json | safe }};
-                if (typeof rawQuizData === 'string') {
-                    try { rawQuizData = JSON.parse(rawQuizData); } catch(e) {}
-                }
-                if (typeof rawQuizData === 'string') {
-                    try { rawQuizData = JSON.parse(rawQuizData); } catch(e) {}
-                }
-                if (typeof rawQuizData === 'object' && rawQuizData !== null && !Array.isArray(rawQuizData)) {
-                    if (Array.isArray(rawQuizData.questions)) rawQuizData = rawQuizData.questions;
-                    else if (Array.isArray(rawQuizData.quiz)) rawQuizData = rawQuizData.quiz;
-                    else if (Array.isArray(rawQuizData.data)) rawQuizData = rawQuizData.data;
-                    else if (Array.isArray(rawQuizData.items)) rawQuizData = rawQuizData.items;
-                }
-                quizData = rawQuizData;
-
-                if (!quizData || !Array.isArray(quizData) || quizData.length === 0) {
-                    quizError.style.display = 'block';
-                } else {
-                    quizContainer.classList.remove('hidden');
-                    renderQuestion(currentIndex);
-                }
-            } catch (err) {
-                console.error("Quiz rendering error:", err);
-                quizError.style.display = 'block';
-            }
-
-            const saveQuizBtnEl = document.getElementById('saveQuizBtn');
-            if (saveQuizBtnEl) {
-                saveQuizBtnEl.addEventListener('click', async function() {
-                    const response = await fetch(`/save-quiz/${saveQuizBtnEl.dataset.id}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            total_questions: quizData.length,
-                            correct_answers: parseInt(correctCountEl.textContent),
-                            incorrect_answers: parseInt(wrongCountEl.textContent),
-                            percentage_score: parseFloat(quizScorePercentEl.textContent.replace('% Score','').trim())
-                        })
-                    });
-                    const responseJSON = await response.json();
-                    if (responseJSON.status == 'saved') {
-                        saveQuizBtnEl.disabled = true;
-                        flash('Saved quiz', 'success');
                     } else {
-                        flash('Unable to save quiz', 'error');
+                        optEl.style.display = 'none';
                     }
                 });
+
+                trackerEl.textContent = `Question ${index + 1} of ${quizData.length}`;
+                quizPrevBtn.disabled = index === 0;
+
+                if (index === quizData.length - 1) {
+                    quizNextBtn.style.display = 'none';
+                    doneBtn.style.display = 'inline-block';
+                } else {
+                    quizNextBtn.style.display = 'inline-block';
+                    doneBtn.style.display = 'none';
+                }
             }
-        });
-    </script>
-    <script>
-    document.addEventListener('DOMContentLoaded',function(){
-        {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-          {% for category, message in messages %}
-            flash('{{message}}','{{category}}');
-          {% endfor %}
-      {% endif %}
-    {% endwith %}
-    })
-</script>
-</body>
+
+            optionEls.forEach(optEl => {
+                optEl.addEventListener('click', function() {
+                    if (userAnswers[currentIndex] !== undefined) return;
+
+                    const selectedIdx = parseInt(this.dataset.index, 10);
+                    userAnswers[currentIndex] = selectedIdx;
+                    renderQuestion(currentIndex);
+                });
+            });
+
+            quizPrevBtn.addEventListener('click', function() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    renderQuestion(currentIndex);
+                }
+            });
+
+            quizNextBtn.addEventListener('click', function() {
+                if (currentIndex < quizData.length - 1) {
+                    currentIndex++;
+                    renderQuestion(currentIndex);
+                }
+            });
+
+            doneBtn.addEventListener('click', function() {
+                let correct = 0;
+                let wrong = 0;
+                let unanswered = 0;
+
+                quizData.forEach((item, i) => {
+                    const userAns = userAnswers[i];
+                    const ansIdx = item.ans !== undefined ? item.ans : (item.answer !== undefined ? item.answer : item.correct);
+                    if (userAns === undefined) {
+                        unanswered++;
+                    } else if (userAns === ansIdx) {
+                        correct++;
+                    } else {
+                        wrong++;
+                    }
+                });
+
+                const scorePercent = Math.round((correct / quizData.length) * 100);
+
+                correctCountEl.textContent = correct;
+                wrongCountEl.textContent = wrong;
+                unansweredCountEl.textContent = unanswered;
+                quizScorePercentEl.textContent = `${scorePercent}% Score`;
+
+                quizContainer.style.display = 'none';
+                quizSummary.style.display = 'block';
+            });
+
+            retakeBtn.addEventListener('click', function() {
+                userAnswers = {};
+                currentIndex = 0;
+                quizSummary.style.display = 'none';
+                quizContainer.style.display = 'block';
+                quizContainer.classList.remove('hidden');
+                renderQuestion(currentIndex);
+            });
+
+            document.addEventListener('DOMContentLoaded', function() {
+                const isError = {{ 'true' if error else 'false' }};
+                if (isError) {
+                    quizError.style.display = 'block';
+                    return;
+                }
+
+                try {
+                    let rawQuizData = {{ quiz_data_json | safe }};
+                    if (typeof rawQuizData === 'string') {
+                        try { rawQuizData = JSON.parse(rawQuizData); } catch(e) {}
+                    }
+                    if (typeof rawQuizData === 'string') {
+                        try { rawQuizData = JSON.parse(rawQuizData); } catch(e) {}
+                    }
+                    if (typeof rawQuizData === 'object' && rawQuizData !== null && !Array.isArray(rawQuizData)) {
+                        if (Array.isArray(rawQuizData.questions)) rawQuizData = rawQuizData.questions;
+                        else if (Array.isArray(rawQuizData.quiz)) rawQuizData = rawQuizData.quiz;
+                        else if (Array.isArray(rawQuizData.data)) rawQuizData = rawQuizData.data;
+                        else if (Array.isArray(rawQuizData.items)) rawQuizData = rawQuizData.items;
+                    }
+                    quizData = rawQuizData;
+
+                    if (!quizData || !Array.isArray(quizData) || quizData.length === 0) {
+                        quizError.style.display = 'block';
+                    } else {
+                        quizContainer.classList.remove('hidden');
+                        renderQuestion(currentIndex);
+                    }
+                } catch (err) {
+                    console.error("Quiz rendering error:", err);
+                    quizError.style.display = 'block';
+                }
+
+                const saveQuizBtnEl = document.getElementById('saveQuizBtn');
+                if (saveQuizBtnEl) {
+                    saveQuizBtnEl.addEventListener('click', async function() {
+                        const response = await fetch(`/save-quiz/${saveQuizBtnEl.dataset.id}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                total_questions: quizData.length,
+                                correct_answers: parseInt(correctCountEl.textContent),
+                                incorrect_answers: parseInt(wrongCountEl.textContent),
+                                percentage_score: parseFloat(quizScorePercentEl.textContent.replace('% Score','').trim())
+                            })
+                        });
+                        const responseJSON = await response.json();
+                        if (responseJSON.status == 'saved') {
+                            saveQuizBtnEl.disabled = true;
+                            flash('Saved quiz', 'success');
+                        } else {
+                            flash('Unable to save quiz', 'error');
+                        }
+                    });
+                }
+            });
+        </script>
+        <script>
+            document.addEventListener('DOMContentLoaded',function(){
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            flash('{{message}}','{{category}}');
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            })
+        </script>
+    </body>
 </html>

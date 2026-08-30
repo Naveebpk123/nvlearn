@@ -2,82 +2,82 @@
 {% block title %}Practice Hub{% endblock %}
 
 {% block content %}
-  <button class="button top-left-back-btn hidden" id="backBtn">↩ Back</button>
-  <h1>Practice Hub</h1>
-  
-  <div class="tab-container">
-    <div class="tab tab-flashcards" id="flashcardsTab">
-        Saved Flashcards ({{ saved_flashcards }})
-    </div>
-    <div class="tab tab-quizzes" id="quizzesTab">
-        Saved Quizzes ({{ saved_quizzes }})
-    </div>
-  </div>
+    <button class="button top-left-back-btn hidden" id="backBtn">↩ Back</button>
+    <h1>Practice Hub</h1>
 
-  <div class="hidden" id="flashcardsContent">
-    <h2>My Flashcards</h2>
-    {% if flashcards %}
-    <div class="note-container">
-        {% for flashcard in flashcards %}
-            <div class="card flashcard-set" data-flashcard-id="{{ flashcard.id }}">
-                <h3>{{ flashcard.card_data[0] }}</h3>
-                <div class="action-buttons">
-                    <a href="{{ url_for('view_flashcards', flashcard_id=flashcard.id) }}" class="button cancel">View Set</a>
-                    <button class="button danger delete-flashcard-btn" data-flashcard-id="{{ flashcard.id }}">Delete Set</button>                    
-                </div>
+    <div class="tab-container">
+        <div class="tab tab-flashcards" id="flashcardsTab">
+            Saved Flashcards ({{ saved_flashcards }})
+        </div>
+        <div class="tab tab-quizzes" id="quizzesTab">
+            Saved Quizzes ({{ saved_quizzes }})
+        </div>
+    </div>
+
+    <div class="hidden" id="flashcardsContent">
+        <h2>My Flashcards</h2>
+        {% if flashcards %}
+            <div class="note-container">
+                {% for flashcard in flashcards %}
+                    <div class="card flashcard-set" data-flashcard-id="{{ flashcard.id }}">
+                        <h3>{{ flashcard.card_data[0] }}</h3>
+                        <div class="action-buttons">
+                            <a href="{{ url_for('view_flashcards', flashcard_id=flashcard.id) }}" class="button cancel">View Set</a>
+                            <button class="button danger delete-flashcard-btn" data-flashcard-id="{{ flashcard.id }}">Delete Set</button>
+                        </div>
+                    </div>
+                {% endfor %}
             </div>
-        {% endfor %}
+        {% else %}
+            <p>You do not have any flashcard sets saved yet.</p>
+        {% endif %}
     </div>
-    {% else %}
-        <p>You do not have any flashcard sets saved yet.</p>
-    {% endif %}
-  </div>
 
-  <div class="hidden" id="quizzesContent">
-    <h2>My Quizzes</h2>
-    {% if quizzes %}
-    <div class="note-container">
-        {% for quiz in quizzes %}
-            <div class="quiz-card" data-quiz-id="{{ quiz.id }}">
-                <div class="card-header">
-                    <h3 class="quiz-title">{{ quiz.title or 'Untitled Quiz' }}</h3>
-                    {% if quiz.tags %}
-                    <div class="tags">
-                        {% for tag in quiz.tags %}
-                            <span class="tag">{{ tag }}</span>
-                        {% endfor %}                    
-                    </div>
-                    {% endif %}
-                </div>
+    <div class="hidden" id="quizzesContent">
+        <h2>My Quizzes</h2>
+        {% if quizzes %}
+            <div class="note-container">
+                {% for quiz in quizzes %}
+                    <div class="quiz-card" data-quiz-id="{{ quiz.id }}">
+                        <div class="card-header">
+                            <h3 class="quiz-title">{{ quiz.title or 'Untitled Quiz' }}</h3>
+                            {% if quiz.tags %}
+                                <div class="tags">
+                                    {% for tag in quiz.tags %}
+                                        <span class="tag">{{ tag }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
 
-                <div class="stats-grid">
-                    <div class="stat-item score">
-                        <span class="stat-value">{{ quiz.percentage_score | int }}%</span>
-                        <span class="stat-label">Score</span>
-                    </div>
-                    <div class="stat-item correct">
-                        <span class="stat-value">{{ quiz.correct_answers }}</span>
-                        <span class="stat-label">Correct</span>
-                    </div>
-                    <div class="stat-item incorrect">
-                        <span class="stat-value">{{ quiz.incorrect_answers }}</span>
-                        <span class="stat-label">Wrong</span>
-                    </div>
-                    <div class="stat-item unanswered">
-                        <span class="stat-value">{{ quiz.total_questions - quiz.correct_answers - quiz.incorrect_answers }}</span>
-                        <span class="stat-label">Unanswered</span>
-                    </div>
-                </div>
+                        <div class="stats-grid">
+                            <div class="stat-item score">
+                                <span class="stat-value">{{ quiz.percentage_score | int }}%</span>
+                                <span class="stat-label">Score</span>
+                            </div>
+                            <div class="stat-item correct">
+                                <span class="stat-value">{{ quiz.correct_answers }}</span>
+                                <span class="stat-label">Correct</span>
+                            </div>
+                            <div class="stat-item incorrect">
+                                <span class="stat-value">{{ quiz.incorrect_answers }}</span>
+                                <span class="stat-label">Wrong</span>
+                            </div>
+                            <div class="stat-item unanswered">
+                                <span class="stat-value">{{ quiz.total_questions - quiz.correct_answers - quiz.incorrect_answers }}</span>
+                                <span class="stat-label">Unanswered</span>
+                            </div>
+                        </div>
 
-                <div class="card-actions">
-                    <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" class="btn btn-primary">Retake</a>
-                    <button class="btn btn-delete delete-quiz-btn" data-quiz-id="{{ quiz.id }}">Delete</button>
-                </div>
+                        <div class="card-actions">
+                            <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" class="btn btn-primary">Retake</a>
+                            <button class="btn btn-delete delete-quiz-btn" data-quiz-id="{{ quiz.id }}">Delete</button>
+                        </div>
+                    </div>
+                {% endfor %}
             </div>
-        {% endfor %}
+        {% else %}
+            <p>You do not have any quizzes saved yet.</p>
+        {% endif %}
     </div>
-    {% else %}
-        <p>You do not have any quizzes saved yet.</p>
-    {% endif %}
-  </div>
 {% endblock %}

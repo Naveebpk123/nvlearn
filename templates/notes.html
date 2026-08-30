@@ -2,41 +2,41 @@
 {% block title %}Notes{% endblock %}
 
 {% block content %}
-<header>
-    <h1>My Notes</h1>
-</header>
-<div class="notes-controls-bar">
-    <a class="button" href="{{url_for('add_note')}}">Add Note</a>
-    <div class="dropdown-wrapper">
-      <button id="sort-btn" class="dropdown-btn">
-        Sort By <span class="arrow">▼</span>
-      </button>
-      
-      <ul id="sort-menu" class="dropdown-menu hidden">
-        <li data-sort="az">Title: A to Z</li>
-        <li data-sort="za">Title: Z to A</li>
-        <li data-sort="last-opened">Last Opened</li>
-      </ul>
-    </div>
-</div>
-<div class="note-container">
-    {% if notes %}
-{% for note in notes %}
-    <div class="note" data-id="{{note.id}}">
-        <div class="note-title">{{note.title}}</div>
-        <div class="note-preview">
-            {{note.html_content | safe}}
-        </div>
-        <div class="action-buttons">
-            <a href="{{url_for('edit_note',note_id=note.id)}}" class="button cancel">✎ Edit Note</a>
-            <button class="button danger move-to-bin" data-note-id="{{note.id}}">Move to Bin 🗑️</button>
+    <header>
+        <h1>My Notes</h1>
+    </header>
+    <div class="notes-controls-bar">
+        <a class="button" href="{{url_for('add_note')}}">Add Note</a>
+        <div class="dropdown-wrapper">
+            <button id="sort-btn" class="dropdown-btn">
+                Sort By <span class="arrow">▼</span>
+            </button>
+
+            <ul id="sort-menu" class="dropdown-menu hidden">
+                <li data-sort="az">Title: A to Z</li>
+                <li data-sort="za">Title: Z to A</li>
+                <li data-sort="last-opened">Last Opened</li>
+            </ul>
         </div>
     </div>
-    {% endfor %}
-{% else %}
-<div class="note" data-id="_">
-        <div class="note-title">No notes created yet</div>
+    <div class="note-container">
+        {% if notes %}
+            {% for note in notes %}
+                <div class="note" data-id="{{note.id}}">
+                    <div class="note-title">{{note.title}}</div>
+                    <div class="note-preview">
+                        {{note.html_content | safe}}
+                    </div>
+                    <div class="action-buttons">
+                        <a href="{{url_for('edit_note',note_id=note.id)}}" class="button cancel">✎ Edit Note</a>
+                        <button class="button danger move-to-bin" data-note-id="{{note.id}}">Move to Bin 🗑️</button>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="note" data-id="_">
+                <div class="note-title">No notes created yet</div>
+            </div>
+        {% endif %}
     </div>
-{% endif %}
-</div>
 {% endblock %}

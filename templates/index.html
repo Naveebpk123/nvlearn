@@ -2,42 +2,42 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-<header>
-    {% if current_user.is_authenticated %}
-    <h1>{{welcome_msg}}</h1>
-    {% else %}
-    <h1>Welcome to <a class="brand-accent" href="{{url_for('about')}}">NVLearn</a></h1>    
-    {% endif %}
-</header>
-
-<div class="hero">
-    <h2 class="hero-header">Manage your notes and access them easily.</h2>
-    <p class="hero-p">Make, edit and format notes, generate quizzes and questions using our AI assistant. Generate flashcards and cheat sheets for quick revisions.</p>
-    <div class="hero-navigation">
+    <header>
         {% if current_user.is_authenticated %}
-        <a href="{{url_for('notes')}}" class="button">View Notes</a>
+            <h1>{{welcome_msg}}</h1>
         {% else %}
-        <a class="button" href="{{url_for('register')}}">Register</a>
-        <a class="button" href="{{ url_for('login') }}">Login</a>
+            <h1>Welcome to <a class="brand-accent" href="{{url_for('about')}}">NVLearn</a></h1>
         {% endif %}
-        <a href="{{url_for('about')}}" class="button">About The Study App</a>
-    </div>
-</div>
-{% if recent_notes %}
-<h2>Recent Notes</h2>
-<div class="note-container">
-    {% for note in recent_notes %}
-    <div class="note" data-id="{{note.id}}">
-        <div class="note-title">{{note.title}}</div>
-        <div class="note-preview">
-            {{note.html_content | safe}}
-        </div>
-        <div class="action-buttons">
-            <a href="{{url_for('edit_note',note_id=note.id)}}" class="button cancel">✎ Edit Note</a>
-            <button class="button danger move-to-bin" data-note-id="{{note.id}}">Move to Bin 🗑️</button>
+    </header>
+
+    <div class="hero">
+        <h2 class="hero-header">Manage your notes and access them easily.</h2>
+        <p class="hero-p">Make, edit and format notes, generate quizzes and questions using our AI assistant. Generate flashcards and cheat sheets for quick revisions.</p>
+        <div class="hero-navigation">
+            {% if current_user.is_authenticated %}
+                <a href="{{url_for('notes')}}" class="button">View Notes</a>
+            {% else %}
+                <a class="button" href="{{url_for('register')}}">Register</a>
+                <a class="button" href="{{ url_for('login') }}">Login</a>
+            {% endif %}
+            <a href="{{url_for('about')}}" class="button">About The Study App</a>
         </div>
     </div>
-    {% endfor %}
-</div>
-{% endif %}
+    {% if recent_notes %}
+        <h2>Recent Notes</h2>
+        <div class="note-container">
+            {% for note in recent_notes %}
+                <div class="note" data-id="{{note.id}}">
+                    <div class="note-title">{{note.title}}</div>
+                    <div class="note-preview">
+                        {{note.html_content | safe}}
+                    </div>
+                    <div class="action-buttons">
+                        <a href="{{url_for('edit_note',note_id=note.id)}}" class="button cancel">✎ Edit Note</a>
+                        <button class="button danger move-to-bin" data-note-id="{{note.id}}">Move to Bin 🗑️</button>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
 {% endblock %}
