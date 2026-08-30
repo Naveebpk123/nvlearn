@@ -25,6 +25,7 @@ const userInputContainer = document.getElementById('userInputContainer');
 const readNoteContent = document.getElementById('read-note-content');
 
 const notes = document.getElementsByClassName('note');
+const noteContainer = document.getElementsByClassName('note-container')[0];
 
 const flashcards = document.getElementsByClassName('flashcard');
 const nextBtn = document.getElementById('nextButton');
@@ -43,6 +44,7 @@ const deleteQuizBtns = document.getElementsByClassName('delete-quiz-btn');
 
 const sortBtn = document.getElementById('sort-btn');
 const sortMenu = document.getElementById('sort-menu');
+const sortOptions = document.querySelectorAll('#sort-menu li');
 
 async function flash(text='',category='success'){
   const flashAlert = document.createElement('div');
@@ -355,6 +357,34 @@ if(moveToBinBtns){
   }
 }
 
+if(sortBtn){
+  sortBtn.addEventListener('click',()=>{
+    sortMenu.classList.toggle('hidden');
+  });}
+
+if(sortOptions){
+  for(const option of sortOptions){
+    option.addEventListener('click',async function(){
+      const sortType = option.dataset.sort;
+      if(sortType ==='az'){
+        const sortedNotes = Array.from(notes).sort((a,b)=> a.querySelector(".note-title").textContent.localeCompare(b.querySelector(".note-title").textContent));
+        for(const note of sortedNotes){
+          noteContainer.appendChild(note);
+        }}else if(sortType ==='za'){
+        const sortedNotes = Array.from(notes).sort((a,b)=> b.querySelector(".note-title").textContent.localeCompare(a.querySelector(".note-title").textContent));
+        for(const note of sortedNotes){
+          noteContainer.appendChild(note);
+        }
+      }
+      })}
+}
+
+document.addEventListener('click', (e) => {
+  if (sortMenu && !sortMenu.contains(e.target) && e.target !== sortBtn) {
+    sortMenu.classList.add('hidden');
+  }
+});
+
 if(restoreBtns){
   for(const btn of restoreBtns){
     btn?.addEventListener('click',async function(){
@@ -365,7 +395,6 @@ if(restoreBtns){
     })
   }
 }
-
 
 searchBar?.addEventListener('click',()=> {
   openModal(null,searchModalBg);
