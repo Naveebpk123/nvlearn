@@ -388,6 +388,15 @@ if (sortOptions) {
                 for (const note of sortedNotes) {
                     noteContainer.appendChild(note);
                 }
+            } else if (sortType === 'last-opened') {
+                const sortedNotes = Array.from(notes).sort((a, b) => {
+                    const lastOpenedA = new Date(a.dataset.lastOpened);
+                    const lastOpenedB = new Date(b.dataset.lastOpened);
+                    return lastOpenedB - lastOpenedA;
+                });
+                for (const note of sortedNotes) {
+                    noteContainer.appendChild(note);
+                }
             }
         })
     }

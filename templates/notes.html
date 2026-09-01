@@ -15,14 +15,14 @@
             <ul id="sort-menu" class="dropdown-menu hidden">
                 <li data-sort="az">Title: A to Z</li>
                 <li data-sort="za">Title: Z to A</li>
-                <li data-sort="last-opened">Last Opened</li>
+                <li data-sort="last-opened">Recently Opened</li>
             </ul>
         </div>
     </div>
     <div class="note-container">
         {% if notes %}
             {% for note in notes %}
-                <div class="note" data-id="{{note.id}}">
+                <div class="note" data-id="{{note.id}}" data-last-opened="{{note.last_opened}}">
                     <div class="note-title">{{note.title}}</div>
                     <div class="note-preview">
                         {{note.html_content | safe}}
