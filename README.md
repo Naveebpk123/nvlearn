@@ -8,7 +8,9 @@ Students often collect notes but do not always have an easy way to revise them a
 
 - Store personal notes in one account-based workspace.
 - Automatically generate metadata such as tags and summaries for notes.
-- Search through notes using titles and AI-generated metadata.
+- Search through notes from the navigation search using note titles.
+- Use AI note actions with vector similarity search across note titles, tags, summaries, and note content.
+- Sort the notes list by title or recent activity.
 - Ask an AI assistant to create notes, retrieve relevant notes, modify notes, generate flashcards, and generate quizzes.
 - Save useful flashcard sets and quiz results for later practice.
 - Keep unfinished AI-generated flashcards and quizzes temporary so the database does not fill up with unused practice material.
@@ -29,13 +31,15 @@ In short: NVLearn helps a learner move from passive note storage to active revis
 - Markdown note rendering with support for code blocks, tables, and math formatting.
 - AI assistant chat.
 - AI note generation.
-- AI note search and note actions.
+- AI note search and note actions, including ChromaDB-backed vector search for note actions.
 - AI flashcard generation.
 - AI quiz generation.
 - Practice Hub for saved flashcards and saved quizzes.
 - Quiz scoring with correct, wrong, unanswered, and percentage score tracking.
+- Client-side note sorting by title and last-opened time.
 - Background cleanup jobs for unsaved flashcards and quizzes.
 - SQLite database storage through SQLAlchemy.
+- Local ChromaDB vector storage for semantic note retrieval.
 
 ## Tech Stack
 
@@ -52,7 +56,7 @@ In short: NVLearn helps a learner move from passive note storage to active revis
 - Markdown / pymdown-extensions
 - Google Gemini API
 - Groq API
-- Mistral API
+- ChromaDB
 - Gmail SMTP or another compatible SMTP email account
 - HTML, CSS, and vanilla JavaScript
 
@@ -64,10 +68,12 @@ study-project/
 +-- helpers.py             # Email helpers, AI clients, AI parsing, markdown rendering
 +-- forms.py               # Flask-WTF forms for notes, auth, and verification
 +-- prompts.py             # AI system prompts for chat, notes, flashcards, quizzes, metadata
++-- vector_store.py        # ChromaDB vector store helpers for note embeddings and semantic search
 +-- .env.example           # Example environment variables
 +-- .env                   # Local secrets file, should not be committed
 +-- instance/
 |   +-- notes.db           # SQLite database, created/used locally
+|   +-- chroma_db/         # ChromaDB vector database, created/used locally
 +-- static/
 |   +-- css/styles.css     # App styles
 |   +-- js/script.js       # Client-side interactions
@@ -150,7 +156,6 @@ APP_PASSWORD=yourgmailapppasswordhere
 EMAIL=example@email.com
 GROQ_API_KEY=yourGROQAPIkeyhere
 GEMINI_API_KEY=yourGeminiAPIkeyhere
-MISTRAL_API_KEY=yourMISTRALAPIkeyhere
 ```
 
 ### `EMAIL`
@@ -213,16 +218,6 @@ Used by `ask_gemini()` for content generation tasks, including:
 - quiz generation
 
 The app attempts several Gemini model names in sequence. If one fails, it tries the next one.
-
-### `MISTRAL_API_KEY`
-
-Used by `ask_mistral()` for note search. The app asks Mistral to choose relevant note IDs from note metadata and content context.
-
-The app currently uses:
-
-```text
-mistral-large-latest
-```
 
 ## Important Secret Notes
 
@@ -290,9 +285,20 @@ Use `/add` to create notes manually. Notes support markdown-style content, and t
 
 ### 4. Search Notes
 
-Use the search bar to find notes by title and related metadata.
+Use the search bar to find notes by title. The search modal calls `/search/<query>` for quick JSON results, and pressing Enter opens `/search-results/<query>`.
 
-### 5. Use the AI Chat
+AI note actions use semantic vector search instead of title-only matching. When you ask the assistant to summarize, explain, rewrite, or extract information from existing notes, NVLearn searches your ChromaDB note vectors using the note title, tags, summary, and markdown content.
+
+### 5. Sort Notes
+
+On `/notes`, use the `Sort By` menu to reorder notes in the browser without changing the database:
+
+- `Title: A to Z`
+- `Title: Z to A`
+- `Recently Opened`
+- `Least recently opened`
+
+### 6. Use the AI Chat
 
 Open `/ai-chat` and ask the assistant to help with study tasks. Example prompts:
 
@@ -304,7 +310,7 @@ Find my notes about recursion.
 Summarize my note about databases.
 ```
 
-### 6. Practice
+### 7. Practice
 
 Generated flashcards and quizzes open in their own views. Save the ones you want to keep.
 
@@ -358,6 +364,33 @@ Each job runs every 10 minutes.
 
 This means generated flashcards and quizzes are temporary until the user saves them.
 
+## Vector Search
+
+NVLearn uses ChromaDB for local semantic note search in AI note-action workflows.
+
+Vector data is stored locally at:
+
+```text
+instance/chroma_db/
+```
+
+Each user gets a separate Chroma collection named like:
+
+```text
+user_<user_id>_notes
+```
+
+When a note is created, edited, or restored, the app upserts the note into ChromaDB. When a note is moved to the bin or permanently deleted, the app removes that note from ChromaDB. On startup, active notes are synced into ChromaDB so the vector store can be rebuilt from SQLite if needed.
+
+The vector document includes:
+
+- note title
+- metadata tags
+- metadata summary
+- markdown note content
+
+By default, vector results are filtered with a cosine-distance threshold in `vector_store.py`.
+
 ## Troubleshooting
 
 ### App starts, but registration or login emails fail
@@ -376,7 +409,6 @@ Check:
 
 - `GROQ_API_KEY` is present and valid.
 - `GEMINI_API_KEY` is present and valid.
-- `MISTRAL_API_KEY` is present and valid.
 - Your API accounts have available quota.
 - The model names in `helpers.py` are available for your API accounts.
 
@@ -394,6 +426,16 @@ instance/notes.db
 
 If you delete this file, the app will create a fresh database on next startup.
 
+### Vector search does not find expected notes
+
+Check:
+
+- `chromadb` is installed from `requirements.txt`.
+- The app has write access to `instance/chroma_db/`.
+- Notes have been created, edited, restored, or synced on startup.
+- The distance threshold in `vector_store.py` is not too strict for your note content.
+- The note is not in the bin, because binned notes are removed from vector search.
+
 ### CSS or JavaScript changes do not appear
 
 The app sets:
@@ -409,6 +451,7 @@ That helps reduce caching, but the browser may still cache files. Try a hard ref
 - Most backend behavior lives in `server.py`.
 - AI provider logic lives in `helpers.py`.
 - Prompt design lives in `prompts.py`.
+- Vector search logic lives in `vector_store.py`.
 - Forms live in `forms.py`.
 - Shared layout and navigation live in `templates/base.html`.
 - Main client-side behavior lives in `static/js/script.js`.

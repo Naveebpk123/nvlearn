@@ -8,8 +8,6 @@ from flask import (
     session,
     jsonify,
     abort,
-    Response,
-    stream_with_context,
 )
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
@@ -29,7 +27,6 @@ from helpers import (
     send_email_threaded,
     create_code,
     build_ai_instructions,
-    ask_mistral,
     ask_gemini,
     get_welcome_message,
     md_to_html,
@@ -42,6 +39,12 @@ import re
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from collections import Counter
+from vector_store import (
+    upsert_note_vector,
+    delete_note_vector,
+    search_notes_vector,
+    sync_notes_to_chroma,
+)
 
 import os
 
@@ -164,26 +167,34 @@ def metadata_needs_ai(metadata):
     return metadata.get("is_invalid") is True or "error" in tags
 
 
-def metadata_for_search(note):
-    """Checks if metadata can be used for note search"""
-    metadata = note.meta_data
-    if not isinstance(metadata, dict):
-        return None
-    tags = metadata.get("tags", [])
-    if not isinstance(tags, list):
-        tags = []
-    if "error" in tags or "is_invalid" in tags or metadata.get("is_invalid") is True:
-        return None
-    return normalize_metadata(metadata, note.id)
+def extract_topic_for_search(instruction: str) -> str:
+    """Extracts the semantic topic from an instruction string for vector search."""
+    text = (instruction or "").strip()
+    # Strip common leading operation phrases like 'summarize the note on/about', etc.
+    cleaned = re.sub(
+        r"^(summarize|explain|extract key points from|extract formulas from|rewrite|simplify|notes? on|notes? about)\s*(the\s*)?(notes?\s*)?(on|about|for|from)?\s*",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    ).strip()
+    return cleaned if cleaned else text
 
 
-def make_searchable_pool(note, metadata):
-    """Creates a searchable string pool combining note title, metadata tags, summary, and md_content."""
-    tags_text = " ".join(metadata.get("tags", [])).lower()
-    summary_text = metadata.get("summary", "").lower()
-    md_content = (note.md_content or "").lower()
-    title = (note.title or "").lower()
-    return f"{title} {tags_text} {summary_text} {md_content}"
+def get_vector_matched_notes(topic: str, user_id: int):
+    """Return active user notes matched by vector search."""
+    vector_res = search_notes_vector(topic=topic, user_id=user_id)
+    if is_ai_error(vector_res):
+        return [], vector_res.get("msg"), True
+
+    notes = []
+    for note_id in vector_res.get("note_ids", []):
+        try:
+            note = db.session.get(Note, int(note_id))
+        except (TypeError, ValueError):
+            continue
+        if note and note.user_id == user_id and not note.in_bin:
+            notes.append(note)
+    return notes, vector_res.get("msg"), False
 
 
 def backfill_metadata_ids():
@@ -328,6 +339,7 @@ with app.app_context():
             "user_id column already exists in flashcards table (migration skipped)."
         )
     backfill_metadata_ids()
+    sync_notes_to_chroma(db.session, Note)
 scheduler.start()  # Start the background process
 app.logger.info("Background scheduler started.")
 
@@ -406,6 +418,7 @@ def add_note():
             db.session.flush()
             note.meta_data = normalize_metadata(metadata, note.id)
             db.session.commit()
+            upsert_note_vector(note)
             flash("Note created successfully", "success")
             return redirect(url_for("notes"))
         except SQLAlchemyError as e:
@@ -466,6 +479,7 @@ def edit_note(note_id):
             note.md_content = form.content.data
             note.html_content = request.form.get("html_content")
             db.session.commit()
+            upsert_note_vector(note)
             flash("Changes saved successfully!", "success")
             return redirect(url_for("notes"))
         except SQLAlchemyError as e:
@@ -489,6 +503,7 @@ def move_to_bin(note_id):
         if note and note.user_id == current_user.id:
             note.in_bin = True
             db.session.commit()
+            delete_note_vector(note.id, note.user_id)
             return jsonify(["Note moved to bin", "success"])
         else:
             app.logger.warning(
@@ -535,8 +550,10 @@ def delete(note_id):
     try:
         note = db.session.get(Note, note_id)
         if note and note.user_id == current_user.id:
+            user_id = note.user_id
             db.session.delete(note)
             db.session.commit()
+            delete_note_vector(note_id, user_id)
             return jsonify(["Note permanently deleted", "success"])
         else:
             app.logger.warning(
@@ -564,6 +581,7 @@ def restore(note_id):
         if note and note.user_id == current_user.id:
             note.in_bin = False
             db.session.commit()
+            upsert_note_vector(note)
             return jsonify(["Note restored", "success"])
         else:
             app.logger.warning(
@@ -898,6 +916,7 @@ def ai_response():
                 db.session.flush()
                 new_note.meta_data = normalize_metadata(new_note.meta_data, new_note.id)
                 db.session.commit()
+                upsert_note_vector(new_note)
                 all_results.append(f"Made new note '{ai_reply['title']}'")
             except Exception as e:
                 db.session.rollback()
@@ -911,120 +930,55 @@ def ai_response():
                 )
 
         elif action == "get_note":
-            metadata_list = []
-            search_terms = str(ai_reply).lower().split()
-            keywords = [word for word in search_terms if len(word) > 3]
-            notes = (
-                db.session.execute(
-                    db.select(Note)
-                    .where(Note.in_bin != True)
-                    .where(Note.user_id == current_user.id)
-                )
-                .scalars()
-                .all()
-            )
-            for note in notes:
-                metadata = metadata_for_search(note)
-                if not metadata:
-                    continue
-                if not keywords:
-                    metadata_list.append(metadata)
-                    continue
-                searchable_pool = make_searchable_pool(note, metadata)
-
-                if any(keyword in searchable_pool for keyword in keywords):
-                    metadata_list.append(metadata)
-
-            note_ids = ask_mistral(
-                f"Instruction: {ai_reply} Metadata list: {metadata_list}"
+            search_topic = extract_topic_for_search(str(ai_reply))
+            matched_notes, vector_msg, vector_error = get_vector_matched_notes(
+                search_topic, current_user.id
             )
             note_content_list = ""
 
-            if is_ai_error(note_ids):
+            if vector_error:
                 app.logger.error(
-                    "[ai_response/get_note] Mistral error (type=%s): %s",
-                    note_ids.get("type"),
-                    note_ids.get("msg"),
+                    "[ai_response/get_note] Vector search error: %s",
+                    vector_msg,
                 )
                 all_errors.append(
-                    note_ids.get(
-                        "msg",
-                        f'An error occurred while fetching notes on "{ai_reply}". Please try again later.',
-                    )
+                    vector_msg
+                    or "An error occurred while fetching notes. Please try again later."
                 )
-                if note_ids.get("type") == "rate_limit":
-                    hit_rate_limit = True
             else:
-                if note_ids.get("note_ids"):
-                    for note_id in note_ids["note_ids"]:
-                        try:
-                            note = db.session.get(Note, int(note_id))
-                        except (TypeError, ValueError):
-                            continue
-                        if note and note.user_id == current_user.id:
-                            note_content_list += (note.html_content or "") + "\n"
+                if matched_notes:
+                    for note in matched_notes:
+                        note_content_list += (note.html_content or "") + "\n"
                 else:
                     all_results.append(
-                        note_ids.get("msg", "I could not find any relevant notes.")
+                        vector_msg or f"I could not find your notes about {search_topic}."
                     )
             all_get_notes += note_content_list
 
         elif action == "note_action":
-            metadata_list = []
-            search_terms = str(ai_reply).lower().split()
-            keywords = [word for word in search_terms if len(word) > 3]
-            notes = (
-                db.session.execute(
-                    db.select(Note)
-                    .where(Note.in_bin != True)
-                    .where(Note.user_id == current_user.id)
-                )
-                .scalars()
-                .all()
-            )
-            for note in notes:
-                metadata = metadata_for_search(note)
-                if not metadata:
-                    continue
-                if not keywords:
-                    metadata_list.append(metadata)
-                    continue
-                searchable_pool = make_searchable_pool(note, metadata)
-
-                if any(keyword in searchable_pool for keyword in keywords):
-                    metadata_list.append(metadata)
-            note_ids = ask_mistral(
-                f"Instruction: {ai_reply} Metadata list: {metadata_list}"
+            search_topic = extract_topic_for_search(str(ai_reply))
+            matched_notes, vector_msg, vector_error = get_vector_matched_notes(
+                search_topic, current_user.id
             )
             note_content_list = ""
 
-            if is_ai_error(note_ids):
+            if vector_error:
                 app.logger.error(
-                    "[ai_response/note_action] Mistral search error (type=%s): %s",
-                    note_ids.get("type"),
-                    note_ids.get("msg"),
+                    "[ai_response/note_action] Vector search error: %s",
+                    vector_msg,
                 )
                 all_errors.append(
-                    note_ids.get(
-                        "msg",
-                        "An error occurred while searching for notes. Please try again later.",
-                    )
+                    vector_msg
+                    or "An error occurred while searching for notes. Please try again later."
                 )
-                if note_ids.get("type") == "rate_limit":
-                    hit_rate_limit = True
                 continue
             else:
-                if note_ids.get("note_ids"):
-                    for note_id in note_ids["note_ids"]:
-                        try:
-                            note = db.session.get(Note, int(note_id))
-                        except (TypeError, ValueError):
-                            continue
-                        if note and note.user_id == current_user.id:
-                            note_content_list += (note.md_content or "") + "\n"
+                if matched_notes:
+                    for note in matched_notes:
+                        note_content_list += (note.md_content or "") + "\n"
                 else:
                     all_results.append(
-                        note_ids.get("msg", "I could not find any relevant notes.")
+                        vector_msg or f"I could not find your notes about {search_topic}."
                     )
                     continue
 
@@ -1051,50 +1005,22 @@ def ai_response():
                 note_action_html_content += response_html + "\n"
 
         elif action == "create_flashcards":
-            metadata_list = []
-            search_terms = str(ai_reply).lower().split()
-            keywords = [word for word in search_terms if len(word) > 3]
-            notes = (
-                db.session.execute(
-                    db.select(Note)
-                    .where(Note.in_bin != True)
-                    .where(Note.user_id == current_user.id)
-                )
-                .scalars()
-                .all()
-            )
-            for note in notes:
-                metadata = metadata_for_search(note)
-                if not metadata:
-                    continue
-                if not keywords:
-                    metadata_list.append(metadata)
-                    continue
-                searchable_pool = make_searchable_pool(note, metadata)
-
-                if any(keyword in searchable_pool for keyword in keywords):
-                    metadata_list.append(metadata)
-            note_ids = ask_mistral(
-                f"Instruction: {ai_reply} Metadata list: {metadata_list}"
+            search_topic = extract_topic_for_search(str(ai_reply))
+            matched_notes, vector_msg, vector_error = get_vector_matched_notes(
+                search_topic, current_user.id
             )
             note_content_list = ""
 
-            if is_ai_error(note_ids):
+            if vector_error:
                 app.logger.warning(
-                    "[ai_response/create_flashcards] Mistral note search failed (type=%s), falling back to topic. msg=%s",
-                    note_ids.get("type"),
-                    note_ids.get("msg"),
+                    "[ai_response/create_flashcards] Vector search failed, falling back to topic. msg=%s",
+                    vector_msg,
                 )
                 note_content_list = f"Topic: {ai_reply}"
             else:
-                if note_ids.get("note_ids"):
-                    for note_id in note_ids["note_ids"]:
-                        try:
-                            note = db.session.get(Note, int(note_id))
-                        except (TypeError, ValueError):
-                            continue
-                        if note and note.user_id == current_user.id:
-                            note_content_list += (note.md_content or "") + "\n"
+                if matched_notes:
+                    for note in matched_notes:
+                        note_content_list += (note.md_content or "") + "\n"
                 if not note_content_list:
                     note_content_list = f"Topic: {ai_reply}"
 
@@ -1123,55 +1049,25 @@ def ai_response():
                 all_results.append(f"Created flashcards on topic: {ai_reply}")
 
         elif action == "create_quiz":
-            metadata_list = []
-            search_terms = str(ai_reply).lower().split()
-            keywords = [word for word in search_terms if len(word) > 3]
-            notes = (
-                db.session.execute(
-                    db.select(Note)
-                    .where(Note.in_bin != True)
-                    .where(Note.user_id == current_user.id)
-                )
-                .scalars()
-                .all()
-            )
-            for note in notes:
-                metadata = metadata_for_search(note)
-                if not metadata:
-                    continue
-                if not keywords:
-                    metadata_list.append(metadata)
-                    continue
-                searchable_pool = make_searchable_pool(note, metadata)
-
-                if any(keyword in searchable_pool for keyword in keywords):
-                    metadata_list.append(metadata)
-            note_ids = ask_mistral(
-                f"Instruction: {ai_reply} Metadata list: {metadata_list}"
+            search_topic = extract_topic_for_search(str(ai_reply))
+            matched_notes, vector_msg, vector_error = get_vector_matched_notes(
+                search_topic, current_user.id
             )
             note_content_list = ""
+            collected_tags = []
 
-            if is_ai_error(note_ids):
+            if vector_error:
                 app.logger.warning(
-                    "[ai_response/create_quiz] Mistral note search failed (type=%s), falling back to topic. msg=%s",
-                    note_ids.get("type"),
-                    note_ids.get("msg"),
+                    "[ai_response/create_quiz] Vector search failed, falling back to topic. msg=%s",
+                    vector_msg,
                 )
                 note_content_list = f"Topic: {ai_reply}"
             else:
-                collected_tags = []
-                if note_ids.get("note_ids"):
-                    for note_id in note_ids["note_ids"]:
-                        try:
-                            note = db.session.get(Note, int(note_id))
-                            if note and note.user_id == current_user.id:
-                                if isinstance(note.meta_data, dict):
-                                    collected_tags.extend(
-                                        note.meta_data.get("tags", [])
-                                    )
-                                note_content_list += (note.md_content or "") + "\n"
-                        except (TypeError, ValueError):
-                            continue
+                if matched_notes:
+                    for note in matched_notes:
+                        if isinstance(note.meta_data, dict):
+                            collected_tags.extend(note.meta_data.get("tags", []))
+                        note_content_list += (note.md_content or "") + "\n"
                 if not note_content_list:
                     note_content_list = f"Topic: {ai_reply}"
 
@@ -1285,8 +1181,6 @@ def ai_response():
 def read_note(note_id):
     try:
         note = db.session.get(Note, note_id)
-        note.last_opened = datetime.now(timezone.utc)
-        db.session.commit()
         if not note or note.user_id != current_user.id:
             app.logger.warning(
                 "[read_note] Note not found or unauthorized — note_id=%s, user_id=%s",
@@ -1294,6 +1188,8 @@ def read_note(note_id):
                 current_user.id,
             )
             abort(404)
+        note.last_opened = datetime.now(timezone.utc)
+        db.session.commit()
     except SQLAlchemyError as e:
         app.logger.error(
             "[read_note] DB error reading note_id=%s for user_id=%s: %s",
@@ -1328,7 +1224,7 @@ def view_flashcards(flashcard_id):
 @login_required
 def save_flashcard(flashcard_id):
     flashcard_obj = db.session.get(Flashcard, flashcard_id)
-    if flashcard_obj:
+    if flashcard_obj and flashcard_obj.user_id == current_user.id:
         flashcard_obj.is_saved = True
         db.session.commit()
         return jsonify({"status": "saved"})

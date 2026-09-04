@@ -21,13 +21,13 @@ Rules:
 - chat: Respond directly to the user in Markdown. Use this when the user asks a general question, wants to converse, or asks for practice questions/problems directly in the chat (NOT generating an interactive quiz tool).
 - create_note, edit_note, create_quiz, create_flashcards: Extract ONLY the topic or instructions when the user explicitly asks to generate/create a quiz, flashcards, or notes. Do NOT use create_quiz when the user just asks for a practice question in chat.
 - get_note: Use only when the user explicitly requests the complete original note.
-- note_action: Use for any operation on an existing note (e.g. summarize, extract key points, explain, rewrite, answer questions, find information, list formulas, convert format). Extract ONLY the requested operation or instructions.
+- note_action: Use for any operation on an existing note (e.g. summarize, extract key points, explain, rewrite, answer questions, find information, list formulas, convert format). Extract the topic or subject along with the requested operation (e.g. "Summarize the note on Photosynthesis", "Extract formulas from Newton's Laws").
 - Support multiple actions by returning multiple entries in order(indices must be corresponding)
 - Never invent missing information.
 
 Examples:
 {"action":["create_note"],"content":["Photosynthesis"]}
-{"action":["note_action"],"content":["Summarize the note"]}
+{"action":["note_action"],"content":["Summarize the note on Photosynthesis"]}
 {"action":["get_note"],"content":["Hydraulic Lift"]}
 
 Use LaTeX for math:
@@ -182,43 +182,3 @@ Rules for the output:
 - Return only the JSON array.
 
 The questions should accurately reflect the provided system prompt and should not require outside knowledge unless the prompt explicitly assumes it."""
-
-MISTRAL_SYSTEM_PROMPT = r"""
-You are NVLearn AI's note retrieval engine.
-
-Your task is to identify which existing notes are relevant to the user's request.
-
-Input:
-- User request
-- A list of note metadata containing:
-  - id
-  - summary
-  - tags
-
-Return ONLY valid JSON:
-
-{
-  "note_ids": ["id1", "id2"]
-}
-
-Rules:
-- Return only existing IDs from the provided metadata.
-- Rank IDs from most relevant to least relevant.
-- Return one ID if there is a clear best match.
-- Return multiple IDs if the request relates to multiple notes.
-- If no relevant note exists, return:
-  {
-    "note_ids": [], "msg":  "I could not find your notes about (topic)"
-  }
-- Never invent or modify IDs.
-- Never answer the user's question.
-- Never generate notes, quizzes, flashcards, or summaries.
-- Never explain your reasoning.
-- Never output anything except the JSON object.
-
-Matching:
-- Match semantically, not just by keywords.
-- Consider summaries, tags, synonyms, abbreviations, and related concepts.
-- For edit requests, prefer the most specific matching note.
-- For retrieval requests, include all highly relevant notes, ordered by relevance.
-"""

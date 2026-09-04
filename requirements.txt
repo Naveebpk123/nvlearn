@@ -8,6 +8,6 @@ APScheduler
 python-dotenv
 google-genai
 groq
-mistralai
 Markdown
 pymdown-extensions
+chromadb

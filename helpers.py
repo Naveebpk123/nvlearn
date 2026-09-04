@@ -9,7 +9,6 @@ from google import genai
 from google.genai import types
 import markdown
 from groq import Groq
-from mistralai.client import Mistral
 import json
 from prompts import *
 
@@ -23,7 +22,6 @@ EMAIL = os.getenv("EMAIL")
 EMAIL_PASSWORD = os.getenv("APP_PASSWORD")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 
 
 def send_email(recipient, subject, msg_content):
@@ -104,7 +102,6 @@ def get_welcome_message(username):
 
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
-mistral_client = Mistral(api_key=MISTRAL_API_KEY)
 
 
 def is_rate_limit_error(e):
@@ -434,38 +431,3 @@ def ask_gemini(question, action):
         "type": "api_error",
         "msg": f'An error occurred while processing your {action.replace("_", " ")} request. Please try again later.',
     }
-
-
-def ask_mistral(question):
-    try:
-        response = mistral_client.chat.complete(
-            model="mistral-large-latest",
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": MISTRAL_SYSTEM_PROMPT},
-                {"role": "user", "content": question},
-            ],
-        )
-        response_json = parse_json_object(
-            response.choices[0].message.content, "Note search failed. Please try again."
-        )
-        if is_ai_error(response_json):
-            return response_json
-        note_ids = response_json.get("note_ids")
-        if not isinstance(note_ids, list):
-            return ai_error("invalid_json", "Note search failed. Please try again.")
-        return response_json
-    except Exception as e:
-        if is_rate_limit_error(e):
-            logger.warning("[ask_mistral] Rate limit hit: %s", e)
-            return {
-                "error": True,
-                "type": "rate_limit",
-                "msg": "Our note search service is experiencing high demand. Please avoid note-related requests for a few minutes.",
-            }
-        logger.exception("[ask_mistral] API error: %s", e)
-        return {
-            "error": True,
-            "type": "api_error",
-            "msg": "An error occurred while searching your notes. Please try again later.",
-        }
