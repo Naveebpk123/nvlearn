@@ -355,6 +355,12 @@ def ask_gemini(question, action):
                     ),
                 )
                 return response.text
+            elif action == "batch_summary":
+                response = gemini_client.models.generate_content(
+                    model=model,
+                    contents=GEMINI_BATCH_SUMMARY_PROMPT + f"prompt: {question}",
+                )
+                return response.text
             elif action == "summarize":
                 response = gemini_client.models.generate_content(
                     model=model,

@@ -197,6 +197,87 @@ def get_vector_matched_notes(topic: str, user_id: int):
     return notes, vector_res.get("msg"), False
 
 
+MAX_CONTENT_CHAR_LIMIT = 8000
+
+
+def get_notes_for_action(topic: str, user_id: int):
+    """
+    Returns (notes_list, error_msg, is_error).
+    If topic is 'all_notes' or search_topic clean text equals 'all notes',
+    fetches ALL non-binned notes for the user.
+    Otherwise, uses ChromaDB vector search.
+    """
+    clean_topic = (topic or "").strip().lower()
+    if clean_topic in ("all_notes", "all notes"):
+        all_notes = db.session.scalars(
+            db.select(Note).where(Note.user_id == user_id).where(Note.in_bin != True)
+        ).all()
+        if not all_notes:
+            return [], "You do not have any notes saved yet.", False
+        return all_notes, None, False
+
+    return get_vector_matched_notes(topic, user_id)
+
+
+def chunk_notes_content(notes: list, char_limit: int = MAX_CONTENT_CHAR_LIMIT):
+    """
+    Splits a list of Note objects into text batches, each guaranteed to be
+    under char_limit characters.
+    """
+    batches = []
+    current_batch = ""
+
+    for note in notes:
+        content = (note.md_content or "").strip()
+        if not content:
+            continue
+
+        # If a single note exceeds char_limit, split it by paragraphs
+        if len(content) > char_limit:
+            if current_batch:
+                batches.append(current_batch)
+                current_batch = ""
+            paragraphs = content.split("\n\n")
+            for para in paragraphs:
+                if len(current_batch) + len(para) + 2 > char_limit and current_batch:
+                    batches.append(current_batch)
+                    current_batch = para
+                else:
+                    current_batch = (current_batch + "\n\n" + para).strip()
+        else:
+            if len(current_batch) + len(content) + 2 > char_limit and current_batch:
+                batches.append(current_batch)
+                current_batch = content
+            else:
+                current_batch = (current_batch + "\n\n" + content).strip()
+
+    if current_batch:
+        batches.append(current_batch)
+
+    return batches
+
+
+def summarize_notes_in_batches(batches: list):
+    """
+    Summarizes content batches iteratively into accumulated_summary.
+    Returns: (accumulated_summary, hit_rate_limit, error_dict)
+    """
+    accumulated_summary = ""
+    for i, batch in enumerate(batches):
+        prompt = f"Batch {i + 1} content:\n{batch}"
+        if accumulated_summary:
+            prompt = f"Previous accumulated summary:\n{accumulated_summary}\n\n" + prompt
+
+        result = ask_gemini(action="batch_summary", question=prompt)
+        if is_ai_error(result):
+            hit_rl = result.get("type") == "rate_limit"
+            return accumulated_summary, hit_rl, result
+        accumulated_summary = result
+
+    return accumulated_summary, False, None
+
+
+
 def backfill_metadata_ids():
     """Sets metadata['id'] if not already set."""
     notes = db.session.scalars(db.select(Note)).all()
@@ -930,6 +1011,27 @@ def ai_response():
                 )
 
         elif action == "get_note":
+            if ai_reply == "all_notes":
+                try:
+                    result = db.session.execute(
+                        db.select(Note)
+                        .where(Note.user_id == current_user.id)
+                        .where(Note.in_bin != True)
+                    )
+                    matched_notes = result.scalars().all()
+                    note_content_list = ""
+                    for note in matched_notes:
+                        note_content_list += (note.html_content or "") + "\n"
+                    all_get_notes += note_content_list
+                except SQLAlchemyError as e:
+                    app.logger.error(
+                        "[ai_response/get_note] DB error fetching all notes for user_id=%s: %s",
+                        current_user.id,
+                        e,
+                    )
+                    all_errors.append(
+                        "An error occurred while fetching your notes. Please try again later."
+                    )
             search_topic = extract_topic_for_search(str(ai_reply))
             matched_notes, vector_msg, vector_error = get_vector_matched_notes(
                 search_topic, current_user.id
@@ -957,14 +1059,13 @@ def ai_response():
 
         elif action == "note_action":
             search_topic = extract_topic_for_search(str(ai_reply))
-            matched_notes, vector_msg, vector_error = get_vector_matched_notes(
+            matched_notes, vector_msg, vector_error = get_notes_for_action(
                 search_topic, current_user.id
             )
-            note_content_list = ""
 
             if vector_error:
                 app.logger.error(
-                    "[ai_response/note_action] Vector search error: %s",
+                    "[ai_response/note_action] Note retrieval error: %s",
                     vector_msg,
                 )
                 all_errors.append(
@@ -972,56 +1073,76 @@ def ai_response():
                     or "An error occurred while searching for notes. Please try again later."
                 )
                 continue
-            else:
-                if matched_notes:
-                    for note in matched_notes:
-                        note_content_list += (note.md_content or "") + "\n"
-                else:
-                    all_results.append(
-                        vector_msg or f"I could not find your notes about {search_topic}."
-                    )
-                    continue
 
-            gemini_result = ask_gemini(
-                action="note_action",
-                question=f"Instructions:{ai_reply} content:{note_content_list}",
-            )
-            if is_ai_error(gemini_result):
-                app.logger.error(
-                    "[ai_response/note_action] Gemini error (type=%s): %s",
-                    gemini_result.get("type"),
-                    gemini_result.get("msg"),
+            if not matched_notes:
+                all_results.append(
+                    vector_msg or f"I could not find your notes about {search_topic}."
                 )
-                all_errors.append(
-                    gemini_result.get(
-                        "msg",
-                        "An error occurred while processing notes. Please try again later.",
-                    )
-                )
-                if gemini_result.get("type") == "rate_limit":
+                continue
+
+            batches = chunk_notes_content(matched_notes)
+            if len(batches) > 1:
+                accumulated_summary, hit_rl, err_dict = summarize_notes_in_batches(batches)
+                if accumulated_summary:
+                    note_action_html_content += md_to_html(accumulated_summary) + "\n"
+                if hit_rl:
                     hit_rate_limit = True
+                    all_errors.append("Rate limit reached during batch processing. Partial summary returned.")
+                elif err_dict:
+                    all_errors.append(err_dict.get("msg", "An error occurred during note processing."))
             else:
-                response_html, _ = gemini_result
-                note_action_html_content += response_html + "\n"
+                note_content_list = batches[0] if batches else ""
+                gemini_result = ask_gemini(
+                    action="note_action",
+                    question=f"Instructions:{ai_reply} content:{note_content_list}",
+                )
+                if is_ai_error(gemini_result):
+                    app.logger.error(
+                        "[ai_response/note_action] Gemini error (type=%s): %s",
+                        gemini_result.get("type"),
+                        gemini_result.get("msg"),
+                    )
+                    all_errors.append(
+                        gemini_result.get(
+                            "msg",
+                            "An error occurred while processing notes. Please try again later.",
+                        )
+                    )
+                    if gemini_result.get("type") == "rate_limit":
+                        hit_rate_limit = True
+                else:
+                    response_html, _ = gemini_result
+                    note_action_html_content += response_html + "\n"
 
         elif action == "create_flashcards":
             search_topic = extract_topic_for_search(str(ai_reply))
-            matched_notes, vector_msg, vector_error = get_vector_matched_notes(
+            matched_notes, vector_msg, vector_error = get_notes_for_action(
                 search_topic, current_user.id
             )
             note_content_list = ""
 
             if vector_error:
                 app.logger.warning(
-                    "[ai_response/create_flashcards] Vector search failed, falling back to topic. msg=%s",
+                    "[ai_response/create_flashcards] Note search failed, falling back to topic. msg=%s",
                     vector_msg,
                 )
                 note_content_list = f"Topic: {ai_reply}"
             else:
                 if matched_notes:
-                    for note in matched_notes:
-                        note_content_list += (note.md_content or "") + "\n"
-                if not note_content_list:
+                    batches = chunk_notes_content(matched_notes)
+                    if len(batches) > 1:
+                        accumulated_summary, hit_rl, err_dict = summarize_notes_in_batches(batches)
+                        if hit_rl or err_dict or not accumulated_summary:
+                            if hit_rl:
+                                hit_rate_limit = True
+                            all_errors.append(
+                                "AI service is busy or rate limited. Please avoid using note-related actions for a while."
+                            )
+                            continue
+                        note_content_list = accumulated_summary
+                    else:
+                        note_content_list = batches[0] if batches else f"Topic: {ai_reply}"
+                else:
                     note_content_list = f"Topic: {ai_reply}"
 
             gemini_result = ask_gemini(
@@ -1050,7 +1171,7 @@ def ai_response():
 
         elif action == "create_quiz":
             search_topic = extract_topic_for_search(str(ai_reply))
-            matched_notes, vector_msg, vector_error = get_vector_matched_notes(
+            matched_notes, vector_msg, vector_error = get_notes_for_action(
                 search_topic, current_user.id
             )
             note_content_list = ""
@@ -1058,7 +1179,7 @@ def ai_response():
 
             if vector_error:
                 app.logger.warning(
-                    "[ai_response/create_quiz] Vector search failed, falling back to topic. msg=%s",
+                    "[ai_response/create_quiz] Note search failed, falling back to topic. msg=%s",
                     vector_msg,
                 )
                 note_content_list = f"Topic: {ai_reply}"
@@ -1067,8 +1188,20 @@ def ai_response():
                     for note in matched_notes:
                         if isinstance(note.meta_data, dict):
                             collected_tags.extend(note.meta_data.get("tags", []))
-                        note_content_list += (note.md_content or "") + "\n"
-                if not note_content_list:
+                    batches = chunk_notes_content(matched_notes)
+                    if len(batches) > 1:
+                        accumulated_summary, hit_rl, err_dict = summarize_notes_in_batches(batches)
+                        if hit_rl or err_dict or not accumulated_summary:
+                            if hit_rl:
+                                hit_rate_limit = True
+                            all_errors.append(
+                                "AI service is busy or rate limited. Please avoid using note-related actions for a while."
+                            )
+                            continue
+                        note_content_list = accumulated_summary
+                    else:
+                        note_content_list = batches[0] if batches else f"Topic: {ai_reply}"
+                else:
                     note_content_list = f"Topic: {ai_reply}"
 
             gemini_result = ask_gemini(action="create_quiz", question=note_content_list)

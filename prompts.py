@@ -24,6 +24,7 @@ Rules:
 - note_action: Use for any operation on an existing note (e.g. summarize, extract key points, explain, rewrite, answer questions, find information, list formulas, convert format). Extract the topic or subject along with the requested operation (e.g. "Summarize the note on Photosynthesis", "Extract formulas from Newton's Laws").
 - Support multiple actions by returning multiple entries in order(indices must be corresponding)
 - Never invent missing information.
+- If user asks any action on all notes, the topic should be 'all_notes'
 
 Examples:
 {"action":["create_note"],"content":["Photosynthesis"]}
@@ -108,6 +109,13 @@ Rules:
 - Do not explain your reasoning.
 - Return ONLY the requested output. Do not include conversational text, JSON, markdown code fences, or any explanations.
 """
+
+GEMINI_BATCH_SUMMARY_PROMPT = """
+You are NVLearn AI's note summarizer for large content batches.
+Your task is to take a batch of study notes and extract a comprehensive, well-structured summary preserving all key facts, definitions, formulas, and concepts.
+Return clear Markdown summary text only. Do not include conversational text or JSON code fences.
+"""
+
 
 GEMINI_FLASHCARD_CREATION_PROMPT = """You are NVLearn AI's flashcard generation engine.
 Generate high-quality study flashcards from the user's request.
