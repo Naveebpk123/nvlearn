@@ -31,7 +31,7 @@ In short: NVLearn helps a learner move from passive note storage to active revis
 - Markdown note rendering with support for code blocks, tables, and math formatting.
 - AI assistant chat.
 - AI note generation.
-- AI note search and note actions, including ChromaDB-backed vector search for note actions.
+- AI note search, edit-note actions, and note actions, including ChromaDB-backed vector search for note actions.
 - AI flashcard generation.
 - AI quiz generation.
 - Practice Hub for saved flashcards and saved quizzes.
@@ -287,7 +287,7 @@ Use `/add` to create notes manually. Notes support markdown-style content, and t
 
 Use the search bar to find notes by title. The search modal calls `/search/<query>` for quick JSON results, and pressing Enter opens `/search-results/<query>`.
 
-AI note actions use semantic vector search instead of title-only matching. When you ask the assistant to summarize, explain, rewrite, or extract information from existing notes, NVLearn searches your ChromaDB note vectors using the note title, tags, summary, and markdown content.
+AI note actions use semantic vector search instead of title-only matching. When you ask the assistant to summarize, explain, rewrite, edit, or extract information from existing notes, NVLearn searches your ChromaDB note vectors using the note title, tags, summary, and markdown content. For supported actions across the full notebook, the AI can use the special `all_notes` topic to process every active non-binned note instead of matching one topic.
 
 ### 5. Sort Notes
 
@@ -308,6 +308,8 @@ Generate flashcards from my biology notes.
 Make a quiz from my latest chemistry note.
 Find my notes about recursion.
 Summarize my note about databases.
+Edit my note about photosynthesis to make it simpler.
+Summarize all my notes.
 ```
 
 ### 7. Practice
@@ -366,7 +368,7 @@ This means generated flashcards and quizzes are temporary until the user saves t
 
 ## Vector Search
 
-NVLearn uses ChromaDB for local semantic note search in AI note-action workflows.
+NVLearn uses ChromaDB for local semantic note search in AI note-action workflows, including AI edit-note actions.
 
 Vector data is stored locally at:
 
@@ -389,7 +391,7 @@ The vector document includes:
 - metadata summary
 - markdown note content
 
-By default, vector results are filtered with a cosine-distance threshold in `vector_store.py`.
+By default, vector results are filtered with a cosine-distance threshold in `vector_store.py`. Requests routed with the `all_notes` topic bypass vector matching and load every active note for supported whole-notebook actions.
 
 ## Troubleshooting
 
