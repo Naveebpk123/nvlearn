@@ -268,6 +268,7 @@ if (backBtn) {
         tabcontainer.classList.remove('hidden');
         flashcardsContent?.classList.add('hidden');
         quizzesContent?.classList.add('hidden');
+        backBtn.classList.add('hidden');
     });
 }
 

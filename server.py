@@ -945,6 +945,8 @@ def ai_response():
     all_instructions = build_ai_instructions(
         contents=message, username=username, chat_only=is_on_cooldown
     )
+    app.logger.info(
+        "[ai_response] Instructions built for user_id=%s: %s", current_user.id, all_instructions)
     all_results = []
     all_get_notes = ""
     note_action_html_content = ""
