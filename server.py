@@ -1165,7 +1165,7 @@ def ai_response():
                 else:
                     try:
                         matched_note.md_content = edited_note
-                        matched_note.html_content = request.form.get("html_content")
+                        matched_note.html_content = md_to_html(edited_note)
                         db.session.commit()
                         upsert_note_vector(matched_note)
                         all_results.append(f"Edited note '{matched_note.title}'")

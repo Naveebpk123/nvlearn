@@ -25,7 +25,7 @@ Rules:
 - For multiple note edits, return the actions and corresponding note topics as nested arrays: {"action":[["edit_note","edit_note"]],"content":[["Photosynthesis","Trigonometry"]]}; do not return separate edit_note/content pairs.
 - Support multiple actions by returning multiple entries in order(indices must be corresponding)
 - Never invent missing information.
-- If user asks any action on all notes, the topic should be 'all_notes'
+- If user asks any action on all notes, the topic should be 'all_notes'  unless it is edit note, in which case politely decline, prompting user to give a specific note/topic.
 
 Examples:
 {"action":["create_note"],"content":["Photosynthesis"]}
