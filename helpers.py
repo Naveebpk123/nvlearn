@@ -411,6 +411,16 @@ def ask_gemini(question, action):
                         "invalid_json", "Quiz generation returned invalid format."
                     )
                 return parsed
+            
+            elif action == "edit_note":
+                response = gemini_client.models.generate_content(
+                    model=model,
+                    contents=GEMINI_NOTE_EDIT_PROMPT + f"prompt: {question}",
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                    ),
+                )                
+                return response.text                
         except Exception as e:
             last_error = e
             logger.warning(
