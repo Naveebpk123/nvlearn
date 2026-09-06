@@ -180,9 +180,12 @@ def extract_topic_for_search(instruction: str) -> str:
     return cleaned if cleaned else text
 
 
-def get_vector_matched_notes(topic: str, user_id: int):
+def get_vector_matched_notes(topic: str, user_id: int, edit_mode: bool = False):
     """Return active user notes matched by vector search."""
-    vector_res = search_notes_vector(topic=topic, user_id=user_id)
+    if edit_mode:
+        vector_res = search_notes_vector(topic=topic, user_id=user_id,n_results=1)
+    else:
+        vector_res = search_notes_vector(topic=topic, user_id=user_id)
     if is_ai_error(vector_res):
         return [], vector_res.get("msg"), True
 
@@ -1116,6 +1119,35 @@ def ai_response():
                     response_html, _ = gemini_result
                     note_action_html_content += response_html + "\n"
 
+        elif action == 'edit_note':
+            
+            search_topic = extract_topic_for_search(str(ai_reply))
+            matched_notes, vector_msg, vector_error = get_notes_for_action(
+                search_topic, current_user.id, edit_mode=True
+            )            
+            matched_note = matched_notes[0] if matched_notes else None
+
+            if vector_error:
+                app.logger.error(
+                    "[ai_response/note_action] Note retrieval error: %s",
+                    vector_msg,
+                )
+                all_errors.append(
+                    vector_msg
+                    or "An error occurred while searching for notes. Please try again later."
+                )
+                continue
+
+            if not matched_note:
+                all_results.append(
+                    vector_msg or f"I could not find your notes about {search_topic}."
+                )
+                continue
+            if matched_note:
+                edited_note = ask_gemini(
+                    action="edit_note",
+                    question=f"Instruction: {ai_reply} note: {matched_note.content}"
+                )
         elif action == "create_flashcards":
             search_topic = extract_topic_for_search(str(ai_reply))
             matched_notes, vector_msg, vector_error = get_notes_for_action(
