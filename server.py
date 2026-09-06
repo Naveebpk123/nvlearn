@@ -1148,6 +1148,38 @@ def ai_response():
                     action="edit_note",
                     question=f"Instruction: {ai_reply} note: {matched_note.content}"
                 )
+                if is_ai_error(edited_note):
+                    app.logger.error(
+                        "[ai_response/edit_note] Gemini error (type=%s): %s",
+                        edited_note.get("type"),
+                        edited_note.get("msg"),
+                    )
+                    all_errors.append(
+                        edited_note.get(
+                            "msg",
+                            "An error occurred while editing the note. Please try again later.",
+                        )
+                    )
+                    if edited_note.get("type") == "rate_limit":
+                        hit_rate_limit = True
+                else:
+                    try:
+                        matched_note.md_content = edited_note
+                        matched_note.html_content = request.form.get("html_content")
+                        db.session.commit()
+                        upsert_note_vector(matched_note)
+                        all_results.append(f"Edited note '{matched_note.title}'")
+                    except SQLAlchemyError as e:
+                        db.session.rollback()
+                        app.logger.error(
+                            "[ai_response/edit_note] DB error updating note_id=%s for user_id=%s: %s",
+                            matched_note.id,
+                            current_user.id,
+                            e,
+                        )
+                        all_errors.append(
+                            "An error occurred while saving the edited note to the database. Please try again."
+                        )
         elif action == "create_flashcards":
             search_topic = extract_topic_for_search(str(ai_reply))
             matched_notes, vector_msg, vector_error = get_notes_for_action(
