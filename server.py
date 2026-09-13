@@ -798,10 +798,6 @@ def register():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == "GET":
-        #----Testing----#
-        login_user(User.query.first())
-        #---------------#
     if session.get("pending_login"):
         form = VerificationForm()
         if form.validate_on_submit():
@@ -1554,6 +1550,22 @@ def practice_hub():
         saved_quizzes=len(all_quizzes),
     )
 
+@app.route('/save-diagram', methods=['POST'])
+@login_required
+def save_diagram():
+    data = request.get_json()
+    diagram_data = data.get('diagram_data')
+    if not diagram_data:
+        return jsonify({"error": "Invalid diagram data"}), 400
+
+    diagram = Diagram(
+        diagram_data=diagram_data,
+        user_id=current_user.id,
+        is_saved=False
+    )
+    db.session.add(diagram)
+    db.session.commit()
+    return jsonify({"status": "saved", "diagram_id": diagram.id}), 200
 
 @app.route("/about")
 def about():

@@ -125,28 +125,41 @@
                     const msg = JSON.parse(event.data);
                     const iframe = document.getElementById('drawioFrame');
 
-                    if (msg.event === 'init') {
-                        if (iframe && iframe.contentWindow) {
-                            iframe.contentWindow.postMessage(JSON.stringify({
-                                action: 'load',
-                                xml: ''
-                            }), '*');
+                        if (msg.event === 'init') {
+                            if (iframe && iframe.contentWindow) {
+                                iframe.contentWindow.postMessage(JSON.stringify({
+                                    action: 'load',
+                                    xml: ''
+                                }), '*');
+                            }
+                        } else if (msg.event === 'save') {
+                            console.log('saved');
+                            if (iframe && iframe.contentWindow) {
+                                iframe.contentWindow.postMessage(JSON.stringify({
+                                    action: 'export',
+                                    format: 'xmlsvg'
+                                }), '*');
+                            }
+                        } else if (msg.event === 'export') {
+                            const rawSvgXml = msg.xml;
+                            const response = fetch('/save-diagram', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ diagram_data: rawSvgXml })
+                            });
+                            if (response.status === 'saved') {
+                                flash('Diagram created successfully!', 'success');
+                                closeDiagramEditor();
+                            } else {
+                                flash('Failed to save diagram. Please try again.', 'error');
+                            }
+                        } else if (msg.event === 'exit') {
+                            closeDiagramEditor();
                         }
-                    } else if (msg.event === 'save') {
-                        console.log('saved');
-                        if (iframe && iframe.contentWindow) {
-                            iframe.contentWindow.postMessage(JSON.stringify({
-                                action: 'export',
-                                format: 'xmlsvg'
-                            }), '*');
-                        }
-                    } else if (msg.event === 'export') {
-                        console.log('saved');
-                    } else if (msg.event === 'exit') {
-                        closeDiagramEditor();
+                    } catch (err) {
                     }
-                } catch (err) {
-                }
             });
 
             document.addEventListener('DOMContentLoaded', function() {
