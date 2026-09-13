@@ -132,6 +132,15 @@ class Quiz(db.Model):
     percentage_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     tags: Mapped[List[str]] = mapped_column(JSON, nullable=True, default=list)
 
+class Diagram(db.Model):
+    __tablename__ = "diagrams"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    diagram_data: Mapped[Text] = mapped_column(Text, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
+    is_saved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
 
 def get_meta_data(content):
     metadata = build_ai_instructions(content, username="", metadata=True)
@@ -789,6 +798,10 @@ def register():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if request.method == "GET":
+        #----Testing----#
+        login_user(User.query.first())
+        #---------------#
     if session.get("pending_login"):
         form = VerificationForm()
         if form.validate_on_submit():
