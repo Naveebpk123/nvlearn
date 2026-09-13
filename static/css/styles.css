@@ -1092,3 +1092,97 @@ body.editor-lock-scroll {
 .dropdown-menu li:hover {
     background-color: var(--bg-main);
 }
+
+/* Diagram Modal Styles */
+.diagram-modal-bg {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(6px);
+    z-index: 30000;
+    justify-content: center;
+    align-items: center;
+}
+
+.diagram-modal-content {
+    display: flex;
+    flex-direction: column;
+    width: 85vw;
+    height: 85vh;
+    max-width: 1300px;
+    max-height: 850px;
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    transition: width 0.25s ease, height 0.25s ease, border-radius 0.25s ease;
+}
+
+.diagram-modal-content.fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+}
+
+.diagram-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 18px;
+    background-color: var(--bg-dark);
+    color: var(--text-light);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.diagram-modal-title {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.diagram-modal-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.diagram-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.diagram-btn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: var(--text-light);
+}
+
+.diagram-btn.close-btn:hover {
+    background-color: var(--color-danger);
+    color: white;
+}
+
+.diagram-modal-body {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.diagram-modal-body iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}

@@ -67,10 +67,26 @@
                 </div>
             </div>
         </div>
-        <div class="modal-bg" id="searchModalBackground" style="display:none;">
-            <div class="search-modal" id="searchModal">
-                <input name="search-input" class="search-bar" id="modalSearchBar" placeholder="Search notes">
-                <div class="search-result-container" id="searchResultContainer">
+        <div class="diagram-modal-bg" id="diagramModal" style="display:none;">
+            <div class="diagram-modal-content" id="diagramModalContent">
+                <div class="diagram-modal-header">
+                    <span class="diagram-modal-title">Diagram Editor</span>
+                    <div class="diagram-modal-actions">
+                        <button type="button" class="diagram-btn" id="diagramFullscreenBtn" title="Toggle Fullscreen">
+                            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                            </svg>
+                        </button>
+                        <button type="button" class="diagram-btn close-btn" id="closeDiagramBtn" title="Close Editor">
+                            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="diagram-modal-body">
+                    <iframe id="drawioFrame" src="about:blank" title="Draw.io Diagram Editor"></iframe>
                 </div>
             </div>
         </div>
@@ -79,7 +95,76 @@
         <script src="https://cdn.jsdelivr.net/npm/turndown@7.1.3/dist/turndown.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
         <script>
-            document.addEventListener('DOMContentLoaded',function(){
+            function openDiagramEditor() {
+                const modal = document.getElementById('diagramModal');
+                const iframe = document.getElementById('drawioFrame');
+
+                if (!modal || !iframe) return;
+
+                const drawUrl = 'https://embed.diagrams.net/?embed=1&spin=1&proto=json&libraries=1';
+                iframe.src = drawUrl;
+                modal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeDiagramEditor() {
+                const modal = document.getElementById('diagramModal');
+                const modalContent = document.getElementById('diagramModalContent');
+                const iframe = document.getElementById('drawioFrame');
+
+                if (modal) modal.style.display = 'none';
+                if (iframe) iframe.src = 'about:blank';
+                document.body.style.overflow = '';
+                if (modalContent) modalContent.classList.remove('fullscreen');
+            }
+
+            window.addEventListener('message', function(event) {
+                if (event.origin !== 'https://embed.diagrams.net') return;
+
+                try {
+                    const msg = JSON.parse(event.data);
+                    const iframe = document.getElementById('drawioFrame');
+
+                    if (msg.event === 'init') {
+                        if (iframe && iframe.contentWindow) {
+                            iframe.contentWindow.postMessage(JSON.stringify({
+                                action: 'load',
+                                xml: ''
+                            }), '*');
+                        }
+                    } else if (msg.event === 'save') {
+                        console.log('saved');
+                        if (iframe && iframe.contentWindow) {
+                            iframe.contentWindow.postMessage(JSON.stringify({
+                                action: 'export',
+                                format: 'xmlsvg'
+                            }), '*');
+                        }
+                    } else if (msg.event === 'export') {
+                        console.log('saved');
+                    } else if (msg.event === 'exit') {
+                        closeDiagramEditor();
+                    }
+                } catch (err) {
+                }
+            });
+
+            document.addEventListener('DOMContentLoaded', function() {
+                const closeDiagramBtn = document.getElementById('closeDiagramBtn');
+                if (closeDiagramBtn) {
+                    closeDiagramBtn.addEventListener('click', closeDiagramEditor);
+                }
+
+                const diagramFullscreenBtn = document.getElementById('diagramFullscreenBtn');
+                if (diagramFullscreenBtn) {
+                    diagramFullscreenBtn.addEventListener('click', function() {
+                        const modalContent = document.getElementById('diagramModalContent');
+                        if (modalContent) {
+                            modalContent.classList.toggle('fullscreen');
+                        }
+                    });
+                }
+
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
@@ -87,7 +172,7 @@
                         {% endfor %}
                     {% endif %}
                 {% endwith %}
-            })
+            });
         </script>
         <script>
             document.addEventListener("DOMContentLoaded", function() {
@@ -110,6 +195,7 @@
                                 [{ 'header': 1 }, { 'header': 2 }],
                                 [{ 'list': 'ordered'}, { 'list': 'bullet' }],
                                 ['clean'],
+                                ['diagram'],
                                 ['fullscreen'],
                                 ['readmode']
                             ],
@@ -120,6 +206,9 @@
                                 },
                                 'readmode': function() {
                                     window.location.href = "{% if note %}{{url_for('read_note', note_id=note.id)}}{% else %}#{% endif %}";
+                                },
+                                'diagram': function() {
+                                    openDiagramEditor();
                                 }
                             }
                         }
@@ -146,6 +235,18 @@
                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
             </svg>`;
                     fullscreenBtn.title = "Toggle Fullscreen Mode";
+                }
+
+                const addDiagramBtn = editorWrapper.querySelector('.ql-diagram');
+                if (addDiagramBtn) {
+                    addDiagramBtn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+                    <circle cx="9" cy="9" r="2"></circle>
+                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+                    <path d="M15 3h6v6"></path>
+                </svg>
+                `;
+                    addDiagramBtn.title = "Add Diagram";
                 }
 
                 if (textarea.value) {
