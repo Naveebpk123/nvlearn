@@ -20,6 +20,15 @@
             }
         };
     </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const images = document.querySelectorAll('#read-note-content img');
+            images.forEach(img => {
+                img.classList = []; // Clear existing classes
+                img.classList.add('read-note-image'); // Add the new class
+            });
+        });
+    </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
 {% endblock %}

@@ -1209,3 +1209,12 @@ body.editor-lock-scroll {
     box-shadow: 0 4px 14px rgba(13, 110, 253, 0.35);
     transform: scale(1.01);
 }
+
+.read-note-image {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 12px auto;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
