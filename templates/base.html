@@ -95,11 +95,25 @@
         <script src="https://cdn.jsdelivr.net/npm/turndown@7.1.3/dist/turndown.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
         <script>
-            function openDiagramEditor() {
+            let activeDiagramImg = null;
+            let activeDiagramData = null;
+            let activeDiagramId = null;
+
+            function openDiagramEditor(imgElement) {
                 const modal = document.getElementById('diagramModal');
                 const iframe = document.getElementById('drawioFrame');
 
                 if (!modal || !iframe) return;
+
+                if (imgElement && imgElement.tagName === 'IMG') {
+                    activeDiagramImg = imgElement;
+                    activeDiagramData = imgElement.getAttribute('src') || null;
+                    activeDiagramId = imgElement.getAttribute('data-diagram-id') || imgElement.getAttribute('data-id') || null;
+                } else {
+                    activeDiagramImg = null;
+                    activeDiagramData = null;
+                    activeDiagramId = null;
+                }
 
                 const drawUrl = 'https://embed.diagrams.net/?embed=1&spin=1&proto=json&libraries=1';
                 iframe.src = drawUrl;
@@ -116,50 +130,104 @@
                 if (iframe) iframe.src = 'about:blank';
                 document.body.style.overflow = '';
                 if (modalContent) modalContent.classList.remove('fullscreen');
+
+                activeDiagramImg = null;
+                activeDiagramData = null;
+                activeDiagramId = null;
             }
 
-            window.addEventListener('message', function(event) {
+            window.addEventListener('message', async function(event) {
                 if (event.origin !== 'https://embed.diagrams.net') return;
 
                 try {
                     const msg = JSON.parse(event.data);
                     const iframe = document.getElementById('drawioFrame');
 
-                        if (msg.event === 'init') {
-                            if (iframe && iframe.contentWindow) {
-                                iframe.contentWindow.postMessage(JSON.stringify({
-                                    action: 'load',
-                                    xml: ''
-                                }), '*');
+                    if (msg.event === 'init') {
+                        if (iframe && iframe.contentWindow) {
+                            const loadMsg = { action: 'load' };
+                            if (activeDiagramData) {
+                                loadMsg.xmlpng = activeDiagramData;
+                                loadMsg.xml = activeDiagramData;
+                            } else {
+                                loadMsg.xml = '';
                             }
-                        } else if (msg.event === 'save') {
-                            console.log('saved');
-                            if (iframe && iframe.contentWindow) {
-                                iframe.contentWindow.postMessage(JSON.stringify({
-                                    action: 'export',
-                                    format: 'xmlsvg'
-                                }), '*');
-                            }
-                        } else if (msg.event === 'export') {
-                            const rawSvgXml = msg.xml;
-                            const response = fetch('/save-diagram', {
+                            iframe.contentWindow.postMessage(JSON.stringify(loadMsg), '*');
+                        }
+                    } else if (msg.event === 'save') {
+                        if (iframe && iframe.contentWindow) {
+                            iframe.contentWindow.postMessage(JSON.stringify({
+                                action: 'export',
+                                format: 'xmlpng'
+                            }), '*');
+                        }
+                    } else if (msg.event === 'export') {
+                        const imgUrl = msg.data || ('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(msg.xml));
+
+                        const payload = {
+                            img_data: imgUrl
+                        };
+                        if (activeDiagramId) {
+                            payload.id = activeDiagramId;
+                        }
+
+                        try {
+                            const response = await fetch('/save_diagram', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json'
                                 },
-                                body: JSON.stringify({ diagram_data: rawSvgXml })
+                                body: JSON.stringify(payload)
                             });
-                            if (response.status === 'saved') {
-                                flash('Diagram created successfully!', 'success');
-                                closeDiagramEditor();
+
+                            const data = await response.json();
+
+                            if (data.status === 'success') {
+                                const savedImgUrl = data.img_data;
+                                const savedId = data.id;
+
+                                if (activeDiagramImg) {
+                                    activeDiagramImg.setAttribute('src', savedImgUrl);
+                                    activeDiagramImg.setAttribute('data-diagram-id', savedId);
+                                    activeDiagramImg.classList.add('diagram-image');
+                                } else if (window.quillEditor && savedImgUrl) {
+                                    const range = window.quillEditor.getSelection(true);
+                                    const index = (range && range.index !== undefined) ? range.index : window.quillEditor.getLength();
+
+                                    window.quillEditor.insertEmbed(index, 'image', savedImgUrl);
+
+                                    setTimeout(() => {
+                                        const imgs = window.quillEditor.root.querySelectorAll('img');
+                                        imgs.forEach(img => {
+                                            if (img.getAttribute('src') === savedImgUrl) {
+                                                img.classList.add('diagram-image');
+                                                img.setAttribute('data-diagram-id', savedId);
+                                            }
+                                        });
+                                    }, 50);
+
+                                    window.quillEditor.setSelection(index + 1);
+                                }
+
+                                if (typeof flash === 'function') {
+                                    flash('Diagram saved successfully!', 'success');
+                                }
                             } else {
-                                flash('Failed to save diagram. Please try again.', 'error');
+                                if (typeof flash === 'function') {
+                                    flash('Error saving diagram: ' + (data.message || 'Failed'), 'error');
+                                }
                             }
-                        } else if (msg.event === 'exit') {
-                            closeDiagramEditor();
+                        } catch (fetchErr) {
+                            console.error('Save diagram request failed:', fetchErr);
                         }
-                    } catch (err) {
+
+                        closeDiagramEditor();
+                    } else if (msg.event === 'exit') {
+                        closeDiagramEditor();
                     }
+                } catch (err) {
+                    console.error('Error handling draw.io message:', err);
+                }
             });
 
             document.addEventListener('DOMContentLoaded', function() {
@@ -177,6 +245,14 @@
                         }
                     });
                 }
+
+                document.addEventListener('click', function(e) {
+                    const targetImg = e.target.closest('img');
+                    if (targetImg && (targetImg.classList.contains('diagram-image') || targetImg.hasAttribute('data-diagram-id') || targetImg.closest('.ql-editor'))) {
+                        e.preventDefault();
+                        openDiagramEditor(targetImg);
+                    }
+                });
 
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
@@ -230,6 +306,7 @@
                     theme: 'snow'
                 };
                 const editor = new Quill(quillContainer, themeOptions);
+                window.quillEditor = editor;
 
                 const readModeBtn = editorWrapper.querySelector('.ql-readmode');
                 if (readModeBtn) {
