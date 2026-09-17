@@ -94,17 +94,32 @@
         <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/turndown@7.1.3/dist/turndown.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <script src="{{url_for('static',filename='js/script.js')}}"></script>
+        <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/turndown@7.1.3/dist/turndown.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
         <script>
+            /**
+             * Global state variables for tracking active diagram editing session.
+             * - activeDiagramImg: Reference to the HTML <img> element being edited (null if creating new).
+             * - activeDiagramData: Data URI (xmlpng) string of the active diagram for loading into Draw.io.
+             * - activeDiagramId: Database ID of the diagram stored in backend.
+             */
             let activeDiagramImg = null;
             let activeDiagramData = null;
             let activeDiagramId = null;
 
+            /**
+             * Opens the Draw.io diagram editor modal.
+             * parameter imgElement - Optional <img> element if re-editing an existing diagram.
+             */
             function openDiagramEditor(imgElement) {
                 const modal = document.getElementById('diagramModal');
                 const iframe = document.getElementById('drawioFrame');
 
                 if (!modal || !iframe) return;
 
+                // Check if an existing diagram image was passed for editing
                 if (imgElement && imgElement.tagName === 'IMG') {
                     activeDiagramImg = imgElement;
                     activeDiagramData = imgElement.getAttribute('src') || null;
@@ -115,53 +130,70 @@
                     activeDiagramId = null;
                 }
 
+                // Set iframe src to load Draw.io with postMessage protocol enabled
                 const drawUrl = 'https://embed.diagrams.net/?embed=1&spin=1&proto=json&libraries=1';
                 iframe.src = drawUrl;
                 modal.style.display = 'flex';
-                document.body.style.overflow = 'hidden';
+                document.body.style.overflow = 'hidden'; // Lock background scrolling
             }
 
+            /**
+             * Closes the Draw.io diagram editor modal and resets session state.
+             */
             function closeDiagramEditor() {
                 const modal = document.getElementById('diagramModal');
                 const modalContent = document.getElementById('diagramModalContent');
                 const iframe = document.getElementById('drawioFrame');
 
                 if (modal) modal.style.display = 'none';
-                if (iframe) iframe.src = 'about:blank';
+                if (iframe) iframe.src = 'about:blank'; // Clear iframe to free memory
                 document.body.style.overflow = '';
                 if (modalContent) modalContent.classList.remove('fullscreen');
 
+                // Reset active diagram session state
                 activeDiagramImg = null;
                 activeDiagramData = null;
                 activeDiagramId = null;
             }
 
+            /**
+             * Handles postMessage communication events received from the Draw.io iframe.
+             */
             window.addEventListener('message', async function(event) {
+                // Verify origin for security
                 if (event.origin !== 'https://embed.diagrams.net') return;
 
                 try {
                     const msg = JSON.parse(event.data);
                     const iframe = document.getElementById('drawioFrame');
 
+                    // Event 1: Draw.io frame initialization completed
                     if (msg.event === 'init') {
                         if (iframe && iframe.contentWindow) {
                             const loadMsg = { action: 'load' };
                             if (activeDiagramData) {
+                                // Load existing diagram XML/PNG data onto canvas
                                 loadMsg.xmlpng = activeDiagramData;
                                 loadMsg.xml = activeDiagramData;
                             } else {
+                                // Load blank canvas for new diagram
                                 loadMsg.xml = '';
                             }
                             iframe.contentWindow.postMessage(JSON.stringify(loadMsg), '*');
                         }
-                    } else if (msg.event === 'save') {
+                    }
+                    // Event 2: User clicked Save inside Draw.io UI
+                    else if (msg.event === 'save') {
                         if (iframe && iframe.contentWindow) {
+                            // Request export in xmlpng format (preserves editable XML in PNG metadata)
                             iframe.contentWindow.postMessage(JSON.stringify({
                                 action: 'export',
                                 format: 'xmlpng'
                             }), '*');
                         }
-                    } else if (msg.event === 'export') {
+                    }
+                    // Event 3: Draw.io completed image export
+                    else if (msg.event === 'export') {
                         const imgUrl = msg.data || ('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(msg.xml));
 
                         const payload = {
@@ -172,6 +204,7 @@
                         }
 
                         try {
+                            // Send async request to save diagram on backend
                             const response = await fetch('/save_diagram', {
                                 method: 'POST',
                                 headers: {
@@ -180,6 +213,10 @@
                                 body: JSON.stringify(payload)
                             });
 
+                            if (!response.ok) {
+                                throw new Error('Server returned error status ' + response.status);
+                            }
+
                             const data = await response.json();
 
                             if (data.status === 'success') {
@@ -187,15 +224,18 @@
                                 const savedId = data.id;
 
                                 if (activeDiagramImg) {
+                                    // Update existing diagram image element in DOM
                                     activeDiagramImg.setAttribute('src', savedImgUrl);
                                     activeDiagramImg.setAttribute('data-diagram-id', savedId);
                                     activeDiagramImg.classList.add('diagram-image');
                                 } else if (window.quillEditor && savedImgUrl) {
+                                    // Insert new diagram image into Quill editor at cursor position
                                     const range = window.quillEditor.getSelection(true);
                                     const index = (range && range.index !== undefined) ? range.index : window.quillEditor.getLength();
 
                                     window.quillEditor.insertEmbed(index, 'image', savedImgUrl);
 
+                                    // Apply diagram-image class and data-diagram-id attribute to newly inserted image
                                     setTimeout(() => {
                                         const imgs = window.quillEditor.root.querySelectorAll('img');
                                         imgs.forEach(img => {
@@ -213,16 +253,23 @@
                                     flash('Diagram saved successfully!', 'success');
                                 }
                             } else {
+                                // Fallback when save_diagram returns status !== 'success'
                                 if (typeof flash === 'function') {
-                                    flash('Error saving diagram: ' + (data.message || 'Failed'), 'error');
+                                    flash('Failed to save diagram. Please try again.', 'error');
                                 }
                             }
                         } catch (fetchErr) {
                             console.error('Save diagram request failed:', fetchErr);
+                            // Fallback when network or server request throws an error
+                            if (typeof flash === 'function') {
+                                flash('Failed to save diagram. Please try again.', 'error');
+                            }
                         }
 
                         closeDiagramEditor();
-                    } else if (msg.event === 'exit') {
+                    }
+                    // Event 4: User clicked Exit inside Draw.io UI
+                    else if (msg.event === 'exit') {
                         closeDiagramEditor();
                     }
                 } catch (err) {
@@ -230,12 +277,17 @@
                 }
             });
 
+            /**
+             * Initialize event listeners for DOM elements after page load.
+             */
             document.addEventListener('DOMContentLoaded', function() {
+                // Attach close button click handler
                 const closeDiagramBtn = document.getElementById('closeDiagramBtn');
                 if (closeDiagramBtn) {
                     closeDiagramBtn.addEventListener('click', closeDiagramEditor);
                 }
 
+                // Attach modal fullscreen button click handler
                 const diagramFullscreenBtn = document.getElementById('diagramFullscreenBtn');
                 if (diagramFullscreenBtn) {
                     diagramFullscreenBtn.addEventListener('click', function() {
@@ -246,6 +298,7 @@
                     });
                 }
 
+                // Global event delegation for clicking diagram images to re-edit
                 document.addEventListener('click', function(e) {
                     const targetImg = e.target.closest('img');
                     if (targetImg && (targetImg.classList.contains('diagram-image') || targetImg.hasAttribute('data-diagram-id') || targetImg.closest('.ql-editor'))) {

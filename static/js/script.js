@@ -1,5 +1,5 @@
+// DOM Element Selectors
 const logo = document.getElementById('logo');
-
 const notificationBar = document.getElementById('notificationBar');
 
 const modalBackground = document.getElementById('modalBackground'); //This is also container for the modal
@@ -15,13 +15,11 @@ const searchResultContainer = document.getElementById('searchResultContainer');
 const logoutBtn = document.getElementById('sidebarLogout');
 
 const deleteNoteBtns = document.getElementsByClassName('delete-note-btn');
-
 const moveToBinBtns = document.getElementsByClassName('move-to-bin');
 const restoreBtns = document.getElementsByClassName('restore-btn');
 
 const chatInput = document.getElementById('user-input');
 const userInputContainer = document.getElementById('userInputContainer');
-
 const readNoteContent = document.getElementById('read-note-content');
 
 const notes = document.getElementsByClassName('note');
@@ -46,6 +44,12 @@ const sortBtn = document.getElementById('sort-btn');
 const sortMenu = document.getElementById('sort-menu');
 const sortOptions = document.querySelectorAll('#sort-menu li');
 
+/**
+ * Creates and displays a dynamic floating notification alert.
+ * Auto-dismisses after 3 seconds or on close button click.
+ * @param {string} text - Message text to display.
+ * @param {string} category - Alert category ('success', 'error', 'info').
+ */
 async function flash(text = '', category = 'success') {
     const flashAlert = document.createElement('div');
     flashAlert.classList.add('alert', `alert-${category}`);
@@ -63,6 +67,10 @@ async function flash(text = '', category = 'success') {
     setTimeout(() => flashAlert.remove(), 3000);
 }
 
+/**
+ * Focus Trap Accessibility Listener:
+ * Intercepts Tab and Shift+Tab key presses when a modal is active to lock keyboard focus inside the modal dialog.
+ */
 window.addEventListener('keydown', (e) => {
     let activeModal = null;
     if (modalBackground && modalBackground.style.display === 'flex') {
@@ -73,7 +81,7 @@ window.addEventListener('keydown', (e) => {
 
     if (!activeModal) return;
 
-    if (e.key === 'Tab' || e.keyCode === 9) {
+    if (e.key === 'Tab') {
         const focusableSelectors = 'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex="0"], [contenteditable]';
         const focusableElements = activeModal.querySelectorAll(focusableSelectors);
 
@@ -82,12 +90,12 @@ window.addEventListener('keydown', (e) => {
         const firstEl = focusableElements[0];
         const lastEl = focusableElements[focusableElements.length - 1];
 
-        if (e.shiftKey) {
+        if (e.shiftKey) { // Shift + Tab: Move focus to last element if currently on first
             if (document.activeElement === firstEl) {
                 lastEl.focus();
                 e.preventDefault();
             }
-        } else {
+        } else { // Tab: Move focus to first element if currently on last
             if (document.activeElement === lastEl) {
                 firstEl.focus();
                 e.preventDefault();
@@ -117,6 +125,15 @@ function toggleSidebar() {
     document.getElementById('contentWrapper').classList.toggle("sidebar-open");
 }
 
+/**
+ * Opens a modal popup with confirmation handlers.
+ * Replaces button nodes via cloneNode(true) to clear previous event listeners before binding new AJAX actions.
+ * @param {string|null} text - Message text to display inside modal.
+ * @param {HTMLElement} modal - Target modal container element.
+ * @param {string|null} action - Action identifier ('delete-note', 'logout', 'delete-flashcards', 'delete-quiz').
+ * @param {string|null} id - Target resource ID for deletion/action.
+ * @param {HTMLElement|null} triggerBtn - Button element that triggered the modal.
+ */
 function openModal(text, modal, action = null, id = null, triggerBtn = null) {
     const targetModal = modal || modalBackground;
 
@@ -125,6 +142,8 @@ function openModal(text, modal, action = null, id = null, triggerBtn = null) {
     if (text !== null && modalText) {
         modalText.innerText = text;
     }
+
+    // Clone buttons to strip all previous event listeners
     const newConfirmBtn = modalConfirmBtn.cloneNode(true);
     const newCancelBtn = modalCancelBtn.cloneNode(true);
     modalConfirmBtn.replaceWith(newConfirmBtn);
@@ -180,6 +199,11 @@ function openModal(text, modal, action = null, id = null, triggerBtn = null) {
     }
 }
 
+/**
+ * Live Search API Client:
+ * Fetches matching note titles from /search/<query> and populates searchResultContainer.
+ * @param {string} query - User search query text.
+ */
 async function fetchSearchResults(query) {
     try {
         if (!query) {
@@ -204,6 +228,10 @@ async function fetchSearchResults(query) {
 
 logo?.addEventListener('click', toggleSidebar);
 
+/**
+ * 3D Flashcard Deck Controller:
+ * Manages active card index, updates translateX transform offset (-index * 100%), and toggles next/prev buttons.
+ */
 if (flashcards && flashcards.length > 0) {
     let currentCardIndex = 0;
     const initialCurrentIndex = Array.from(flashcards).findIndex(card => card.classList.contains('current'));
@@ -224,6 +252,7 @@ if (flashcards && flashcards.length > 0) {
             }
         });
 
+        // Slide flashcard container track horizontally
         if (innerFlashcardContainer) {
             innerFlashcardContainer.style.transform = `translateX(-${currentCardIndex * 100}%)`;
         }
@@ -238,6 +267,7 @@ if (flashcards && flashcards.length > 0) {
 
     updateFlashcardPosition();
 
+    // Toggle 3D card flip on click
     Array.from(flashcards).forEach(flashcard => {
         flashcard.addEventListener('click', () => {
             flashcard.classList.toggle('flipped');
@@ -375,6 +405,10 @@ if (sortBtn) {
     });
 }
 
+/**
+ * Note Sorting Algorithm:
+ * Sorts DOM note elements in-place by title (A-Z, Z-A) or timestamp (last opened / least recently opened).
+ */
 if (sortOptions) {
     for (const option of sortOptions) {
         option.addEventListener('click', async function() {
@@ -398,7 +432,7 @@ if (sortOptions) {
                 for (const note of sortedNotes) {
                     noteContainer.appendChild(note);
                 }
-            }else if (sortType === 'least-recently-opened') {
+            } else if (sortType === 'least-recently-opened') {
                 const sortedNotes = Array.from(notes).sort((a, b) => {
                     const lastOpenedA = new Date(a.dataset.lastOpened);
                     const lastOpenedB = new Date(b.dataset.lastOpened);
@@ -470,6 +504,10 @@ chatInput?.addEventListener('input', function() {
     this.style.height = (this.scrollHeight) + 'px';
 });
 
+/**
+ * AI Chat Submission Handler:
+ * Extracts last 8 conversation turns, sends message payload to /ai-response, appends AI response bubble, and triggers MathJax LaTeX typesetting.
+ */
 chatInput?.addEventListener('keydown', async function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -485,7 +523,7 @@ chatInput?.addEventListener('keydown', async function(e) {
         const pastBubbles = Array.from(document.querySelectorAll('.user-bubble, .ai-bubble'));
         let messageHistory = [];
         if (pastBubbles.length > 0) {
-            const past8Bubbles = pastBubbles.slice(-8);
+            const past8Bubbles = pastBubbles.slice(-8); // Collect last 8 turns for AI context window
             for (const bubble of past8Bubbles) {
                 if (bubble.classList.contains('user-bubble')) {
                     messageHistory.push({
@@ -503,6 +541,7 @@ chatInput?.addEventListener('keydown', async function(e) {
         chatInput.value = '';
         chatInput.style.height = 'auto';
         chatInput.disabled = true;
+
         const response = await fetch('/ai-response', {
             method: 'POST',
             headers: {
@@ -533,6 +572,7 @@ chatInput?.addEventListener('keydown', async function(e) {
             aiBubble.appendChild(quizLink);
         }
         userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
+        // Trigger MathJax LaTeX typesetting for generated AI mathematical equations
         if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
             MathJax.typesetPromise([aiBubble]).catch(() => {});
         }

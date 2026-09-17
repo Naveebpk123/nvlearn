@@ -36,6 +36,7 @@ body {
     min-height: 100vh;
 }
 
+/* Top fixed navigation bar layout - locked above page content */
 nav {
     display: flex;
     background-color: var(--bg-dark);
@@ -43,10 +44,10 @@ nav {
     padding: 15px 20px;
     gap: 40px;
     align-items: center;
-    position: fixed;
+    position: fixed; /* Keep locked at top of viewport */
     top: 0;
     left: 0;
-    z-index: 1000;
+    z-index: 1000; /* Priority layering above content and sidebar */
     min-height: 71px;
     justify-content: flex-start;
 }
@@ -63,10 +64,11 @@ nav {
     display: flex;
 }
 
+/* Collapsible left navigation sidebar */
 .sidebar {
     display: flex;
     flex-direction: column;
-    margin-top: 71px;
+    margin-top: 71px; /* Offset below 71px fixed navbar */
     background-color: var(--bg-dark);
     padding: 10px 15px 10px 15px;
     position: fixed;
@@ -77,10 +79,10 @@ nav {
     height: 100%;
     width: 170px;
     z-index: 999;
-    transition: transform 0.3s ease-in-out;
+    transition: transform 0.3s ease-in-out; /* Smooth slide transition */
 }
 
-
+/* Closed state - uses translateX to slide offscreen */
 .sidebar.close {
     transform: translateX(-170px);
 }
@@ -97,6 +99,7 @@ nav {
     color: var(--text-light);
 }
 
+/* Dynamic main content wrapper - recalculates width based on sidebar state */
 .content-wrapper {
     flex: 1 0 auto;
     display: flex;
@@ -112,6 +115,7 @@ nav {
     overflow-y: auto;
 }
 
+/* Expanded state - shifts content right and reduces container width by 170px */
 .content-wrapper.sidebar-open {
     margin-left: 170px;
     width: calc(100% - 170px);
@@ -249,6 +253,7 @@ a {
     overflow: hidden;
 }
 
+/* Pseudo-element overlay creating a smooth linear gradient fade-out effect for overflowed preview text */
 .note-preview::after {
     content: "";
     position: absolute;
@@ -256,8 +261,8 @@ a {
     left: 0;
     width: 100%;
     height: 40px;
-    background: linear-gradient(transparent, var(--bg-card));
-    pointer-events: none;
+    background: linear-gradient(transparent, var(--bg-card)); /* Fade from transparent to card background color */
+    pointer-events: none; /* Allows clicks to pass through to underlying note element */
 }
 
 .form {
@@ -571,6 +576,7 @@ body.editor-lock-scroll {
     margin-bottom: 10px;
 }
 
+/* Floating fixed AI Chat input bar - centered at viewport bottom */
 .user-input-box {
     display: flex;
     width: 100%;
@@ -578,12 +584,13 @@ body.editor-lock-scroll {
     position: fixed;
     bottom: 0;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translateX(-50%); /* Center horizontally using negative 50% X translation */
     background-color: var(--bg-main);
     padding: 15px 20px 25px 20px;
     z-index: 10;
 }
 
+/* Offset centered chat bar when sidebar is open to preserve visual balance (+85px shift) */
 .content-wrapper.sidebar-open~.user-input-box,
 .page-layout:has(.sidebar-open) .user-input-box {
     left: calc(50% + 85px);
@@ -608,46 +615,55 @@ body.editor-lock-scroll {
     border-color: var(--primary-blue);
 }
 
+/* ==========================================================================
+   3D Interactive Flashcard Rotation & Carousel Layout
+   ========================================================================== */
+
+/* Outer perspective viewport - establishes 3D depth context (1000px perspective) */
 .outer-flashcard-container {
     width: 30%;
     min-width: 280px;
     height: 50vh;
     overflow: hidden;
-    perspective: 1000px;
+    perspective: 1000px; /* Gives 3D depth perception to child 3D transforms */
     flex-shrink: 0;
     user-select: none;
     touch-action: pan-y;
 }
 
+/* Horizontal flex track for sliding between cards in a deck */
 .inner-flashcard-container {
     display: flex;
     width: 100%;
     height: 12rem;
-    transition: transform 0.4s ease-in-out;
+    transition: transform 0.4s ease-in-out; /* Smooth sliding transition */
 }
 
+/* Single Flashcard wrapper - maintains 3D spatial context for front and back faces */
 .flashcard {
     min-width: 100%;
     height: 100%;
     position: relative;
-    transform-style: preserve-3d;
-    transition: transform 0.6s;
+    transform-style: preserve-3d; /* Retains 3D positioning of child front/back faces */
+    transition: transform 0.6s; /* Smooth 0.6s flip animation */
 }
 
 .flashcard:hover {
     cursor: pointer;
 }
 
+/* Flipped state - rotates card 180 degrees around the Y-axis */
 .flashcard.flipped {
     transform: rotateY(180deg);
 }
 
+/* Front & Back card faces - stacked directly on top of each other via absolute positioning */
 .front,
 .back {
     margin: 20px;
     position: absolute;
     inset: 0;
-    backface-visibility: hidden;
+    backface-visibility: hidden; /* Hides rear face from rendering when facing away from camera */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -662,6 +678,7 @@ body.editor-lock-scroll {
     color: rgba(0, 0, 0, 0.6);
 }
 
+/* Pre-rotates back face by 180deg so it displays right-side up when card flips */
 .back {
     transform: rotateY(180deg);
     background-color: var(--bg-dark);
@@ -1093,7 +1110,11 @@ body.editor-lock-scroll {
     background-color: var(--bg-main);
 }
 
-/* Diagram Modal Styles */
+/* ==========================================================================
+   Diagram Modal & Draw.io Overlay Styles
+   ========================================================================== */
+
+/* Fixed background overlay covering the entire viewport */
 .diagram-modal-bg {
     display: none;
     position: fixed;
@@ -1103,11 +1124,12 @@ body.editor-lock-scroll {
     height: 100vh;
     background-color: rgba(0, 0, 0, 0.65);
     backdrop-filter: blur(6px);
-    z-index: 30000;
+    z-index: 30000; /* High z-index to overlay on top of all page elements and Quill fullscreen */
     justify-content: center;
     align-items: center;
 }
 
+/* Centered modal container card for Draw.io editor */
 .diagram-modal-content {
     display: flex;
     flex-direction: column;
@@ -1122,6 +1144,7 @@ body.editor-lock-scroll {
     transition: width 0.25s ease, height 0.25s ease, border-radius 0.25s ease;
 }
 
+/* Fullscreen expanded state for diagram modal */
 .diagram-modal-content.fullscreen {
     width: 100vw !important;
     height: 100vh !important;
@@ -1130,6 +1153,7 @@ body.editor-lock-scroll {
     border-radius: 0 !important;
 }
 
+/* Modal header bar containing title and control buttons */
 .diagram-modal-header {
     display: flex;
     justify-content: space-between;
@@ -1140,17 +1164,20 @@ body.editor-lock-scroll {
     border-bottom: 1px solid var(--border-color);
 }
 
+/* Header title text */
 .diagram-modal-title {
     font-weight: 600;
     font-size: 1rem;
 }
 
+/* Header action buttons container */
 .diagram-modal-actions {
     display: flex;
     gap: 8px;
     align-items: center;
 }
 
+/* Generic icon button style for modal header */
 .diagram-btn {
     background: transparent;
     border: none;
@@ -1169,11 +1196,13 @@ body.editor-lock-scroll {
     color: var(--text-light);
 }
 
+/* Close button hover state styling */
 .diagram-btn.close-btn:hover {
     background-color: var(--color-danger);
     color: white;
 }
 
+/* Main body container holding the Draw.io iframe */
 .diagram-modal-body {
     flex: 1;
     width: 100%;
@@ -1181,14 +1210,20 @@ body.editor-lock-scroll {
     position: relative;
 }
 
+/* Draw.io iframe element styling */
 .diagram-modal-body iframe {
     width: 100%;
     height: 100%;
     border: none;
 }
 
-/* Embedded Diagram & Image Rendering Styles */
+/* ==========================================================================
+   Embedded Diagram & Image Rendering Styles
+   ========================================================================== */
+
+/* Default style for diagram images inside Quill editor and note view */
 .ql-editor img,
+#read-note-content img,
 .diagram-image {
     max-width: 100%;
     height: auto;
@@ -1196,14 +1231,15 @@ body.editor-lock-scroll {
     margin: 12px auto;
     border-radius: 6px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    cursor: pointer !important;
+    cursor: pointer !important; /* Active pointer cursor indicating click-to-edit */
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
     border: 2px solid transparent;
 }
 
+/* Active hover state for diagram images */
 .diagram-image:hover,
-.ql-editor img:hover
- {
+.ql-editor img:hover,
+#read-note-content img:hover {
     cursor: pointer !important;
     border: 2px dashed var(--primary-blue);
     box-shadow: 0 4px 14px rgba(13, 110, 253, 0.35);

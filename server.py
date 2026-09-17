@@ -524,6 +524,10 @@ def add_note():
             flash("Failed to create note due to a database error. Try again.", "error")
     return render_template("add_note.html", form=form)
 
+"""
+Route: /edit/<note_id> [GET, POST]
+Description: Renders the edit note interface and processes note updates, metadata re-generation, and ChromaDB vector synchronization.
+"""
 @app.route("/edit/<int:note_id>", methods=["GET", "POST"])
 @login_required
 def edit_note(note_id):
@@ -941,6 +945,12 @@ def ai_chat():
     return render_template("ai-chat.html", welcome_message=welcome_message)
 
 
+"""
+Route: /ai-response [POST]
+Description: Multi-step AI orchestrator endpoint. Accepts message history context, enforces action cooldowns,
+invokes Gemini AI with instructions, executes actions (create_note, get_note, note_action, flashcards/quizzes),
+performs vector search retrieval on ChromaDB, and returns structured JSON responses for frontend bubbles.
+"""
 @app.route("/ai-response", methods=["POST"])
 @login_required
 def ai_response():
