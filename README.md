@@ -28,6 +28,13 @@ In short: NVLearn helps a learner move from passive note storage to active revis
   - move notes to bin
   - restore notes
   - permanently delete notes
+- Integrated Draw.io visual diagramming:
+  - Create and insert flowcharts, UML diagrams, mind maps, and technical drawings directly inside notes.
+  - Click any existing diagram image in the note editor to re-open and continue drawing/editing.
+  - Active pointer cursor and visual highlight indicators when hovering over diagram images.
+  - Export diagrams in `xmlpng` format with embedded editable XML metadata for full editability.
+  - Toggle Draw.io modal window between centered floating mode and 100vw/100vh full-screen view.
+- Rich-text Quill.js note editor with fullscreen mode and read-mode shortcut.
 - Markdown note rendering with support for code blocks, tables, and math formatting.
 - AI assistant chat.
 - AI note generation.
@@ -53,6 +60,10 @@ In short: NVLearn helps a learner move from passive note storage to active revis
 - SQLite
 - APScheduler
 - python-dotenv
+- Draw.io (Embed API / Diagrams.net)
+- Quill.js (Rich-text editor)
+- Turndown.js & Marked.js (Markdown parsing & HTML conversion)
+- MathJax (LaTeX math rendering)
 - Markdown / pymdown-extensions
 - Google Gemini API
 - Groq API
@@ -283,13 +294,17 @@ Go to `/login`, enter your credentials, and complete email verification.
 
 Use `/add` to create notes manually. Notes support markdown-style content, and the app stores both markdown and rendered HTML.
 
-### 4. Search Notes
+### 4. Create and Edit Diagrams
+
+In the note editor, click the **Add Diagram** button in the Quill toolbar to open the Draw.io editor modal. Create or design flowcharts, UML diagrams, or mind maps, and click **Save** inside Draw.io to insert the diagram directly into your note. You can click any existing diagram image inside your note at any time to re-open it in Draw.io and continue editing.
+
+### 5. Search Notes
 
 Use the search bar to find notes by title. The search modal calls `/search/<query>` for quick JSON results, and pressing Enter opens `/search-results/<query>`.
 
 AI note actions use semantic vector search instead of title-only matching. When you ask the assistant to summarize, explain, rewrite, edit, or extract information from existing notes, NVLearn searches your ChromaDB note vectors using the note title, tags, summary, and markdown content. For supported actions across the full notebook, the AI can use the special `all_notes` topic to process every active non-binned note instead of matching one topic.
 
-### 5. Sort Notes
+### 6. Sort Notes
 
 On `/notes`, use the `Sort By` menu to reorder notes in the browser without changing the database:
 
@@ -298,7 +313,7 @@ On `/notes`, use the `Sort By` menu to reorder notes in the browser without chan
 - `Recently Opened`
 - `Least recently opened`
 
-### 6. Use the AI Chat
+### 7. Use the AI Chat
 
 Open `/ai-chat` and ask the assistant to help with study tasks. Example prompts:
 
@@ -312,7 +327,7 @@ Edit my note about photosynthesis to make it simpler.
 Summarize all my notes.
 ```
 
-### 7. Practice
+### 8. Practice
 
 Generated flashcards and quizzes open in their own views. Save the ones you want to keep.
 
@@ -337,6 +352,7 @@ Note: only saved quizzes and saved flashcard sets appear in Practice Hub.
 | `/note-bin` | View deleted notes |
 | `/restore/<note_id>` | Restore a note |
 | `/delete/<note_id>` | Permanently delete a note |
+| `/save_diagram` | Create or update diagram asset |
 | `/register` | Register account and verify email |
 | `/login` | Login and verify email |
 | `/logout` | Logout |
