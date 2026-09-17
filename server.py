@@ -8,6 +8,7 @@ from flask import (
     session,
     jsonify,
     abort,
+    Response,
 )
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
@@ -37,6 +38,7 @@ from datetime import datetime, timezone, timedelta
 import json
 import re
 import logging
+import base64
 from apscheduler.schedulers.background import BackgroundScheduler
 from collections import Counter
 from vector_store import (
@@ -1597,6 +1599,101 @@ def save_diagram():
     except Exception as e:
         db.session.rollback()
         app.logger.error("[save_diagram] Failed to save diagram for user_id=%s: %s", current_user.id, e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+"""
+Route: /save_diagram [POST]
+Description: API endpoint for creating or updating diagram records in SQLite database.
+Input: JSON payload { "id": optional_diagram_id, "img_data": base64_xmlpng_string }
+Output: JSON response { "status": "success", "id": diagram_id, "img_url": "/diagram_image/<id>.png", "img_data": diagram_data }
+"""
+@app.route("/save_diagram", methods=["POST"])
+@login_required
+def save_diagram():
+    try:
+        data = request.get_json() or {}
+        diagram_id = data.get("id")
+        img_data = data.get("img_data") or data.get("diagram_data") or data.get("image_data")
+
+        if not img_data:
+            return jsonify({"status": "error", "message": "Missing image data"}), 400
+
+        diagram = None
+        if diagram_id:
+            try:
+                diagram = db.session.get(Diagram, int(diagram_id))
+            except (ValueError, TypeError):
+                diagram = None
+
+        if diagram and diagram.user_id == current_user.id:
+            diagram.diagram_data = img_data
+            diagram.is_saved = True
+        else:
+            diagram = Diagram(
+                diagram_data=img_data,
+                user_id=current_user.id,
+                is_saved=True
+            )
+            db.session.add(diagram)
+
+        db.session.commit()
+        return jsonify({
+            "status": "success",
+            "id": diagram.id,
+            "img_url": f"/diagram_image/{diagram.id}.png",
+            "img_data": diagram.diagram_data
+        })
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error("[save_diagram] Failed to save diagram for user_id=%s: %s", current_user.id, e)
+        return jsonify({"status": "error", "message": "Failed to save diagram. Please try again."}), 500
+
+"""
+Route: /diagram_image/<int:diagram_id>.png [GET]
+Description: Serves the rendered PNG image binary for a diagram ID directly to <img> tags.
+"""
+@app.route("/diagram_image/<int:diagram_id>.png", methods=["GET"])
+def get_diagram_image(diagram_id):
+    try:
+        diagram = db.session.get(Diagram, diagram_id)
+        if not diagram or not diagram.diagram_data:
+            abort(404)
+
+        raw_data = diagram.diagram_data
+        if "," in raw_data:
+            base64_str = raw_data.split(",", 1)[1]
+        else:
+            base64_str = raw_data
+
+        image_bytes = base64.b64decode(base64_str)
+        response = Response(image_bytes, mimetype="image/png")
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return response
+    except Exception as e:
+        app.logger.error("[get_diagram_image] Failed to render diagram_id=%s: %s", diagram_id, e)
+        abort(404)
+
+
+"""
+Route: /diagram_data/<int:diagram_id> [GET]
+Description: Returns raw diagram base64/XML payload for re-opening inside Draw.io editor.
+"""
+@app.route("/diagram_data/<int:diagram_id>", methods=["GET"])
+@login_required
+def get_diagram_data(diagram_id):
+    try:
+        diagram = db.session.get(Diagram, diagram_id)
+        if not diagram or diagram.user_id != current_user.id:
+            return jsonify({"status": "error", "message": "Diagram not found"}), 404
+
+        return jsonify({
+            "status": "success",
+            "id": diagram.id,
+            "diagram_data": diagram.diagram_data
+        })
+    except Exception as e:
+        app.logger.error("[get_diagram_data] Error fetching diagram_id=%s: %s", diagram_id, e)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/about")

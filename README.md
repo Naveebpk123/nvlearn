@@ -353,6 +353,8 @@ Note: only saved quizzes and saved flashcard sets appear in Practice Hub.
 | `/restore/<note_id>` | Restore a note |
 | `/delete/<note_id>` | Permanently delete a note |
 | `/save_diagram` | Create or update diagram asset |
+| `/diagram_image/<diagram_id>.png` | Serve rendered PNG diagram image binary |
+| `/diagram_data/<diagram_id>` | JSON endpoint for raw diagram data URI |
 | `/register` | Register account and verify email |
 | `/login` | Login and verify email |
 | `/logout` | Logout |

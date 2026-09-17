@@ -111,9 +111,9 @@
 
             /**
              * Opens the Draw.io diagram editor modal.
-             * parameter imgElement - Optional <img> element if re-editing an existing diagram.
+             * @param {HTMLElement|null} imgElement - Optional <img> element if re-editing an existing diagram.
              */
-            function openDiagramEditor(imgElement) {
+            async function openDiagramEditor(imgElement) {
                 const modal = document.getElementById('diagramModal');
                 const iframe = document.getElementById('drawioFrame');
 
@@ -122,8 +122,27 @@
                 // Check if an existing diagram image was passed for editing
                 if (imgElement && imgElement.tagName === 'IMG') {
                     activeDiagramImg = imgElement;
-                    activeDiagramData = imgElement.getAttribute('src') || null;
                     activeDiagramId = imgElement.getAttribute('data-diagram-id') || imgElement.getAttribute('data-id') || null;
+                    const src = imgElement.getAttribute('src') || '';
+
+                    if (src.startsWith('data:image/')) {
+                        activeDiagramData = src;
+                    } else if (activeDiagramId) {
+                        try {
+                            const res = await fetch(`/diagram_data/${activeDiagramId}`);
+                            const data = await res.json();
+                            if (data.status === 'success') {
+                                activeDiagramData = data.diagram_data;
+                            } else {
+                                activeDiagramData = null;
+                            }
+                        } catch (err) {
+                            console.error('Error fetching diagram data:', err);
+                            activeDiagramData = null;
+                        }
+                    } else {
+                        activeDiagramData = null;
+                    }
                 } else {
                     activeDiagramImg = null;
                     activeDiagramData = null;
@@ -220,26 +239,28 @@
                             const data = await response.json();
 
                             if (data.status === 'success') {
-                                const savedImgUrl = data.img_data;
                                 const savedId = data.id;
+                                const cleanImgUrl = data.img_url || `/diagram_image/${savedId}.png`;
+                                const displayImgUrl = cleanImgUrl + '?t=' + Date.now(); // Cache buster query param for instant DOM refresh
 
                                 if (activeDiagramImg) {
                                     // Update existing diagram image element in DOM
-                                    activeDiagramImg.setAttribute('src', savedImgUrl);
+                                    activeDiagramImg.setAttribute('src', displayImgUrl);
                                     activeDiagramImg.setAttribute('data-diagram-id', savedId);
                                     activeDiagramImg.classList.add('diagram-image');
-                                } else if (window.quillEditor && savedImgUrl) {
-                                    // Insert new diagram image into Quill editor at cursor position
+                                } else if (window.quillEditor) {
+                                    // Insert clean diagram image URL into Quill editor at cursor position
                                     const range = window.quillEditor.getSelection(true);
                                     const index = (range && range.index !== undefined) ? range.index : window.quillEditor.getLength();
 
-                                    window.quillEditor.insertEmbed(index, 'image', savedImgUrl);
+                                    window.quillEditor.insertEmbed(index, 'image', displayImgUrl);
 
                                     // Apply diagram-image class and data-diagram-id attribute to newly inserted image
                                     setTimeout(() => {
                                         const imgs = window.quillEditor.root.querySelectorAll('img');
                                         imgs.forEach(img => {
-                                            if (img.getAttribute('src') === savedImgUrl) {
+                                            const src = img.getAttribute('src') || '';
+                                            if (src.includes(`/diagram_image/${savedId}.png`)) {
                                                 img.classList.add('diagram-image');
                                                 img.setAttribute('data-diagram-id', savedId);
                                             }
