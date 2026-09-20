@@ -696,6 +696,10 @@ def delete(note_id):
         note = db.session.get(Note, note_id)
         if note and note.user_id == current_user.id:
             user_id = note.user_id
+            diagrams = db.session.execute(db.select(Diagram).where(Diagram.note_id == note.id)).scalars().all()
+            if diagrams:
+                for d in diagrams:
+                    db.session.delete(d)                
             db.session.delete(note)
             db.session.commit()
             delete_note_vector(note_id, user_id)
