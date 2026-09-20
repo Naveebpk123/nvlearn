@@ -189,7 +189,7 @@ def validate_router_response(response_json):
 
 
 def ask_groq(contents, username="", chat_only=False):
-    system_prompt = GROQ_CHAT_ONLY_PROMPT if chat_only else GROQ_SYSTEM_PROMPT
+    system_prompt = CHAT_ONLY_PROMPT if chat_only else SYSTEM_PROMPT
     messages = [
         {"role": "system", "content": system_prompt + f"username of user is:{username}"}
     ]
@@ -333,7 +333,7 @@ def ask_gemini(question, action):
             if action == "create_note":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=GEMINI_NOTE_CREATION_PROMPT + f"prompt: {question}",
+                    contents=NOTE_CREATION_PROMPT + f"prompt: {question}",
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                     ),
@@ -342,14 +342,14 @@ def ask_gemini(question, action):
             elif action == "note_action":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=GEMINI_NOTE_ACTION_PROMPT + f"prompt: {question}",
+                    contents=NOTE_ACTION_PROMPT + f"prompt: {question}",
                 )
                 html_content = md_to_html(response.text)
                 return html_content, response.text
             elif action == "metadata":
                 response = gemini_client.models.generate_content(
                     model="gemini-3.1-flash-lite",
-                    contents=GEMINI_NOTE_CREATION_PROMPT + f"prompt: {question}",
+                    contents=NOTE_CREATION_PROMPT + f"prompt: {question}",
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                     ),
@@ -358,19 +358,19 @@ def ask_gemini(question, action):
             elif action == "batch_summary":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=GEMINI_BATCH_SUMMARY_PROMPT + f"prompt: {question}",
+                    contents=BATCH_SUMMARY_PROMPT + f"prompt: {question}",
                 )
                 return response.text
             elif action == "summarize":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=GEMINI_SUMMARIZE_PROMPT + f"prompt: {question}",
+                    contents=ACTION_SUMMARIZE_PROMPT + f"prompt: {question}",
                 )
                 return response.text
             elif action == "create_flashcards":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=GEMINI_FLASHCARD_CREATION_PROMPT + f"prompt: {question}",
+                    contents=FLASHCARD_CREATION_PROMPT + f"prompt: {question}",
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                     ),
@@ -392,7 +392,7 @@ def ask_gemini(question, action):
             elif action == "create_quiz":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=GEMINI_QUIZ_CREATION_PROMPT + f"prompt: {question}",
+                    contents=QUIZ_CREATION_PROMPT + f"prompt: {question}",
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                     ),
@@ -415,7 +415,7 @@ def ask_gemini(question, action):
             elif action == "edit_note":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=GEMINI_NOTE_EDIT_PROMPT + f"prompt: {question}",
+                    contents=NOTE_EDITING_PROMPT + f"prompt: {question}",
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                     ),
