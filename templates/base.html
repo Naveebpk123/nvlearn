@@ -481,6 +481,24 @@
                 });
             });
         </script>
+        <script>
+            window.addEventListener('pagehide', () => {
+  // Target all diagram image elements currently in the editor
+  const diagramImgs = document.querySelectorAll('.diagram-image');
+  
+  // Map their data-diagram-id attributes into a list of integers
+  const diagramIds = Array.from(diagramImgs)
+    .map(img => img.getAttribute('data-diagram-id'))
+    .filter(Boolean)
+    .map(id => parseInt(id, 10));
+
+  // Send payload via sendBeacon so it finishes even if the tab closes instantly
+  const payload = JSON.stringify({ diagram_ids: diagramIds });
+  const blob = new Blob([payload], { type: 'application/json' });
+  
+  navigator.sendBeacon('/cleanup_draft_diagrams', blob);
+});
+        </script>
     <script>
         window.MathJax = {
             tex: {
@@ -493,6 +511,6 @@
             }
         };
     </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>    
     </body>
 </html>

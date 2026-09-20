@@ -141,8 +141,53 @@ class Diagram(db.Model):
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id"), nullable=False
     )
-    is_saved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    note_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("notes.id"), nullable=True,default=None
+    )
 
+def associate_diagrams_with_note(note):
+    """
+    Parses Markdown content for diagram IDs. 
+    1. Links newly added diagrams to this note.
+    2. Deletes any diagrams previously linked to this note that are no longer in md_content.
+    """
+    if not note.md_content:
+        # If note content is empty, delete all diagrams previously associated with this note
+        old_diagrams = db.session.scalars(
+            db.select(Diagram).where(Diagram.note_id == note.id)
+        ).all()
+        for diagram in old_diagrams:
+            db.session.delete(diagram)
+        db.session.commit()
+        return
+
+    # Extract all active diagram IDs present in current Markdown content
+    patterns = [
+        r'data-diagram-id=["\'](\d+)["\']',
+        r'/diagram_image/(\d+)\.png'
+    ]
+    current_diagram_ids = set()
+    for pattern in patterns:
+        matches = re.findall(pattern, note.md_content)
+        current_diagram_ids.update(int(d_id) for d_id in matches)
+
+    #Fetch all diagrams currently attached to this note in the database
+    existing_diagrams = db.session.scalars(
+        db.select(Diagram).where(Diagram.note_id == note.id)
+    ).all()
+
+    # Delete diagrams that were removed from the text editor
+    for diagram in existing_diagrams:
+        if diagram.id not in current_diagram_ids:
+            db.session.delete(diagram)
+
+    # Link newly added diagrams to this note ID
+    for d_id in current_diagram_ids:
+        diagram = db.session.get(Diagram, d_id)
+        if diagram and diagram.user_id == note.user_id:
+            diagram.note_id = note.id
+
+    db.session.commit()
 
 def get_meta_data(content):
     metadata = build_ai_instructions(content, username="", metadata=True)
@@ -514,6 +559,7 @@ def add_note():
             note.meta_data = normalize_metadata(metadata, note.id)
             db.session.commit()
             upsert_note_vector(note)
+            associate_diagrams_with_note(note)
             flash("Note created successfully", "success")
             return redirect(url_for("notes"))
         except SQLAlchemyError as e:
@@ -578,6 +624,7 @@ def edit_note(note_id):
             note.html_content = request.form.get("html_content")
             db.session.commit()
             upsert_note_vector(note)
+            associate_diagrams_with_note(note)
             flash("Changes saved successfully!", "success")
             return redirect(url_for("notes"))
         except SQLAlchemyError as e:
@@ -1166,7 +1213,7 @@ def ai_response():
             if matched_note:
                 edited_note = ask_gemini(
                     action="edit_note",
-                    question=f"Instruction: {ai_reply} note: {matched_note.content}"
+                    question=f"Instruction: {ai_reply} note: {matched_note.md_content}"
                 )
                 if is_ai_error(edited_note):
                     app.logger.error(
@@ -1566,7 +1613,6 @@ def save_diagram():
             diagram = Diagram(
                 diagram_data=img_data,
                 user_id=current_user.id,
-                is_saved=True
             )
             db.session.add(diagram)
 
@@ -1627,6 +1673,23 @@ def get_diagram_data(diagram_id):
         })
     except Exception as e:
         app.logger.error("[get_diagram_data] Error fetching diagram_id=%s: %s", diagram_id, e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/cleanup_draft_diagrams", methods=["POST"])
+@login_required
+def cleanup_draft_diagrams():
+    try:
+        data = request.get_json(silent=True) or {}
+        ids = data.get("diagram_ids", [])
+
+        for diagram_id in ids:
+            diagram = db.session.get(Diagram, diagram_id)
+            if diagram and diagram.user_id == current_user.id and diagram.note_id is None:
+                db.session.delete(diagram)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error("[cleanup_draft_diagrams] Error: %s", e)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/about")
