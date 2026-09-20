@@ -30,7 +30,8 @@ Rules:
 Examples:
 {"action":["create_note"],"content":["Photosynthesis"]}
 {"action":["note_action"],"content":["Summarize the note on Photosynthesis"]}
-{"action":["get_note"],"content":["Hydraulic Lift"]}
+multiple action example:
+{"action":["get_note","create_note"],"content":["Hydraulic Lift","Newton's Laws of Motion"]}
 
 Use LaTeX for math:
 - Inline: `$...$`

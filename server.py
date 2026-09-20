@@ -1394,32 +1394,6 @@ def ai_response():
     }
     return jsonify(output)
 
-
-@app.route("/read_note/<int:note_id>")
-@login_required
-def read_note(note_id):
-    try:
-        note = db.session.get(Note, note_id)
-        if not note or note.user_id != current_user.id:
-            app.logger.warning(
-                "[read_note] Note not found or unauthorized — note_id=%s, user_id=%s",
-                note_id,
-                current_user.id,
-            )
-            abort(404)
-        note.last_opened = datetime.now(timezone.utc)
-        db.session.commit()
-    except SQLAlchemyError as e:
-        app.logger.error(
-            "[read_note] DB error reading note_id=%s for user_id=%s: %s",
-            note_id,
-            current_user.id,
-            e,
-        )
-        abort(404)
-    return render_template("read_note.html", note=note)
-
-
 @app.route("/flashcards/<int:flashcard_id>")
 @login_required
 def view_flashcards(flashcard_id):

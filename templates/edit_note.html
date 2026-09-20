@@ -3,11 +3,11 @@
 {% block title %}Edit {{note.title}}{% endblock %}
 
 {% block content %}
-
+    <button class="button top-left-back-btn hidden" id="backToEditBtn">↩ Back</button>
     <header>
         <h1>{{note.title}}</h1>
     </header>
-    <form class="form" method="POST" novalidate>
+    <form class="form" method="POST" novalidate id="edit-note-form">
         {{ form.hidden_tag() }}
         <div class="form-control">
             {{form.content.label}}
@@ -25,4 +25,7 @@
             <a class="button cancel" href="{{url_for('notes')}}">Cancel</a>
         </div>
     </form>
+    <div id="read-note-content" class="hidden">
+
+    </div>
 {% endblock %}
