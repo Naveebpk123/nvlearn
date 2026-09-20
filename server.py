@@ -1561,47 +1561,6 @@ def practice_hub():
         saved_quizzes=len(all_quizzes),
     )
 
-@app.route("/save_diagram", methods=["POST"])
-@login_required
-def save_diagram():
-    try:
-        data = request.get_json() or {}
-        diagram_id = data.get("id")
-        img_data = data.get("img_data") or data.get("diagram_data") or data.get("image_data")
-
-        if not img_data:
-            return jsonify({"status": "error", "message": "Missing image data"}), 400
-
-        diagram = None
-        if diagram_id:
-            try:
-                diagram = db.session.get(Diagram, int(diagram_id))
-            except (ValueError, TypeError):
-                diagram = None
-
-        if diagram and diagram.user_id == current_user.id:
-            diagram.diagram_data = img_data
-            diagram.is_saved = True
-        else:
-            diagram = Diagram(
-                diagram_data=img_data,
-                user_id=current_user.id,
-                is_saved=True
-            )
-            db.session.add(diagram)
-
-        db.session.commit()
-        return jsonify({
-            "status": "success",
-            "id": diagram.id,
-            "img_data": diagram.diagram_data
-        })
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error("[save_diagram] Failed to save diagram for user_id=%s: %s", current_user.id, e)
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
 """
 Route: /save_diagram [POST]
 Description: API endpoint for creating or updating diagram records in SQLite database.

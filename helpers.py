@@ -8,7 +8,7 @@ import logging
 from google import genai
 from google.genai import types
 import markdown
-from groq import Groq
+from mistralai.client import Mistral
 import json
 from prompts import *
 
@@ -21,7 +21,7 @@ SMTP_PORT = 587
 EMAIL = os.getenv("EMAIL")
 EMAIL_PASSWORD = os.getenv("APP_PASSWORD")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 
 
 def send_email(recipient, subject, msg_content):
@@ -101,7 +101,7 @@ def get_welcome_message(username):
 
 
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-groq_client = Groq(api_key=GROQ_API_KEY)
+mistral_client = Mistral(api_key=MISTRAL_API_KEY)
 
 
 def is_rate_limit_error(e):
@@ -188,11 +188,13 @@ def validate_router_response(response_json):
     return None
 
 
-def ask_groq(contents, username="", chat_only=False):
+def ask_mistral(contents, username="", chat_only=False):
     system_prompt = CHAT_ONLY_PROMPT if chat_only else SYSTEM_PROMPT
+    
     messages = [
-        {"role": "system", "content": system_prompt + f"username of user is:{username}"}
+        {"role": "system", "content": system_prompt + f"\nusername of user is: {username}"}
     ]
+    
     for msg in contents:
         role = msg.get("role")
         msg_content = msg.get("contents")
@@ -200,36 +202,43 @@ def ask_groq(contents, username="", chat_only=False):
             messages.append({"role": "user", "content": msg_content})
         elif role == "assistant":
             messages.append({"role": "assistant", "content": msg_content})
+            
     try:
-        response = groq_client.chat.completions.create(
+        response = mistral_client.chat.complete(
+            model="ministral-3b-latest",
             messages=messages,
-            model="qwen/qwen3.6-27b",
             response_format={"type": "json_object"},
             temperature=0.7,
         )
+        
+        raw_content = response.choices[0].message.content
+        
         response_json = parse_json_object(
-            response.choices[0].message.content,
+            raw_content,
             "NVLearn AI is currently experiencing some errors. Please try again.",
         )
+        
         if is_ai_error(response_json):
             return response_json
+            
         validation_error = validate_router_response(response_json)
         if validation_error:
             return validation_error
+            
         return response_json
+        
     except Exception as e:
         if is_rate_limit_error(e):
-            logger.warning("[ask_groq] Rate limit hit: %s", e)
+            logger.warning("[ask_mistral] Rate limit hit: %s", e)
             return ai_error(
                 "rate_limit",
                 "NVLearn AI is receiving too many requests right now. Please wait a few minutes before trying again.",
             )
-        logger.exception("[ask_groq] API error: %s", e)
+        logger.exception("[ask_mistral] API error: %s", e)
         return ai_error(
             "api_error",
             "NVLearn AI is currently experiencing some issues. Please try again shortly.",
         )
-
 
 def build_ai_instructions(contents, username, metadata=False, chat_only=False):
     instructions = []
@@ -254,7 +263,7 @@ def build_ai_instructions(contents, username, metadata=False, chat_only=False):
             )
             return "error"
 
-    response_json = ask_groq(contents, username, chat_only=chat_only)
+    response_json = ask_mistral(contents, username, chat_only=chat_only)
     if is_ai_error(response_json):
         return [{"action": "error", "content": response_json}]
 
