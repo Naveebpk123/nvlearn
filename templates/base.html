@@ -67,6 +67,12 @@
                 </div>
             </div>
         </div>
+        <div class="modal-bg" id="searchModalBackground" style="display:none;">
+            <div class="search-modal">
+                <input type="text" placeholder="Search notes..." class="form-input search-bar" id="modalSearchBar">
+                <div class="search-result-container" id="searchResultContainer"></div>
+            </div>
+        </div>
         <div class="diagram-modal-bg" id="diagramModal" style="display:none;">
             <div class="diagram-modal-content" id="diagramModalContent">
                 <div class="diagram-modal-header">
@@ -104,6 +110,8 @@
             let activeDiagramImg = null;
             let activeDiagramData = null;
             let activeDiagramId = null;
+            const sessionCreatedDiagramIds = new Set();
+            let isFormSubmitting = false;
 
             /**
              * Opens the Draw.io diagram editor modal.
@@ -120,6 +128,13 @@
                     activeDiagramImg = imgElement;
                     activeDiagramId = imgElement.getAttribute('data-diagram-id') || imgElement.getAttribute('data-id') || null;
                     const src = imgElement.getAttribute('src') || '';
+
+                    if (!activeDiagramId && src) {
+                        const match = src.match(/\/diagram_image\/(\d+)\.png/);
+                        if (match) {
+                            activeDiagramId = match[1];
+                        }
+                    }
 
                     if (src.startsWith('data:image/')) {
                         activeDiagramData = src;
@@ -236,6 +251,7 @@
 
                             if (data.status === 'success') {
                                 const savedId = data.id;
+                                sessionCreatedDiagramIds.add(parseInt(savedId, 10));
                                 const cleanImgUrl = data.img_url || `/diagram_image/${savedId}.png`;
                                 const displayImgUrl = cleanImgUrl + '?t=' + Date.now(); // Cache buster query param for instant DOM refresh
 
@@ -318,7 +334,14 @@
                 // Global event delegation for clicking diagram images to re-edit
                 document.addEventListener('click', function(e) {
                     const targetImg = e.target.closest('img');
-                    if (targetImg && (targetImg.classList.contains('diagram-image') || targetImg.hasAttribute('data-diagram-id') || targetImg.closest('.ql-editor'))) {
+                    if (!targetImg) return;
+
+                    const src = targetImg.getAttribute('src') || '';
+                    const isDiagram = targetImg.classList.contains('diagram-image') ||
+                                      targetImg.hasAttribute('data-diagram-id') ||
+                                      /\/diagram_image\/\d+\.png/.test(src);
+
+                    if (isDiagram) {
                         e.preventDefault();
                         openDiagramEditor(targetImg);
                     }
@@ -457,13 +480,33 @@
                     addDiagramBtn.title = "Add Diagram";
                 }
 
+                const syncDiagramAttributes = () => {
+                    const imgs = editor.root.querySelectorAll('img');
+                    imgs.forEach(img => {
+                        const src = img.getAttribute('src') || '';
+                        const match = src.match(/\/diagram_image\/(\d+)\.png/);
+                        if (match) {
+                            if (!img.classList.contains('diagram-image')) {
+                                img.classList.add('diagram-image');
+                            }
+                            if (!img.hasAttribute('data-diagram-id')) {
+                                img.setAttribute('data-diagram-id', match[1]);
+                            }
+                        }
+                    });
+                };
+
+                editor.on('text-change', syncDiagramAttributes);
+
                 if (textarea.value) {
                     const htmlFromMarkdown = marked.parse(textarea.value);
                     editor.clipboard.dangerouslyPasteHTML(htmlFromMarkdown);
+                    setTimeout(syncDiagramAttributes, 50);
                 }
 
                 const turndownService = new TurndownService();
                 textarea.form.addEventListener('submit', function() {
+                    isFormSubmitting = true;
                     const htmlContent = editor.getSemanticHTML();
                     const markdownContent = turndownService.turndown(htmlContent);
 
@@ -478,26 +521,26 @@
                         textarea.form.appendChild(htmlHiddenInput);
                     }
                     htmlHiddenInput.value = htmlContent;
+
+                    let draftHiddenInput = document.getElementById('draftDiagramIds');
+                    if (!draftHiddenInput) {
+                        draftHiddenInput = document.createElement('input');
+                        draftHiddenInput.type = 'hidden';
+                        draftHiddenInput.id = 'draftDiagramIds';
+                        draftHiddenInput.name = 'draft_diagram_ids';
+                        textarea.form.appendChild(draftHiddenInput);
+                    }
+                    draftHiddenInput.value = JSON.stringify(Array.from(sessionCreatedDiagramIds));
                 });
             });
-        </script>
-        <script>
-            window.addEventListener('pagehide', () => {
-  // Target all diagram image elements currently in the editor
-  const diagramImgs = document.querySelectorAll('.diagram-image');
-  
-  // Map their data-diagram-id attributes into a list of integers
-  const diagramIds = Array.from(diagramImgs)
-    .map(img => img.getAttribute('data-diagram-id'))
-    .filter(Boolean)
-    .map(id => parseInt(id, 10));
 
-  // Send payload via sendBeacon so it finishes even if the tab closes instantly
-  const payload = JSON.stringify({ diagram_ids: diagramIds });
-  const blob = new Blob([payload], { type: 'application/json' });
-  
-  navigator.sendBeacon('/cleanup_draft_diagrams', blob);
-});
+            window.addEventListener('pagehide', () => {
+                if (isFormSubmitting || sessionCreatedDiagramIds.size === 0) return;
+
+                const payload = JSON.stringify({ diagram_ids: Array.from(sessionCreatedDiagramIds) });
+                const blob = new Blob([payload], { type: 'application/json' });
+                navigator.sendBeacon('/cleanup_draft_diagrams', blob);
+            });
         </script>
     <script>
         window.MathJax = {

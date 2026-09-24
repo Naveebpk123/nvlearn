@@ -112,7 +112,7 @@ if (notes !== null) {
                 if (e.target.closest('.action-buttons')) {
                     return;
                 };
-                window.location.href = `/read_note/${id}`
+                window.location.href = `/edit/${id}`
             });
         } else {
             continue
@@ -143,15 +143,19 @@ function openModal(text, modal, action = null, id = null, triggerBtn = null) {
         modalText.innerText = text;
     }
 
-    // Clone buttons to strip all previous event listeners
-    const newConfirmBtn = modalConfirmBtn.cloneNode(true);
-    const newCancelBtn = modalCancelBtn.cloneNode(true);
-    modalConfirmBtn.replaceWith(newConfirmBtn);
-    modalCancelBtn.replaceWith(newCancelBtn);
+    let newConfirmBtn = modalConfirmBtn;
+    let newCancelBtn = modalCancelBtn;
+    if (modalConfirmBtn && modalCancelBtn) {
+        // Clone buttons to strip all previous event listeners
+        newConfirmBtn = modalConfirmBtn.cloneNode(true);
+        newCancelBtn = modalCancelBtn.cloneNode(true);
+        modalConfirmBtn.replaceWith(newConfirmBtn);
+        modalCancelBtn.replaceWith(newCancelBtn);
 
-    newCancelBtn.addEventListener('click', () => {
-        targetModal.style.display = 'none';
-    });
+        newCancelBtn.addEventListener('click', () => {
+            targetModal.style.display = 'none';
+        });
+    }
 
     if (action) {
         newConfirmBtn.addEventListener('click', async function() {
@@ -206,25 +210,50 @@ function openModal(text, modal, action = null, id = null, triggerBtn = null) {
  */
 async function fetchSearchResults(query) {
     try {
+        if (!searchResultContainer) return;
         if (!query) {
             searchResultContainer.innerHTML = '';
             return;
         }
-        let results;
-        if (query) {
-            const response = await fetch(`/search/${encodeURIComponent(query)}`);
-            results = await response.json();
-        }
+        const response = await fetch(`/search/${encodeURIComponent(query)}`);
+        const results = await response.json();
         searchResultContainer.innerHTML = '';
         let htmlContent = '';
-        for (const result of results.results) {
-            htmlContent += `<a href="/edit/${result.id}" class="search-result">${result.title}</a>`;
+        if (results && results.results) {
+            for (const result of results.results) {
+                htmlContent += `<a href="/edit/${result.id}" class="search-result">${result.title}</a>`;
+            }
         }
         searchResultContainer.innerHTML = htmlContent;
     } catch (error) {
         return;
     }
 };
+
+searchBar?.addEventListener('click', () => {
+    openModal(null, searchModalBg);
+    modalSearchBar?.classList.add('active');
+    modalSearchBar?.focus();
+    searchBar?.classList.add('hidden');
+});
+
+searchModalBg?.addEventListener('click', (e) => {
+    if (e.target === searchModalBg) {
+        searchModalBg.style.display = 'none';
+        modalSearchBar?.classList.remove('active');
+        searchBar?.classList.remove('hidden');
+        if (searchBar) searchBar.value = '';
+        if (modalSearchBar) modalSearchBar.value = '';
+    }
+});
+
+modalSearchBar?.addEventListener('input', (e) => {
+    const query = e.target.value.trim();
+    if (query.length > 0 && searchBar) {
+        searchBar.value = query;
+    }
+    fetchSearchResults(query);
+});
 
 logo?.addEventListener('click', toggleSidebar);
 
@@ -465,30 +494,7 @@ if (restoreBtns) {
     }
 }
 
-searchBar?.addEventListener('click', () => {
-    openModal(null, searchModalBg);
-    modalSearchBar.classList.add('active');
-    modalSearchBar.focus();
-    searchBar.classList.add('hidden');
-});
 
-searchModalBg?.addEventListener('click', (e) => {
-    if (e.target === searchModalBg) {
-        searchModalBg.style.display = 'none';
-        modalSearchBar.classList.remove('active');
-        searchBar.classList.remove('hidden');
-        searchBar.value = '';
-        modalSearchBar.value = '';
-    }
-});
-
-modalSearchBar?.addEventListener('input', (e) => {
-    const query = e.target.value.trim();
-    if (query.length > 0) {
-        searchBar.value = query;
-    }
-    fetchSearchResults(query);
-});
 
 modalSearchBar?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {

@@ -145,33 +145,43 @@ class Diagram(db.Model):
         Integer, ForeignKey("notes.id"), nullable=True,default=None
     )
 
-def associate_diagrams_with_note(note):
+def associate_diagrams_with_note(note, draft_diagram_ids=None):
     """
-    Parses Markdown content for diagram IDs. 
+    Parses Markdown and HTML content for diagram IDs. 
     1. Links newly added diagrams to this note.
-    2. Deletes any diagrams previously linked to this note that are no longer in md_content.
+    2. Deletes any diagrams previously linked to this note that are no longer in the note.
+    3. Deletes any session draft diagrams that were not kept in the note.
     """
-    if not note.md_content:
-        # If note content is empty, delete all diagrams previously associated with this note
-        old_diagrams = db.session.scalars(
-            db.select(Diagram).where(Diagram.note_id == note.id)
-        ).all()
-        for diagram in old_diagrams:
-            db.session.delete(diagram)
-        db.session.commit()
-        return
-
-    # Extract all active diagram IDs present in current Markdown content
+    combined_content = f"{note.md_content or ''} {note.html_content or ''}"
+    
+    # Extract all active diagram IDs present in current content
     patterns = [
         r'data-diagram-id=["\'](\d+)["\']',
         r'/diagram_image/(\d+)\.png'
     ]
     current_diagram_ids = set()
-    for pattern in patterns:
-        matches = re.findall(pattern, note.md_content)
-        current_diagram_ids.update(int(d_id) for d_id in matches)
+    if combined_content.strip():
+        for pattern in patterns:
+            matches = re.findall(pattern, combined_content)
+            current_diagram_ids.update(int(d_id) for d_id in matches)
 
-    #Fetch all diagrams currently attached to this note in the database
+    # Clean up draft diagrams created in this session that were deleted from editor before saving
+    if draft_diagram_ids:
+        try:
+            if isinstance(draft_diagram_ids, str):
+                draft_ids = json.loads(draft_diagram_ids)
+            else:
+                draft_ids = draft_diagram_ids
+            for d_id in draft_ids:
+                d_id_int = int(d_id)
+                if d_id_int not in current_diagram_ids:
+                    diagram = db.session.get(Diagram, d_id_int)
+                    if diagram and diagram.user_id == note.user_id and diagram.note_id is None:
+                        db.session.delete(diagram)
+        except Exception as e:
+            app.logger.warning("[associate_diagrams_with_note] Error processing draft_diagram_ids: %s", e)
+
+    # Fetch all diagrams currently attached to this note in the database
     existing_diagrams = db.session.scalars(
         db.select(Diagram).where(Diagram.note_id == note.id)
     ).all()
@@ -559,7 +569,8 @@ def add_note():
             note.meta_data = normalize_metadata(metadata, note.id)
             db.session.commit()
             upsert_note_vector(note)
-            associate_diagrams_with_note(note)
+            draft_ids = request.form.get("draft_diagram_ids")
+            associate_diagrams_with_note(note, draft_diagram_ids=draft_ids)
             flash("Note created successfully", "success")
             return redirect(url_for("notes"))
         except SQLAlchemyError as e:
@@ -624,7 +635,8 @@ def edit_note(note_id):
             note.html_content = request.form.get("html_content")
             db.session.commit()
             upsert_note_vector(note)
-            associate_diagrams_with_note(note)
+            draft_ids = request.form.get("draft_diagram_ids")
+            associate_diagrams_with_note(note, draft_diagram_ids=draft_ids)
             flash("Changes saved successfully!", "success")
             return redirect(url_for("notes"))
         except SQLAlchemyError as e:
@@ -1648,6 +1660,11 @@ def get_diagram_image(diagram_id):
             base64_str = raw_data.split(",", 1)[1]
         else:
             base64_str = raw_data
+
+        base64_str = base64_str.replace(" ", "+")
+        missing_padding = len(base64_str) % 4
+        if missing_padding:
+            base64_str += "=" * (4 - missing_padding)
 
         image_bytes = base64.b64decode(base64_str)
         response = Response(image_bytes, mimetype="image/png")
