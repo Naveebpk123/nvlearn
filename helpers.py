@@ -328,16 +328,34 @@ def build_ai_instructions(contents, username, metadata=False, chat_only=False):
 
 
 def ask_gemini(question, action):
-    models = [
+    # Models restricted exclusively to Lite tier
+    lite_models = [
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-2.5-flash-lite",
+    ]
+
+    # Models for standard tasks (combining Flash and Flash-Lite)
+    all_models = [
+        "gemini-3.8-flash",
         "gemini-3.7-flash",
         "gemini-3.6-flash",
         "gemini-3.5-flash",
-        "gemini-3.0-flash",
+        "gemini-2.5-flash",
         "gemini-3.5-flash-lite",
         "gemini-3.1-flash-lite",
+        "gemini-2.5-flash-lite",
+        "gemini-3-flash",
     ]
+
+    # Lite-only actions
+    lite_only_actions = {"batch_summary", "metadata", "summarize"}
+
+    # Select model list based on action type
+    models_to_try = lite_models if action in lite_only_actions else all_models
+
     last_error = None
-    for model in models:
+    for model in models_to_try:
         try:
             if action == "create_note":
                 response = gemini_client.models.generate_content(
@@ -348,6 +366,7 @@ def ask_gemini(question, action):
                     ),
                 )
                 return response.text
+
             elif action == "note_action":
                 response = gemini_client.models.generate_content(
                     model=model,
@@ -355,27 +374,31 @@ def ask_gemini(question, action):
                 )
                 html_content = md_to_html(response.text)
                 return html_content, response.text
+
             elif action == "metadata":
                 response = gemini_client.models.generate_content(
-                    model="gemini-3.1-flash-lite",
+                    model=model,
                     contents=NOTE_CREATION_PROMPT + f"prompt: {question}",
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                     ),
                 )
                 return response.text
+
             elif action == "batch_summary":
                 response = gemini_client.models.generate_content(
                     model=model,
                     contents=BATCH_SUMMARY_PROMPT + f"prompt: {question}",
                 )
                 return response.text
+
             elif action == "summarize":
                 response = gemini_client.models.generate_content(
                     model=model,
                     contents=ACTION_SUMMARIZE_PROMPT + f"prompt: {question}",
                 )
                 return response.text
+
             elif action == "create_flashcards":
                 response = gemini_client.models.generate_content(
                     model=model,
@@ -389,15 +412,12 @@ def ask_gemini(question, action):
                     "Flashcard generation returned invalid format.",
                     allow_list=True,
                 )
-                if is_ai_error(parsed):
+                if is_ai_error(parsed) or not isinstance(parsed, list):
                     return ai_error(
                         "invalid_json", "Flashcard generation failed. Please try again."
                     )
-                if not isinstance(parsed, list):
-                    return ai_error(
-                        "invalid_json", "Flashcard generation returned invalid format."
-                    )
                 return parsed
+
             elif action == "create_quiz":
                 response = gemini_client.models.generate_content(
                     model=model,
@@ -411,16 +431,12 @@ def ask_gemini(question, action):
                     "quiz generation returned invalid format.",
                     allow_list=True,
                 )
-                if is_ai_error(parsed):
+                if is_ai_error(parsed) or not isinstance(parsed, list):
                     return ai_error(
                         "invalid_json", "Quiz generation failed. Please try again."
                     )
-                if not isinstance(parsed, list):
-                    return ai_error(
-                        "invalid_json", "Quiz generation returned invalid format."
-                    )
                 return parsed
-            
+
             elif action == "edit_note":
                 response = gemini_client.models.generate_content(
                     model=model,
@@ -428,8 +444,9 @@ def ask_gemini(question, action):
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                     ),
-                )                
-                return response.text                
+                )
+                return response.text
+
         except Exception as e:
             last_error = e
             logger.warning(
@@ -446,6 +463,7 @@ def ask_gemini(question, action):
             "type": "rate_limit",
             "msg": "Our AI services are experiencing high demand. Please avoid note-related requests for a few minutes.",
         }
+
     logger.error(
         "[ask_gemini] All models exhausted for action='%s'. Last error: %s",
         action,
