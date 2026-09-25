@@ -587,7 +587,108 @@ chatInput?.addEventListener('keydown', async function(e) {
     }
 });
 
+/**
+ * Dark Mode & Theme Switcher Controller
+ * Supports 'light', 'dark', and 'system' options with localStorage persistence and OS media query listener.
+ */
+const themeIcons = {
+    light: `<svg class="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`,
+    dark: `<svg class="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`,
+    system: `<svg class="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>`
+};
+
+const themeLabels = {
+    light: 'Light',
+    dark: 'Dark',
+    system: 'System'
+};
+
+function applyTheme(theme) {
+    const root = document.documentElement;
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    let isDark = false;
+    if (theme === 'dark') {
+        isDark = true;
+    } else if (theme === 'light') {
+        isDark = false;
+    } else {
+        isDark = systemPrefersDark;
+    }
+
+    if (isDark) {
+        root.classList.add('dark');
+    } else {
+        root.classList.remove('dark');
+    }
+
+    const themeBtnIcon = document.getElementById('themeBtnIcon');
+    const themeBtnText = document.getElementById('themeBtnText');
+    const themeOptionsList = document.querySelectorAll('.theme-option');
+
+    if (themeBtnIcon) themeBtnIcon.innerHTML = themeIcons[theme] || themeIcons.system;
+    if (themeBtnText) themeBtnText.textContent = themeLabels[theme] || 'System';
+
+    themeOptionsList.forEach(opt => {
+        if (opt.dataset.theme === theme) {
+            opt.classList.add('active');
+        } else {
+            opt.classList.remove('active');
+        }
+    });
+}
+
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'system';
+    applyTheme(savedTheme);
+
+    const themeDropdownWrapper = document.getElementById('themeDropdownWrapper');
+    const themeDropdownBtn = document.getElementById('themeDropdownBtn');
+    const themeDropdownMenu = document.getElementById('themeDropdownMenu');
+    const themeOptionsList = document.querySelectorAll('.theme-option');
+
+    if (themeDropdownBtn && themeDropdownMenu) {
+        themeDropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isHidden = themeDropdownMenu.classList.contains('hidden');
+            if (isHidden) {
+                themeDropdownMenu.classList.remove('hidden');
+                themeDropdownWrapper?.classList.add('open');
+            } else {
+                themeDropdownMenu.classList.add('hidden');
+                themeDropdownWrapper?.classList.remove('open');
+            }
+        });
+
+        themeOptionsList.forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const selectedTheme = opt.dataset.theme;
+                localStorage.setItem('theme', selectedTheme);
+                applyTheme(selectedTheme);
+                themeDropdownMenu.classList.add('hidden');
+                themeDropdownWrapper?.classList.remove('open');
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (themeDropdownWrapper && !themeDropdownWrapper.contains(e.target)) {
+                themeDropdownMenu.classList.add('hidden');
+                themeDropdownWrapper.classList.remove('open');
+            }
+        });
+    }
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        const currentTheme = localStorage.getItem('theme') || 'system';
+        if (currentTheme === 'system') {
+            applyTheme('system');
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
     if (readNoteContent && window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
         MathJax.typesetPromise([readNoteContent]).catch(() => {});
     }

@@ -1255,3 +1255,548 @@ body.editor-lock-scroll {
     border-radius: 6px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
+
+/* ==========================================================================
+   Theme Selector Dropdown Styles
+   ========================================================================== */
+.theme-dropdown-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.theme-dropdown-btn {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-light);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    user-select: none;
+}
+
+.theme-dropdown-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.theme-btn-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-btn-text {
+    font-weight: 500;
+}
+
+.theme-chevron {
+    transition: transform 0.2s ease;
+}
+
+.theme-dropdown-wrapper.open .theme-chevron {
+    transform: rotate(180deg);
+}
+
+.theme-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 10px 25px var(--shadow-color);
+    padding: 6px;
+    margin: 0;
+    list-style: none;
+    min-width: 170px;
+    z-index: 1005;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.theme-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.theme-option:hover {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: var(--primary-blue);
+}
+
+.theme-option.active {
+    background-color: var(--primary-blue);
+    color: #ffffff;
+}
+
+.theme-option.active .theme-icon {
+    stroke: #ffffff;
+}
+
+
+/* ==========================================================================
+   Dark Mode Base & Component Selectors (.dark)
+   ========================================================================== */
+
+html.dark {
+    --bg-main: #0f172a;
+    --bg-card: #1e293b;
+    --bg-dark: #090d16;
+    --text-light: #f8fafc;
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+    --primary-blue: #3b82f6;
+    --primary-hover: #2563eb;
+    --border-color: rgba(255, 255, 255, 0.12);
+    --shadow-color: rgba(0, 0, 0, 0.4);
+
+    --color-correct: #10b981;
+    --color-incorrect: #ef4444;
+    --color-unanswered: #f59e0b;
+    --color-primary: #6366f1;
+    --color-danger: #ef4444;
+}
+
+/* Site Layout & Content Wrapper */
+.dark body,
+.dark .site-layout,
+.dark .content-wrapper,
+.dark .page-layout {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+}
+
+/* Navbar & Sidebar */
+.dark nav {
+    background-color: var(--bg-dark);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark .sidebar {
+    background-color: var(--bg-dark);
+    border-right: 1px solid var(--border-color);
+}
+
+.dark .sidebar-item {
+    color: var(--text-muted);
+}
+
+.dark .sidebar-item:hover {
+    color: var(--text-light);
+}
+
+.dark .logo {
+    color: var(--text-muted);
+}
+
+.dark .logo:hover {
+    color: var(--text-light);
+}
+
+/* Search Bar */
+.dark .search-bar {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    border-color: var(--primary-blue);
+}
+
+.dark .search-bar::placeholder {
+    color: var(--text-muted);
+}
+
+/* Headings & Text */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+    color: var(--text-main);
+}
+
+.dark p,
+.dark span:not(.button):not(.btn):not(.alert) {
+    color: inherit;
+}
+
+.dark .hero-p {
+    color: var(--text-muted);
+}
+
+/* Hero Containers, Cards & Modals */
+.dark .hero,
+.dark .card,
+.dark .confirm-modal,
+.dark .quiz-summary-card,
+.dark .quiz-card {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.dark .quiz-title {
+    color: var(--text-main);
+}
+
+/* Note Component */
+.dark .note {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    box-shadow: 0 4px 10px var(--shadow-color);
+}
+
+.dark .note-title {
+    color: var(--text-main);
+    border-bottom-color: var(--border-color);
+}
+
+.dark .note-preview {
+    color: var(--text-muted);
+}
+
+.dark .note-preview::after {
+    background: linear-gradient(transparent, var(--bg-card));
+}
+
+/* Forms & Inputs */
+.dark .form {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.dark label {
+    color: var(--text-main);
+}
+
+.dark .form-input {
+    background-color: #0f172a;
+    color: var(--text-main);
+    border-color: var(--primary-blue);
+}
+
+.dark .form-input::placeholder {
+    color: var(--text-muted);
+}
+
+.dark .error-message {
+    color: #f87171;
+}
+
+/* Buttons */
+.dark .button {
+    background-color: var(--primary-blue);
+    color: var(--text-light);
+}
+
+.dark .button:hover {
+    background-color: var(--primary-hover);
+}
+
+.dark .button.cancel {
+    background-color: #475569;
+    color: var(--text-light);
+}
+
+.dark .button.cancel:hover {
+    background-color: #334155;
+}
+
+.dark .button.danger {
+    background-color: #dc2626;
+}
+
+.dark .button.danger:hover {
+    background-color: #b91c1c;
+}
+
+.dark .btn {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+
+.dark .btn:hover {
+    background-color: #334155;
+}
+
+.dark .btn-primary {
+    background-color: var(--color-primary);
+    color: #ffffff;
+    border-color: var(--color-primary);
+}
+
+.dark .btn-primary:hover {
+    background-color: #4f46e5;
+}
+
+.dark .btn-delete {
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.4);
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+.dark .btn-delete:hover {
+    background-color: rgba(239, 68, 68, 0.25);
+}
+
+/* Dropdown Menus (Sort & General) */
+.dark .dropdown-menu {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.dark .dropdown-menu li {
+    color: var(--text-main);
+}
+
+.dark .dropdown-menu li:hover {
+    background-color: var(--bg-main);
+}
+
+/* Alerts / Notifications */
+.dark .alert-success {
+    background-color: #064e3b;
+    color: #a7f3d0;
+    border-color: #047857;
+}
+
+.dark .alert-error {
+    background-color: #7f1d1d;
+    color: #fecaca;
+    border-color: #b91c1c;
+}
+
+.dark .alert-info {
+    background-color: #1e3a8a;
+    color: #bfdbfe;
+    border-color: #1d4ed8;
+}
+
+.dark .flashCloseBtn {
+    color: var(--text-main);
+}
+
+.dark .flashCloseBtn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Search Modal & Live Search */
+.dark .search-result {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+
+.dark .search-result:hover {
+    background-color: var(--primary-blue);
+    color: #ffffff;
+}
+
+/* AI Chat Components */
+.dark .user-bubble {
+    background-color: #1e3a8a;
+    color: #e0f2fe;
+}
+
+.dark .ai-bubble {
+    color: var(--text-main);
+}
+
+.dark .user-input-box {
+    background-color: var(--bg-main);
+}
+
+.dark #user-input {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+
+.dark #user-input:focus {
+    border-color: var(--primary-blue);
+}
+
+/* Flashcard 3D Components */
+.dark .front {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+
+.dark .back {
+    background-color: #090d16;
+    color: var(--text-light);
+    border-color: var(--border-color);
+}
+
+/* Practice Hub Tabs & Tags */
+.dark .tab {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+
+.dark .tab-flashcards {
+    border-color: #818cf8;
+    color: #818cf8;
+    background-color: var(--bg-card);
+}
+
+.dark .tab-flashcards:hover,
+.dark .tab-flashcards.active {
+    background-color: #6366f1 !important;
+    color: #ffffff !important;
+}
+
+.dark .tab-quizzes {
+    border-color: #38bdf8;
+    color: #38bdf8;
+    background-color: var(--bg-card);
+}
+
+.dark .tab-quizzes:hover,
+.dark .tab-quizzes.active {
+    background-color: #0284c7 !important;
+    color: #ffffff !important;
+}
+
+.dark .tag {
+    background-color: #334155;
+    color: #cbd5e1;
+}
+
+.dark .stats-grid {
+    background-color: #0f172a;
+}
+
+/* Take Quiz Component */
+.dark .quiz-container {
+    color: var(--text-main);
+}
+
+.dark .question {
+    color: var(--text-main);
+}
+
+.dark .quiz-tracker-text {
+    color: var(--text-main);
+}
+
+.dark .option {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+
+.dark .option.correct {
+    background-color: #064e3b !important;
+    border-color: #047857 !important;
+    color: #a7f3d0 !important;
+}
+
+.dark .option.incorrect {
+    background-color: #7f1d1d !important;
+    border-color: #b91c1c !important;
+    color: #fecaca !important;
+}
+
+.dark .stat-box.correct {
+    background: #064e3b;
+    color: #a7f3d0;
+}
+
+.dark .stat-box.wrong {
+    background: #7f1d1d;
+    color: #fecaca;
+}
+
+.dark .stat-box.unanswered {
+    background: #334155;
+    color: #cbd5e1;
+}
+
+/* Quill Editor Dark Mode */
+.dark .ql-toolbar.ql-snow {
+    background: var(--bg-card) !important;
+    border-color: var(--primary-blue) !important;
+}
+
+.dark .ql-toolbar.ql-snow .ql-stroke {
+    stroke: var(--text-main) !important;
+}
+
+.dark .ql-toolbar.ql-snow .ql-fill {
+    fill: var(--text-main) !important;
+}
+
+.dark .ql-toolbar.ql-snow .ql-picker {
+    color: var(--text-main) !important;
+}
+
+.dark .ql-toolbar.ql-snow .ql-picker-options {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
+}
+
+.dark .ql-toolbar.ql-snow .ql-picker-item {
+    color: var(--text-main) !important;
+}
+
+.dark .ql-container.ql-snow {
+    background: var(--bg-card) !important;
+    color: var(--text-main) !important;
+    border-color: var(--primary-blue) !important;
+}
+
+.dark .ql-editor {
+    color: var(--text-main) !important;
+}
+
+.dark .ql-editor.ql-blank::before {
+    color: var(--text-muted) !important;
+}
+
+.dark .quill-editor-wrapper.fullscreen-active {
+    background: var(--bg-main) !important;
+}
+
+/* Read Note View & Diagram Overlay */
+.dark #read-note-content {
+    color: var(--text-main);
+}
+
+.dark .diagram-modal-content {
+    background-color: var(--bg-card);
+}
+
+.dark .diagram-modal-header {
+    background-color: var(--bg-dark);
+    color: var(--text-light);
+}
+
+/* MathJax Formulas Dark Mode */
+.dark mjx-container {
+    color: var(--text-main) !important;
+}
+
+.dark mjx-container svg {
+    fill: currentColor !important;
+}
+
