@@ -146,10 +146,13 @@ a {
     height: 32px;
     width: 40px;
     margin-right: auto;
+    color: var(--text-muted);
+    transition: color 0.2s ease;
 }
 
 .logo:hover {
     cursor: pointer;
+    color: var(--text-light);
 }
 
 .hero {
