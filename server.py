@@ -1571,11 +1571,20 @@ def save_quiz(quiz_id):
             current_user.id,
         )
         return jsonify({"error": "failed"})
+    total_questions = request.json.get("total_questions", 0)
+    correct_answers = request.json.get("correct_answers", 0)
+    incorrect_answers = request.json.get("incorrect_answers", 0)
+    percentage_score = request.json.get("percentage_score", 0.0)
     quiz_obj.is_saved = True
-    quiz_obj.total_questions = request.json.get("total_questions", 0)
-    quiz_obj.correct_answers = request.json.get("correct_answers", 0)
-    quiz_obj.incorrect_answers = request.json.get("incorrect_answers", 0)
-    quiz_obj.percentage_score = request.json.get("percentage_score", 0.0)
+    attempt = QuizAttempt(
+        user_id=current_user.id,
+        total_questions=total_questions,
+        correct_answers=correct_answers,
+        incorrect_answers=incorrect_answers,
+        unanswered=total_questions - (correct_answers + incorrect_answers),
+        percentage_score=percentage_score,
+    )
+    quiz_obj.attempts.append(attempt)
     db.session.commit()
     return jsonify({"status": "saved"})
 
