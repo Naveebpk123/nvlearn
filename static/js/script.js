@@ -143,8 +143,8 @@ function openModal(text, modal, action = null, id = null, triggerBtn = null) {
         modalText.innerText = text;
     }
 
-    let newConfirmBtn = modalConfirmBtn;
-    let newCancelBtn = modalCancelBtn;
+    let newConfirmBtn;
+    let newCancelBtn;
     if (modalConfirmBtn && modalCancelBtn) {
         // Clone buttons to strip all previous event listeners
         newConfirmBtn = modalConfirmBtn.cloneNode(true);
