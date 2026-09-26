@@ -119,20 +119,34 @@ class Flashcard(db.Model):
         Integer, ForeignKey("users.id"), nullable=False
     )
 
-
 class Quiz(db.Model):
     __tablename__ = "quizzes"
+    
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     quiz_data: Mapped[Dict[str, Any]] = mapped_column(JSON)
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False
-    )
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     is_saved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    total_questions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    tags: Mapped[List[str]] = mapped_column(JSON, nullable=True, default=list)
+
+    # 1-to-Many Relationship to attempts
+    attempts: Mapped[List["QuizAttempt"]] = relationship(
+        "QuizAttempt", back_populates="quiz", cascade="all, delete-orphan"
+    )
+
+
+class QuizAttempt(db.Model):
+    __tablename__ = "quiz_attempts"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    quiz_id: Mapped[int] = mapped_column(Integer, ForeignKey("quizzes.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    
     correct_answers: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     incorrect_answers: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    unanswered: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     percentage_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    tags: Mapped[List[str]] = mapped_column(JSON, nullable=True, default=list)
+    # Relationship back to Quiz
+    quiz: Mapped["Quiz"] = relationship("Quiz", back_populates="attempts")
 
 class Diagram(db.Model):
     __tablename__ = "diagrams"
