@@ -64,7 +64,7 @@
                                 <span class="stat-label">Wrong</span>
                             </div>
                             <div class="stat-item unanswered">
-                                <span class="stat-value">{{ quiz.attempts[-1].total_questions - quiz.attempts[-1].correct_answers - quiz.attempts[-1].incorrect_answers }}</span>
+                                <span class="stat-value">{{ quiz.attempts[-1].unanswered }}</span>
                                 <span class="stat-label">Unanswered</span>
                             </div>
                         </div>
@@ -72,6 +72,15 @@
                         <div class="card-actions">
                             <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" class="btn btn-primary">Retake</a>
                             <button class="btn btn-delete delete-quiz-btn" data-quiz-id="{{ quiz.id }}">Delete</button>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="quizPreviousAttemptsBtn">
+                            <title>Previous Attempts</title>
+                            <!-- Counter-clockwise history rewind arrow -->
+                            <path d="M3 12a9 9 0 1 0 2.63-6.37L3 8" />
+                            <path d="M3 3v5h5" />
+                            <!-- Clock hands set to past time -->
+                            <path d="M12 7v5l-3 3" />
+                            </svg>
+
                         </div>
                     </div>
                 {% endfor %}

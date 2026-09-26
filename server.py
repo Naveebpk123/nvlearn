@@ -1578,7 +1578,6 @@ def save_quiz(quiz_id):
     quiz_obj.is_saved = True
     attempt = QuizAttempt(
         user_id=current_user.id,
-        total_questions=total_questions,
         correct_answers=correct_answers,
         incorrect_answers=incorrect_answers,
         unanswered=total_questions - (correct_answers + incorrect_answers),

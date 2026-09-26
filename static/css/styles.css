@@ -1046,6 +1046,17 @@ body.editor-lock-scroll {
     display: flex;
     gap: 8px;
     margin-top: 4px;
+    align-items: center;
+}
+
+#quizPreviousAttemptsBtn {
+    transition: all 0.15s ease;
+}
+
+#quizPreviousAttemptsBtn:hover {
+    color: var(--primary-blue);
+    border-color: var(--primary-blue);
+    cursor: pointer;
 }
 
 .btn {
