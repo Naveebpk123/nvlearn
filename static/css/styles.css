@@ -1083,6 +1083,7 @@ body.editor-lock-scroll {
     width: 100%;
     padding: 12px 20px;
     gap: 8px;
+    overflow-y: auto;
 }
 
 .previous-attempt {
