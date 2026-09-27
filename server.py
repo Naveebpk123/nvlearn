@@ -1618,7 +1618,13 @@ def quiz_attempts(quiz_id):
         }
         for attempt in quiz_obj.attempts
     ]
-    return jsonify({"attempts": attempts_data[::-1]})  # Return attempts in reverse order (most recent first)
+    averages = {
+        "average_correct": sum(a["correct_answers"] for a in attempts_data) / len(attempts_data) if attempts_data else 0,
+        "average_incorrect": sum(a["incorrect_answers"] for a in attempts_data) / len(attempts_data) if attempts_data else 0,
+        "average_unanswered": sum(a["unanswered"] for a in attempts_data) / len(attempts_data) if attempts_data else 0,
+        "average_percentage": sum(a["percentage_score"] for a in attempts_data) / len(attempts_data) if attempts_data else 0
+    }
+    return jsonify({"attempts": attempts_data[::-1], "averages": averages})  # Return attempts in reverse order (most recent first)
 
 @app.route("/practice-hub")
 @login_required

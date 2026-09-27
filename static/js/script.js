@@ -43,6 +43,11 @@ const deleteQuizBtns = document.getElementsByClassName('delete-quiz-btn');
 const quizPreviousAttemptsBtn = document.getElementById('quizPreviousAttemptsBtn');
 const previousAttemptsModalBackground = document.getElementById('previousAttemptsModalBackground');
 const modalClosePreviousAttemptsBtn = document.getElementById('closePreviousAttemptsModal');
+const avgScoreElement = document.getElementById('avgScore');
+const avgCorrectElement = document.getElementById('avgCorrect');
+const avgIncorrectElement = document.getElementById('avgIncorrect');
+const avgUnansweredElement = document.getElementById('avgUnanswered');
+const previousAttemptsList = document.getElementById('previousAttemptsList');
 
 const sortBtn = document.getElementById('sort-btn');
 const sortMenu = document.getElementById('sort-menu');
@@ -368,6 +373,11 @@ if (quizPreviousAttemptsBtn) {
         const attemptBar = document.createElement('div');
         attemptBar.className = 'previous-attempt';
         attemptBar.innerHTML = statsHtml;
+
+        avgScoreElement.textContent = `${response_json.averages.average_percentage.toFixed(2)}%`;
+        avgCorrectElement.textContent = response_json.averages.average_correct.toFixed(2);
+        avgIncorrectElement.textContent = response_json.averages.average_incorrect.toFixed(2);
+        avgUnansweredElement.textContent = response_json.averages.average_unanswered.toFixed(2);
 
         previousAttemptsList.appendChild(attemptBar);
       }
