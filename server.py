@@ -1618,7 +1618,7 @@ def quiz_attempts(quiz_id):
         }
         for attempt in quiz_obj.attempts
     ]
-    return jsonify({"attempts": attempts_data})
+    return jsonify({"attempts": attempts_data[::-1]})  # Return attempts in reverse order (most recent first)
 
 @app.route("/practice-hub")
 @login_required

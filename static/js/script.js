@@ -335,11 +335,50 @@ if (backBtn) {
     });
 }
 
-if(quizPreviousAttemptsBtn) {
-    quizPreviousAttemptsBtn.addEventListener('click', async () => {
+if (quizPreviousAttemptsBtn) {
+  quizPreviousAttemptsBtn.addEventListener('click', async () => {
     previousAttemptsModalBackground.style.display = 'flex';
     const quizId = quizPreviousAttemptsBtn.dataset.quizId;
-    })};
+    
+    const response = await fetch(`/quiz-attempts/${quizId}`);
+    const response_json = await response.json();
+    
+    previousAttemptsList.innerHTML = '';
+
+    if (response_json.attempts && response_json.attempts.length > 0) {
+      // Define the layout configuration once
+      const fields = [
+        { type: 'score', label: 'Score', value: (a) => `${a.percentage_score}%` },
+        { type: 'correct', label: 'Correct', value: (a) => a.correct_answers },
+        { type: 'incorrect', label: 'Wrong', value: (a) => a.incorrect_answers },
+        { type: 'unanswered', label: 'Unanswered', value: (a) => a.unanswered }
+      ];
+
+      for (const attempt of response_json.attempts) {
+        // Generate the 4 stat items dynamically
+        const statsHtml = fields.map(field => `
+
+          <div class="stat-item ${field.type}">
+            <span class="stat-value">${field.value(attempt)}</span>
+            <span class="stat-label">${field.label}</span>
+          </div>
+        `).join('');
+
+        // Wrap into the main attempt container
+        const attemptBar = document.createElement('div');
+        attemptBar.className = 'previous-attempt';
+        attemptBar.innerHTML = statsHtml;
+
+        previousAttemptsList.appendChild(attemptBar);
+      }
+    }else if (response_json.error) {
+        flash(response_json.error, 'error');
+    } 
+    else {
+      previousAttemptsList.innerHTML = '<p class="empty-msg">No attempts yet.</p>';
+    }
+  });
+}
 
 if (modalClosePreviousAttemptsBtn) {
     modalClosePreviousAttemptsBtn.addEventListener('click', () => {
