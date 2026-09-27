@@ -1059,6 +1059,61 @@ body.editor-lock-scroll {
     cursor: pointer;
 }
 
+#previousAttemptsModal {
+    display: flex;
+    flex-direction: column;
+    width: 80%;
+    height: 80%;
+    background-color: var(--bg-card);
+    align-items: center;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#previousAttemptsList {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 12px 20px;
+    gap: 8px;
+}
+
+.previous-attempt {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    width:100%;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-card);
+    transition: all 0.2s ease;
+}
+
+.modalCloseBtn {
+    background: none;
+    border: none;
+    border-radius: 15px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    color: var(--text-main);
+    transition: all 0.2s ease;
+}
+
+.modalCloseBtn:hover {
+    color: var(--primary-blue);
+    background-color: #f1f5f9;
+}
+
+
 .btn {
     flex: 1;
     padding: 8px 12px;
@@ -1951,4 +2006,10 @@ html.dark {
 
 .dark mjx-container svg {
     fill: currentColor !important;
+}
+
+.dark #PreviousAttemptsModal {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    border-color: var(--border-color);
 }

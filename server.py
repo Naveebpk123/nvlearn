@@ -1598,6 +1598,27 @@ def delete_quiz(quiz_id):
         return jsonify(["Quiz deleted", "success"])
     return jsonify(["Failed to delete", "error"])
 
+@app.route('/quiz-attempts/<int:quiz_id>')
+@login_required
+def quiz_attempts(quiz_id):
+    quiz_obj = db.session.get(Quiz, quiz_id)
+    if not quiz_obj or quiz_obj.user_id != current_user.id:
+        app.logger.warning(
+            "[quiz_attempts] Quiz not found or unauthorized — quiz_id=%s, user_id=%s",
+            quiz_id,
+            current_user.id,
+        )
+        return jsonify({"error": "Quiz not found"}), 404
+    attempts_data = [
+        {
+            "correct_answers": attempt.correct_answers,
+            "incorrect_answers": attempt.incorrect_answers,
+            "unanswered": attempt.unanswered,
+            "percentage_score": attempt.percentage_score,
+        }
+        for attempt in quiz_obj.attempts
+    ]
+    return jsonify({"attempts": attempts_data})
 
 @app.route("/practice-hub")
 @login_required

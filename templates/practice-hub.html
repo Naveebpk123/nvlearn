@@ -72,7 +72,7 @@
                         <div class="card-actions">
                             <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" class="btn btn-primary">Retake</a>
                             <button class="btn btn-delete delete-quiz-btn" data-quiz-id="{{ quiz.id }}">Delete</button>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="quizPreviousAttemptsBtn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="quizPreviousAttemptsBtn" data-quiz-id="{{ quiz.id }}">
                             <title>Previous Attempts</title>
                             <!-- Counter-clockwise history rewind arrow -->
                             <path d="M3 12a9 9 0 1 0 2.63-6.37L3 8" />
@@ -84,6 +84,17 @@
                         </div>
                     </div>
                 {% endfor %}
+            <div class="modal-bg" id="previousAttemptsModalBackground" style="display:none;">
+            <div id="previousAttemptsModal">
+                <div class="modal-header">
+                    <h2>Previous Attempts</h2>
+                    <button class="modalCloseBtn" id="closePreviousAttemptsModal">X</button>
+                </div>
+                <div id="previousAttemptsList">
+                    <div class="previous-attempt"></div>
+                </div>
+            </div>
+        </div>
             </div>
         {% else %}
             <p>You do not have any quizzes saved yet.</p>

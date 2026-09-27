@@ -40,6 +40,10 @@ const tabcontainer = document.getElementsByClassName('tab-container')[0];
 const backBtn = document.getElementById('backBtn');
 const deleteQuizBtns = document.getElementsByClassName('delete-quiz-btn');
 
+const quizPreviousAttemptsBtn = document.getElementById('quizPreviousAttemptsBtn');
+const previousAttemptsModalBackground = document.getElementById('previousAttemptsModalBackground');
+const modalClosePreviousAttemptsBtn = document.getElementById('closePreviousAttemptsModal');
+
 const sortBtn = document.getElementById('sort-btn');
 const sortMenu = document.getElementById('sort-menu');
 const sortOptions = document.querySelectorAll('#sort-menu li');
@@ -330,6 +334,17 @@ if (backBtn) {
         backBtn.classList.add('hidden');
     });
 }
+
+if(quizPreviousAttemptsBtn) {
+    quizPreviousAttemptsBtn.addEventListener('click', async () => {
+    previousAttemptsModalBackground.style.display = 'flex';
+    const quizId = quizPreviousAttemptsBtn.dataset.quizId;
+    })};
+
+if (modalClosePreviousAttemptsBtn) {
+    modalClosePreviousAttemptsBtn.addEventListener('click', () => {
+        previousAttemptsModalBackground.style.display = 'none';
+    });}
 
 logoutBtn?.addEventListener('click', (e) => {
     e.preventDefault();
