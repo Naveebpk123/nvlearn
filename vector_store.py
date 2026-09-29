@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CHROMA_DATA_PATH = os.path.join(BASE_DIR, "instance", "chroma_db")
 
-DEFAULT_DISTANCE_THRESHOLD = 0.65
+DEFAULT_DISTANCE_THRESHOLD = 1.1
 
 _client: Optional[chromadb.PersistentClient] = None
 

@@ -260,10 +260,12 @@ def extract_topic_for_search(instruction: str) -> str:
     return cleaned if cleaned else text
 
 
-def get_vector_matched_notes(topic: str, user_id: int, edit_mode: bool = False):
+def get_vector_matched_notes(topic: str, user_id: int, edit_mode: bool = False, for_search: bool = False):
     """Return active user notes matched by vector search."""
     if edit_mode:
         vector_res = search_notes_vector(topic=topic, user_id=user_id,n_results=1)
+    elif for_search:
+        vector_res = search_notes_vector(topic=topic, user_id=user_id,n_results=25)
     else:
         vector_res = search_notes_vector(topic=topic, user_id=user_id)
     if is_ai_error(vector_res):
@@ -975,12 +977,10 @@ def search(query):
     if not query:
         return {"results": []}
     try:
-        result = db.session.execute(
-            db.select(Note)
-            .where(Note.user_id == current_user.id)
-            .where(Note.title.contains(query))
+        matched_notes, vector_msg, vector_error = get_vector_matched_notes(
+            topic=query, user_id=current_user.id, for_search=True
         )
-        notes = result.scalars().all()
+        notes = matched_notes
         results = [{"id": note.id, "title": note.title} for note in notes]
         return jsonify({"results": results})
     except SQLAlchemyError as e:
@@ -1000,12 +1000,10 @@ def search_results(query):
     if not query:
         return render_template("search-results.html", query=query, notes=[])
     try:
-        result = db.session.execute(
-            db.select(Note)
-            .where(Note.user_id == current_user.id)
-            .where(Note.title.contains(query))
+        matched_notes, vector_msg, vector_error = get_vector_matched_notes(
+            topic=query, user_id=current_user.id, for_search=True
         )
-        notes = result.scalars().all()
+        notes = matched_notes
         return render_template("search-results.html", query=query, notes=notes)
     except SQLAlchemyError as e:
         app.logger.error(
