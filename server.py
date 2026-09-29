@@ -1757,6 +1757,7 @@ def cleanup_draft_diagrams():
             if diagram and diagram.user_id == current_user.id and diagram.note_id is None:
                 db.session.delete(diagram)
         db.session.commit()
+        return jsonify({"status": "success", "message": "Draft diagrams cleaned up."})
     except Exception as e:
         db.session.rollback()
         app.logger.error("[cleanup_draft_diagrams] Error: %s", e)

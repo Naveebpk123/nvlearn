@@ -2014,6 +2014,20 @@ html.dark {
     background: var(--bg-main) !important;
 }
 
+html.dark .ql-snow .ql-stroke {
+    stroke: #f1f5f9 !important; 
+}
+
+html.dark .ql-snow button {
+    color: #f1f5f9 !important; 
+}
+
+html.dark .ql-snow button:hover .ql-stroke,
+html.dark .ql-snow button:hover {
+    color: var(--primary-blue) !important;
+    stroke: var(--primary-blue) !important;
+}
+
 /* Read Note View & Diagram Overlay */
 .dark #read-note-content {
     color: var(--text-main);
@@ -2038,6 +2052,10 @@ html.dark {
 .dark .diagram-btn:hover {
     background-color: rgba(255, 255, 255, 0.15);
     color: var(--text-light);
+}
+
+.dark .diagram-img{
+    background-color: var(--bg-card);
 }
 
 /* MathJax Formulas Dark Mode */
