@@ -351,36 +351,31 @@ if (quizPreviousAttemptsBtn) {
     previousAttemptsList.innerHTML = '';
 
     if (response_json.attempts && response_json.attempts.length > 0) {
-      // Define the layout configuration once
-      const fields = [
+    avgScoreElement.textContent = `${response_json.averages.average_percentage.toFixed(2)}%`;
+    avgCorrectElement.textContent = response_json.averages.average_correct.toFixed(2);
+    avgIncorrectElement.textContent = response_json.averages.average_incorrect.toFixed(2);
+    avgUnansweredElement.textContent = response_json.averages.average_unanswered.toFixed(2);
+
+    const fields = [
         { type: 'score', label: 'Score', value: (a) => `${a.percentage_score}%` },
         { type: 'correct', label: 'Correct', value: (a) => a.correct_answers },
         { type: 'incorrect', label: 'Wrong', value: (a) => a.incorrect_answers },
         { type: 'unanswered', label: 'Unanswered', value: (a) => a.unanswered }
-      ];
+    ];
 
-      for (const attempt of response_json.attempts) {
-        // Generate the 4 stat items dynamically
+    for (const attempt of response_json.attempts) {
         const statsHtml = fields.map(field => `
-
           <div class="stat-item ${field.type}">
             <span class="stat-value">${field.value(attempt)}</span>
             <span class="stat-label">${field.label}</span>
           </div>
         `).join('');
 
-        // Wrap into the main attempt container
         const attemptBar = document.createElement('div');
         attemptBar.className = 'previous-attempt';
         attemptBar.innerHTML = statsHtml;
-
-        avgScoreElement.textContent = `${response_json.averages.average_percentage.toFixed(2)}%`;
-        avgCorrectElement.textContent = response_json.averages.average_correct.toFixed(2);
-        avgIncorrectElement.textContent = response_json.averages.average_incorrect.toFixed(2);
-        avgUnansweredElement.textContent = response_json.averages.average_unanswered.toFixed(2);
-
         previousAttemptsList.appendChild(attemptBar);
-      }
+    }
     }else if (response_json.error) {
         flash(response_json.error, 'error');
     } 
@@ -481,7 +476,8 @@ if (saveFlashcardsBtn) {
 
 if (moveToBinBtns) {
     for (const btn of moveToBinBtns) {
-        btn?.addEventListener('click', async function() {
+        btn?.addEventListener('click', async function(e) {
+            e.preventDefault();
             const response = await fetch(`/move_to_bin/${btn.dataset.noteId}`, {
                 method: 'POST'
             });
@@ -624,8 +620,7 @@ chatInput?.addEventListener('keydown', async function(e) {
         const aiResponse = await response.json();
         const aiBubble = document.createElement('div');
         aiBubble.classList.add('ai-bubble');
-        aiBubble.innerHTML = `${aiResponse.chat || ''} \n ${aiResponse.note_action || ''} \n ${aiResponse.notes || ''}`;
-        if (aiResponse.flashcard_id) {
+        aiBubble.innerHTML = `${aiResponse.chat || ''}<br>${aiResponse.note_action || ''}<br>${aiResponse.notes || ''}`;        if (aiResponse.flashcard_id) {
             const flashcardLink = document.createElement('a');
             flashcardLink.className = 'button';
             flashcardLink.href = `/flashcards/${aiResponse.flashcard_id}`;
