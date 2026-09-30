@@ -49,9 +49,15 @@ const avgIncorrectElement = document.getElementById('avgIncorrect');
 const avgUnansweredElement = document.getElementById('avgUnanswered');
 const previousAttemptsList = document.getElementById('previousAttemptsList');
 
-const sortBtn = document.getElementById('sort-btn');
+const noteViewOptionsBtn = document.getElementById('note-view-options-btn');
+const noteViewOptions = document.getElementById('view-options-menu');
+const sortBtn = document.getElementById('sort-notes');
 const sortMenu = document.getElementById('sort-menu');
 const sortOptions = document.querySelectorAll('#sort-menu li');
+const filterBtn = document.getElementById('filter-notes');
+const filterMenu = document.getElementById('filter-menu');
+const filterTagOptions = document.querySelectorAll('.filter-tag-option');
+const moreFilterTags = document.getElementById('more-filter-tags');
 
 /**
  * Creates and displays a dynamic floating notification alert.
@@ -488,11 +494,52 @@ if (moveToBinBtns) {
     }
 }
 
-if (sortBtn) {
-    sortBtn.addEventListener('click', () => {
-        sortMenu.classList.toggle('hidden');
+if (noteViewOptionsBtn) {
+    noteViewOptionsBtn.addEventListener('click', () => {
+        noteViewOptions.classList.toggle('hidden');
     });
 }
+
+if(sortBtn){
+    sortBtn.addEventListener('click',()=>{
+        noteViewOptions.classList.toggle('hidden')
+        sortMenu.classList.toggle('hidden')
+    })
+}
+
+if (filterBtn) {
+    filterBtn.addEventListener('click', () => {
+        noteViewOptions.classList.add('hidden');
+        filterMenu.classList.toggle('hidden');
+    });
+}
+
+function applyNoteTagFilter() {
+    const selectedTags = Array.from(filterMenu?.querySelectorAll('input[type="checkbox"]:checked') || [])
+        .map(input => input.value.toLowerCase());
+
+    for (const note of notes) {
+        if (note.dataset.id === '_') continue;
+        let noteTags = [];
+        try {
+            noteTags = JSON.parse(note.dataset.tags || '[]');
+        } catch (error) {
+            noteTags = [];
+        }
+        const normalizedTags = noteTags.map(tag => String(tag).toLowerCase());
+        const matches = selectedTags.length === 0 || selectedTags.some(tag => normalizedTags.includes(tag));
+        note.classList.toggle('filtered-note', !matches);
+    }
+}
+
+filterTagOptions.forEach(option => {
+    option.querySelector('input')?.addEventListener('change', applyNoteTagFilter);
+});
+
+moreFilterTags?.addEventListener('click', () => {
+    filterMenu.querySelectorAll('.extra-filter-tag').forEach(option => option.classList.remove('hidden'));
+    moreFilterTags.remove();
+});
 
 /**
  * Note Sorting Algorithm:
@@ -538,6 +585,9 @@ if (sortOptions) {
 document.addEventListener('click', (e) => {
     if (sortMenu && !sortMenu.contains(e.target) && e.target !== sortBtn) {
         sortMenu.classList.add('hidden');
+    }
+    if (filterMenu && !filterMenu.contains(e.target) && e.target !== filterBtn) {
+        filterMenu.classList.add('hidden');
     }
 });
 

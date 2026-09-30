@@ -2072,3 +2072,40 @@ html.dark .ql-snow button:hover {
     color: var(--text-main);
     border-color: var(--border-color);
 }
+
+.filter-tag-list {
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.filter-tag-option {
+    padding: 0 !important;
+}
+
+.filter-tag-option label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+}
+
+.filter-tag-option input {
+    accent-color: var(--primary-blue);
+    cursor: pointer;
+}
+
+.more-filter-tags {
+    color: var(--primary-blue) !important;
+    font-size: 0.8rem !important;
+    text-align: center;
+    border-top: 1px solid var(--border-color);
+}
+
+.hidden {
+    display: none !important;
+}
+
+.filtered-note {
+    display: none;
+}

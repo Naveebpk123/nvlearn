@@ -2,13 +2,15 @@ import os
 import logging
 from typing import List, Optional, Dict, Any
 import chromadb
+from sqlalchemy import select
+
 
 logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CHROMA_DATA_PATH = os.path.join(BASE_DIR, "instance", "chroma_db")
 
-DEFAULT_DISTANCE_THRESHOLD = 1.1
+DEFAULT_DISTANCE_THRESHOLD = 0.65
 
 _client: Optional[chromadb.PersistentClient] = None
 
@@ -180,10 +182,6 @@ def search_notes_vector(
             "msg": "An error occurred while searching your notes with vector database.",
             "error": True,
         }
-
-
-from sqlalchemy import select
-
 
 def sync_notes_to_chroma(db_session, NoteModel):
     """Sync all active notes in SQLite to Chroma on startup."""
