@@ -61,6 +61,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///notes.db"
 app.config["SECRET_KEY"] = os.urandom(24)
 VERIFICATION_TTL_SECONDS = 10 * 60
 NOTE_ACTION_COOLDOWN_SECONDS = 5 * 60
+DEFAULT_TAGS = ["personal", "mathematics", "science", "history", "computer science","literature", "physics", "biology", "chemistry"]
 
 # ── Logging Configuration ──────────────────────────────────────────────
 logging.basicConfig(
@@ -561,7 +562,18 @@ def notes():
         )
         flash("An error occurred while fetching your notes. Please retry.", "error")
         notes = []
-    return render_template("notes.html", notes=notes)
+    if len(notes) >1:   
+        tag_counts = {}
+        tags = [tags for tag in note.meta_data.get('tags', []) if isinstance(note.meta_data, dict)]
+        for tag in tags:
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+        main_tags = [tag for tag, count in tag_counts.items() if count > 2]
+        extra_tags = [tag for tag, count in tag_counts.items() if count > 1 and tag not in main_tags]
+        for tag in tags:
+            if tag.lower().strip() in DEFAULT_TAGS and tag not in (main_tags+extra_tags) :
+                main_tags.append(tag)
+
+    return render_template("notes.html", notes=notes, main_tags=main_tags if len(notes) > 1 else [], advanced_tags=advanced_tags if len(notes) > 1 else [])
 
 
 @app.route("/add", methods=["GET", "POST"])
