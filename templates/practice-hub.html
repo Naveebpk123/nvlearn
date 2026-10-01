@@ -118,4 +118,50 @@
             <p>You do not have any quizzes saved yet.</p>
         {% endif %}
     </div>
+
+    {% if overall_stats %}
+    <h2>Analytics</h2>
+    <h3>Overall Scores</h3>
+    <div class="attempts-summary-container">
+            <div class="stat-box">
+                <span class="stat-value text-purple">{{overall_stats['overall_average_score']}}%</span>
+                <span class="stat-label">AVG SCORE %</span>
+            </div>
+            <div class="stat-box">
+                <span  class="stat-value text-green">{{overall_stats['average_correct_answers_percentage']}}%</span>
+                <span class="stat-label">AVG CORRECT %</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value text-red">{{overall_stats['average_incorrect_answers_percentage']}}%</span>
+                <span class="stat-label">AVG INCORRECT %</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value text-amber">{{overall_stats['average_unanswered_percentage']}}%</span>
+                <span class="stat-label">AVG UNANSWERED %</span>
+            </div>
+        </div>
+        {% if quiz_stats_by_tag %}
+        {% for stats_by_tag in quiz_stats_by_tag %}
+        <h3>{{stats_by_tag}} Scores</h3>
+         <div class="attempts-summary-container">
+            <div class="stat-box">
+                <span class="stat-value text-purple">{{stats_by_tag['average_score']}}%</span>
+                <span class="stat-label">AVG SCORE %</span>
+            </div>
+            <div class="stat-box">
+                <span  class="stat-value text-green">{{stats_by_tag['average_correct_answers_percentage']}}%</span>
+                <span class="stat-label">AVG CORRECT %</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value text-red">{{stats_by_tag['average_incorrect_answers_percentage']}}%</span>
+                <span class="stat-label">AVG INCORRECT %</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value text-amber">{{stats_by_tag['average_unanswered_percentage']}}%</span>
+                <span class="stat-label">AVG UNANSWERED %</span>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+    {% endif %}
 {% endblock %}

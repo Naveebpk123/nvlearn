@@ -1731,6 +1731,7 @@ def practice_hub():
                 average_unanswered_percentage = round((sum(all_unanswered_percentages) / len(all_unanswered_percentages)) if all_unanswered_percentages else 0, 2)
                 quiz_stats_by_tag[tag] = {
                     "total_quizzes": len(related_quizzes),
+                    "average_score": average_score,
                     "average_correct_answers_percentage": average_correct_answers_percentage,
                     "average_incorrect_answers_percentage": average_incorrect_answers_percentage,
                     "average_unanswered_percentage": average_unanswered_percentage
