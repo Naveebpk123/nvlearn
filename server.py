@@ -147,6 +147,7 @@ class QuizAttempt(db.Model):
     incorrect_answers: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     unanswered: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     percentage_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    attempted_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     # Relationship back to Quiz
     quiz: Mapped["Quiz"] = relationship("Quiz", back_populates="attempts")
 
@@ -930,8 +931,6 @@ def register():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    login_user(db.session.get(User,1))
-    return render_template('about.html')
     if session.get("pending_login"):
         form = VerificationForm()
         if form.validate_on_submit():
@@ -1681,6 +1680,28 @@ def practice_hub():
         .where(Quiz.user_id == current_user.id)
         .where(Quiz.is_saved == True)
     ).all()
+
+    all_attempts = []
+    for quiz in all_quizzes:
+        all_attempts.extend(quiz.attempts)
+    total_questions = sum(attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered for attempt in all_attempts)
+    overall_average_score = round((sum(attempt.percentage_score for attempt in all_attempts) / len(all_attempts)) if all_attempts else 0, 2)
+    all_correct_answers_percentages = [attempt.correct_answers*100/total_questions for attempt in all_attempts]
+    all_incorrect_answers_percentages = [attempt.incorrect_answers*100/total_questions for attempt in all_attempts]
+    all_unanswered_percentages = [attempt.unanswered*100/total_questions for attempt in all_attempts]
+    average_correct_answers_percentage = round((sum(all_correct_answers_percentages) / len(all_correct_answers_percentages)) if all_correct_answers_percentages else 0, 2)
+    average_incorrect_answers_percentage = round((sum(all_incorrect_answers_percentages) / len(all_incorrect_answers_percentages)) if all_incorrect_answers_percentages else 0, 2)
+    average_unanswered_percentage = round((sum(all_unanswered_percentages) / len(all_unanswered_percentages)) if all_unanswered_percentages else 0, 2)
+    overall_stats = {
+        "overall_average_score": overall_average_score,
+        "average_correct_answers_percentage": average_correct_answers_percentage,
+        "average_incorrect_answers_percentage": average_incorrect_answers_percentage,
+        "average_unanswered_percentage": average_unanswered_percentage
+    }
+
+
+    
+
     return render_template(
         "practice-hub.html",
         flashcards=all_flashcards,
