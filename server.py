@@ -127,6 +127,7 @@ class Quiz(db.Model):
     quiz_data: Mapped[Dict[str, Any]] = mapped_column(JSON)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     is_saved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     tags: Mapped[List[str]] = mapped_column(JSON, nullable=True, default=list)
 
     # 1-to-Many Relationship to attempts
@@ -473,19 +474,32 @@ def delete_flashcards():
         db.session.rollback()
 
 
-def delete_quizzes():
-    """Delete the single oldest unsaved quiz every 10 minutes"""
+from datetime import datetime, timezone, timedelta
+
+def delete_expired_quizzes():
+    """Delete ALL unsaved quizzes older than 5 hours."""
     try:
-        with app.app_context():
-            oldest_quiz = db.session.scalars(
-                db.select(Quiz).where(Quiz.is_saved == False).order_by(Quiz.id.asc())
-            ).first()
-            if oldest_quiz:
-                db.session.delete(oldest_quiz)
-                db.session.commit()
-                app.logger.info(
-                    "Successfully deleted oldest unsaved quiz (id=%s).", oldest_quiz.id
-                )
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=5)
+        
+        # Find and delete all unsaved quizzes created before the cutoff
+        deleted_count = db.session.execute(
+            db.delete(Quiz).where(
+                Quiz.is_saved == False,
+                Quiz.created_at < cutoff
+            )
+        ).rowcount
+        
+        db.session.commit()
+        
+        if deleted_count > 0:
+            app.logger.info(
+                "Successfully deleted %s expired unsaved quiz(zes).", deleted_count
+            )
+    except Exception as e:
+        app.logger.error("Failed to delete quizzes in background job: %s", e)
+        db.session.rollback()
+
+
     except Exception as e:
         app.logger.error("Failed to delete quiz in background job: %s", e)
         db.session.rollback()
@@ -503,7 +517,7 @@ scheduler.add_job(
 
 # Add background job of deleting quizzes
 scheduler.add_job(
-    delete_quizzes, "interval", minutes=10, max_instances=1, coalesce=True
+    delete_expired_quizzes, "interval", hours=3, max_instances=1, coalesce=True
 )
 
 with app.app_context():
