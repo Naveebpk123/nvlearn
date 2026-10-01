@@ -1682,32 +1682,67 @@ def practice_hub():
     ).all()
 
     all_attempts = []
-    for quiz in all_quizzes:
-        all_attempts.extend(quiz.attempts)
-    total_questions = sum(attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered for attempt in all_attempts)
-    overall_average_score = round((sum(attempt.percentage_score for attempt in all_attempts) / len(all_attempts)) if all_attempts else 0, 2)
-    all_correct_answers_percentages = [attempt.correct_answers*100/total_questions for attempt in all_attempts]
-    all_incorrect_answers_percentages = [attempt.incorrect_answers*100/total_questions for attempt in all_attempts]
-    all_unanswered_percentages = [attempt.unanswered*100/total_questions for attempt in all_attempts]
-    average_correct_answers_percentage = round((sum(all_correct_answers_percentages) / len(all_correct_answers_percentages)) if all_correct_answers_percentages else 0, 2)
-    average_incorrect_answers_percentage = round((sum(all_incorrect_answers_percentages) / len(all_incorrect_answers_percentages)) if all_incorrect_answers_percentages else 0, 2)
-    average_unanswered_percentage = round((sum(all_unanswered_percentages) / len(all_unanswered_percentages)) if all_unanswered_percentages else 0, 2)
-    overall_stats = {
-        "overall_average_score": overall_average_score,
-        "average_correct_answers_percentage": average_correct_answers_percentage,
-        "average_incorrect_answers_percentage": average_incorrect_answers_percentage,
-        "average_unanswered_percentage": average_unanswered_percentage
-    }
+    all_tags = []
+    quiz_stats_by_tag = {}
+    overall_stats = {}
 
+    if all_quizes:
+        for quiz in all_quizzes:
+            all_attempts.extend(quiz.attempts)
+            all_tags.extend(quiz.tags)
+        total_questions = sum(attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered for attempt in all_attempts)
+        overall_average_score = round((sum(attempt.percentage_score for attempt in all_attempts) / len(all_attempts)) if all_attempts else 0, 2)
+        all_correct_answers_percentages = [attempt.correct_answers*100/total_questions for attempt in all_attempts]
+        all_incorrect_answers_percentages = [attempt.incorrect_answers*100/total_questions for attempt in all_attempts]
+        all_unanswered_percentages = [attempt.unanswered*100/total_questions for attempt in all_attempts]
+        average_correct_answers_percentage = round((sum(all_correct_answers_percentages) / len(all_correct_answers_percentages)) if all_correct_answers_percentages else 0, 2)
+        average_incorrect_answers_percentage = round((sum(all_incorrect_answers_percentages) / len(all_incorrect_answers_percentages)) if all_incorrect_answers_percentages else 0, 2)
+        average_unanswered_percentage = round((sum(all_unanswered_percentages) / len(all_unanswered_percentages)) if all_unanswered_percentages else 0, 2)
+        overall_stats = {
+            "overall_average_score": overall_average_score,
+            "average_correct_answers_percentage": average_correct_answers_percentage,
+            "average_incorrect_answers_percentage": average_incorrect_answers_percentage,
+            "average_unanswered_percentage": average_unanswered_percentage
+        }
 
-    
-
+        tag_counts = {}
+        for tag in all_tags:
+            tag = tag.strip()
+            tag_counts[tag] = tag_counts.get(tag,0) + 1
+        capitalised_default_tags = [tag.title for tag in DEFAULT_TAGS]
+        main_tags = [tag.title() for tag, count in tag_counts if count>2 or tag.title() in capitalised_default_tags]
+        if main_tags:
+            for tag in main_tags:
+                related_quizzes = []
+                for quiz in all_quizzes:
+                    lower_tags = [t.lower() for t in quiz.tags]
+                    if tag.lower() in lower_tags:
+                        related_quizzes.append(quiz)
+                all_attempts = []
+                for quiz in related_quizzes:
+                    all_attempts.extend(quiz.attempts)
+                total_questions = sum(attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered for attempt in all_attempts)
+                average_score = round((sum(attempt.percentage_score for attempt in all_attempts) / len(all_attempts)) if all_attempts else 0, 2)
+                all_correct_answers_percentages = [attempt.correct_answers*100/total_questions for attempt in all_attempts]
+                all_incorrect_answers_percentages = [attempt.incorrect_answers*100/total_questions for attempt in all_attempts]
+                all_unanswered_percentages = [attempt.unanswered*100/total_questions for attempt in all_attempts]
+                average_correct_answers_percentage = round((sum(all_correct_answers_percentages) / len(all_correct_answers_percentages)) if all_correct_answers_percentages else 0, 2)
+                average_incorrect_answers_percentage = round((sum(all_incorrect_answers_percentages) / len(all_incorrect_answers_percentages)) if all_incorrect_answers_percentages else 0, 2)
+                average_unanswered_percentage = round((sum(all_unanswered_percentages) / len(all_unanswered_percentages)) if all_unanswered_percentages else 0, 2)
+                quiz_stats_by_tag[tag] = {
+                    "total_quizzes": len(related_quizzes),
+                    "average_correct_answers_percentage": average_correct_answers_percentage,
+                    "average_incorrect_answers_percentage": average_incorrect_answers_percentage,
+                    "average_unanswered_percentage": average_unanswered_percentage
+                }
     return render_template(
         "practice-hub.html",
         flashcards=all_flashcards,
         quizzes=all_quizzes,
         saved_flashcards=len(all_flashcards),
         saved_quizzes=len(all_quizzes),
+        overall_stats=overall_stats,
+        quiz_stats_by_tag = quiz_stats_by_tag
     )
 
 """
