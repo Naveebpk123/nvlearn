@@ -1084,23 +1084,24 @@ body.editor-lock-scroll {
 .attempts-summary-container {
     display: flex;
     justify-content: space-around;
-    align-items: center;
     width: 100%;
     padding: 14px 20px;
     background-color: var(--bg-accent, #f8fafc);
     border-bottom: 1px solid var(--border-color);
+    align-items: flex-start; /* Align top edges of numbers */
 }
 
 .stat-box {
     display: flex;
     flex-direction: column;
     align-items: center;
+    flex: 1; /* Forces each stat box to occupy equal width */
     gap: 2px;
 }
 
 .stat-value {
     font-size: 1.25rem;
-    font-weight: 700;
+    font-weight: 700;    
 }
 
 .stat-label {
@@ -1108,6 +1109,7 @@ body.editor-lock-scroll {
     font-weight: 600;
     color: var(--text-muted, #64748b);
     letter-spacing: 0.5px;
+    white-space: nowrap; /* Prevents long text like "AVG INCORRECT %" from wrapping */
 }
 
 /* Color Palette Utilities */
@@ -2112,7 +2114,7 @@ html.dark .ql-snow button:hover {
     border-color: var(--border-color);
 }
 
-.dark .text-purple { color: #8b5cf6; }
-.dark .text-green  { color: #22c55e; }
-.dark .text-red    { color: #ef4444; }
-.dark .text-amber  { color: #f59e0b; }
+.dark .text-purple { color: #8b5cf6 !important; }
+.dark .text-green  { color: #22c55e !important; }
+.dark .text-red    { color: #ef4444 !important; }
+.dark .text-amber  { color: #f59e0b !important; }
