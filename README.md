@@ -8,8 +8,9 @@ Students often collect notes but do not always have an easy way to revise them a
 
 - Store personal notes in one account-based workspace.
 - Automatically generate metadata such as tags and summaries for notes.
-- Search through notes from the navigation search using note titles.
+- Search through notes from the navigation search using keyword matching combined with vector similarity.
 - Use AI note actions with vector similarity search across note titles, tags, summaries, and note content.
+- Filter notes by tags extracted as part of note metadata generation.
 - Sort the notes list by title or recent activity.
 - Ask an AI assistant to create notes, retrieve relevant notes, modify notes, generate flashcards, and generate quizzes.
 - Save useful flashcard sets and quiz results for later practice.
@@ -43,6 +44,7 @@ In short: NVLearn helps a learner move from passive note storage to active revis
 - AI quiz generation.
 - Practice Hub for saved flashcards and saved quizzes.
 - Quiz scoring with correct, wrong, unanswered, and percentage score tracking.
+- Practice analytics for overall quiz performance and performance by relevant quiz tags.
 - Client-side note sorting by title and last-opened time.
 - Background cleanup jobs for unsaved flashcards and quizzes.
 - SQLite database storage through SQLAlchemy.
@@ -66,7 +68,7 @@ In short: NVLearn helps a learner move from passive note storage to active revis
 - MathJax (LaTeX math rendering)
 - Markdown / pymdown-extensions
 - Google Gemini API
-- Groq API
+- Mistral API
 - ChromaDB
 - Gmail SMTP or another compatible SMTP email account
 - HTML, CSS, and vanilla JavaScript
@@ -88,7 +90,6 @@ study-project/
 +-- static/
 |   +-- css/styles.css     # App styles
 |   +-- js/script.js       # Client-side interactions
-|   +-- assets/logo.png    # App logo
 +-- templates/             # Jinja templates
 ```
 
@@ -165,7 +166,7 @@ The app reads secrets from `.env` in `helpers.py` using `python-dotenv`.
 ```env
 APP_PASSWORD=yourgmailapppasswordhere
 EMAIL=example@email.com
-GROQ_API_KEY=yourGROQAPIkeyhere
+MISTRAL_API_KEY=yourMistralAPIkeyhere
 GEMINI_API_KEY=yourGeminiAPIkeyhere
 ```
 
@@ -205,17 +206,17 @@ SMTP_PORT = 587
 
 If you use another email provider, update those SMTP values in `helpers.py`.
 
-### `GROQ_API_KEY`
+### `MISTRAL_API_KEY`
 
-Used by the AI router/chat flow in `ask_groq()`.
+Used by the AI router/chat flow in `ask_mistral()`.
 
-The app currently uses Groq with this model:
+The app currently uses Mistral with this model:
 
 ```text
-qwen/qwen3.6-27b
+ministral-3b-latest
 ```
 
-Groq helps decide whether the assistant should chat, create notes, find notes, modify notes, generate flashcards, or generate quizzes.
+Mistral helps decide whether the assistant should chat, create notes, find notes, modify notes, generate flashcards, or generate quizzes.
 
 ### `GEMINI_API_KEY`
 
@@ -300,11 +301,15 @@ In the note editor, click the **Add Diagram** button in the Quill toolbar to ope
 
 ### 5. Search Notes
 
-Use the search bar to find notes by title. The search modal calls `/search/<query>` for quick JSON results, and pressing Enter opens `/search-results/<query>`.
+Use the search bar in the navbar to find notes with keyword matching combined with vector similarity search. The search modal calls `/search/<query>` for quick JSON results, and pressing Enter opens `/search-results/<query>`.
 
 AI note actions use semantic vector search instead of title-only matching. When you ask the assistant to summarize, explain, rewrite, edit, or extract information from existing notes, NVLearn searches your ChromaDB note vectors using the note title, tags, summary, and markdown content. For supported actions across the full notebook, the AI can use the special `all_notes` topic to process every active non-binned note instead of matching one topic.
 
-### 6. Sort Notes
+### 6. Filter Notes by Tags
+
+When note metadata is generated, the AI extracts tags and stores them with the note. On `/notes`, select one or more extracted tags to filter the visible notes in the browser. The tag menu prioritizes frequently used and default subject tags, with additional tags available through `More tags`.
+
+### 7. Sort Notes
 
 On `/notes`, use the `Sort By` menu to reorder notes in the browser without changing the database:
 
@@ -313,7 +318,7 @@ On `/notes`, use the `Sort By` menu to reorder notes in the browser without chan
 - `Recently Opened`
 - `Least recently opened`
 
-### 7. Use the AI Chat
+### 8. Use the AI Chat
 
 Open `/ai-chat` and ask the assistant to help with study tasks. Example prompts:
 
@@ -327,7 +332,7 @@ Edit my note about photosynthesis to make it simpler.
 Summarize all my notes.
 ```
 
-### 8. Practice
+### 9. Practice and Analytics
 
 Generated flashcards and quizzes open in their own views. Save the ones you want to keep.
 
@@ -338,6 +343,8 @@ Saved practice material appears in:
 ```
 
 Note: only saved quizzes and saved flashcard sets appear in Practice Hub.
+
+The Practice Hub displays quiz analytics when attempts are available, including overall average score, average correct answers, average incorrect answers, and average unanswered answers. It also breaks these metrics down by relevant quiz tags so you can compare performance across subjects.
 
 ## Main Routes
 
@@ -368,6 +375,7 @@ Note: only saved quizzes and saved flashcard sets appear in Practice Hub.
 | `/quiz/<quiz_id>` | Take generated quiz |
 | `/save-quiz/<quiz_id>` | Save quiz score |
 | `/practice-hub` | Saved flashcards and quizzes |
+| `/quiz-attempts/<quiz_id>` | Quiz attempt history for a saved quiz |
 | `/about` | About page |
 
 ## Background Jobs
@@ -427,7 +435,7 @@ Check:
 
 Check:
 
-- `GROQ_API_KEY` is present and valid.
+- `MISTRAL_API_KEY` is present and valid.
 - `GEMINI_API_KEY` is present and valid.
 - Your API accounts have available quota.
 - The model names in `helpers.py` are available for your API accounts.
