@@ -121,7 +121,7 @@
 
     {% if overall_stats %}
     <h2>Analytics</h2>
-    <h3>Overall Scores</h3>
+    <h3>Overall Scores ({{ overall_stats['total_quizzes'] }} {{ 'Quiz' if overall_stats['total_quizzes'] == 1 else 'Quizzes' }})</h3>
     <div class="attempts-summary-container">
             <div class="stat-box">
                 <span class="stat-value text-purple">{{overall_stats['overall_average_score']}}%</span>
@@ -142,7 +142,7 @@
         </div>
         {% if quiz_stats_by_tag %}
         {% for tag_name, stats_by_tag in quiz_stats_by_tag.items() %}
-        <h3>{{tag_name}} Scores</h3>
+        <h3>{{tag_name}} Scores ({{ stats_by_tag['total_quizzes'] }} {{ 'Quiz' if stats_by_tag['total_quizzes'] == 1 else 'Quizzes' }})</h3>
          <div class="attempts-summary-container">
             <div class="stat-box">
                 <span class="stat-value text-purple">{{stats_by_tag['average_score']}}%</span>

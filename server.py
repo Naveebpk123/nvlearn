@@ -1710,6 +1710,7 @@ def practice_hub():
         average_incorrect_answers_percentage = round((sum(all_incorrect_answers_percentages) / len(all_incorrect_answers_percentages)) if all_incorrect_answers_percentages else 0, 2)
         average_unanswered_percentage = round((sum(all_unanswered_percentages) / len(all_unanswered_percentages)) if all_unanswered_percentages else 0, 2)
         overall_stats = {
+            "total_quizzes": len(all_quizzes),
             "overall_average_score": overall_average_score,
             "average_correct_answers_percentage": average_correct_answers_percentage,
             "average_incorrect_answers_percentage": average_incorrect_answers_percentage,
