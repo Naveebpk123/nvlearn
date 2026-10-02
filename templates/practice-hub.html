@@ -72,7 +72,7 @@
                         <div class="card-actions">
                             <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" class="btn btn-primary">Retake</a>
                             <button class="btn btn-delete delete-quiz-btn" data-quiz-id="{{ quiz.id }}">Delete</button>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="quizPreviousAttemptsBtn" data-quiz-id="{{ quiz.id }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="quizPreviousAttemptsBtn" data-quiz-id="{{ quiz.id }}">
                             <title>Previous Attempts</title>
                             <!-- Counter-clockwise history rewind arrow -->
                             <path d="M3 12a9 9 0 1 0 2.63-6.37L3 8" />
@@ -141,8 +141,8 @@
             </div>
         </div>
         {% if quiz_stats_by_tag %}
-        {% for stats_by_tag in quiz_stats_by_tag %}
-        <h3>{{stats_by_tag}} Scores</h3>
+        {% for tag_name, stats_by_tag in quiz_stats_by_tag.items() %}
+        <h3>{{tag_name}} Scores</h3>
          <div class="attempts-summary-container">
             <div class="stat-box">
                 <span class="stat-value text-purple">{{stats_by_tag['average_score']}}%</span>

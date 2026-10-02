@@ -40,7 +40,7 @@ const tabcontainer = document.getElementsByClassName('tab-container')[0];
 const backBtn = document.getElementById('backBtn');
 const deleteQuizBtns = document.getElementsByClassName('delete-quiz-btn');
 
-const quizPreviousAttemptsBtn = document.getElementById('quizPreviousAttemptsBtn');
+const quizPreviousAttemptsBtns = document.getElementsByClassName('quizPreviousAttemptsBtn');
 const previousAttemptsModalBackground = document.getElementById('previousAttemptsModalBackground');
 const modalClosePreviousAttemptsBtn = document.getElementById('closePreviousAttemptsModal');
 const avgScoreElement = document.getElementById('avgScore');
@@ -346,50 +346,52 @@ if (backBtn) {
     });
 }
 
-if (quizPreviousAttemptsBtn) {
-  quizPreviousAttemptsBtn.addEventListener('click', async () => {
-    previousAttemptsModalBackground.style.display = 'flex';
-    const quizId = quizPreviousAttemptsBtn.dataset.quizId;
-    
-    const response = await fetch(`/quiz-attempts/${quizId}`);
-    const response_json = await response.json();
-    
-    previousAttemptsList.innerHTML = '';
+if (quizPreviousAttemptsBtns && quizPreviousAttemptsBtns.length > 0) {
+  Array.from(quizPreviousAttemptsBtns).forEach(btn => {
+    btn.addEventListener('click', async () => {
+      previousAttemptsModalBackground.style.display = 'flex';
+      const quizId = btn.dataset.quizId;
+      
+      const response = await fetch(`/quiz-attempts/${quizId}`);
+      const response_json = await response.json();
+      
+      previousAttemptsList.innerHTML = '';
 
-    if (response_json.attempts && response_json.attempts.length > 0) {
-    avgScoreElement.textContent = `${response_json.averages.average_percentage.toFixed(2)}%`;
-    avgCorrectElement.textContent = response_json.averages.average_correct.toFixed(2);
-    avgIncorrectElement.textContent = response_json.averages.average_incorrect.toFixed(2);
-    avgUnansweredElement.textContent = response_json.averages.average_unanswered.toFixed(2);
+      if (response_json.attempts && response_json.attempts.length > 0) {
+        avgScoreElement.textContent = `${response_json.averages.average_percentage.toFixed(2)}%`;
+        avgCorrectElement.textContent = response_json.averages.average_correct.toFixed(2);
+        avgIncorrectElement.textContent = response_json.averages.average_incorrect.toFixed(2);
+        avgUnansweredElement.textContent = response_json.averages.average_unanswered.toFixed(2);
 
-    const fields = [
-        { type: 'score', label: 'Score', value: (a) => `${a.percentage_score}%` },
-        { type: 'correct', label: 'Correct', value: (a) => a.correct_answers },
-        { type: 'incorrect', label: 'Wrong', value: (a) => a.incorrect_answers },
-        { type: 'unanswered', label: 'Unanswered', value: (a) => a.unanswered }
-    ];
+        const fields = [
+            { type: 'score', label: 'Score', value: (a) => `${a.percentage_score}%` },
+            { type: 'correct', label: 'Correct', value: (a) => a.correct_answers },
+            { type: 'incorrect', label: 'Wrong', value: (a) => a.incorrect_answers },
+            { type: 'unanswered', label: 'Unanswered', value: (a) => a.unanswered }
+        ];
 
-    for (const attempt of response_json.attempts) {
-        const statsHtml = fields.map(field => `
-          <div class="stat-item ${field.type}">
-            <span class="stat-value">${field.value(attempt)}</span>
-            <span class="stat-label">${field.label}</span>
-          </div>
-        `).join('');
+        for (const attempt of response_json.attempts) {
+            const statsHtml = fields.map(field => `
+              <div class="stat-item ${field.type}">
+                <span class="stat-value">${field.value(attempt)}</span>
+                <span class="stat-label">${field.label}</span>
+              </div>
+            `).join('');
 
-        const attemptBar = document.createElement('div');
-        attemptBar.className = 'previous-attempt';
-        attemptBar.innerHTML = statsHtml;
-        previousAttemptsList.appendChild(attemptBar);
-    }
-    }else if (response_json.error) {
+            const attemptBar = document.createElement('div');
+            attemptBar.className = 'previous-attempt';
+            attemptBar.innerHTML = statsHtml;
+            previousAttemptsList.appendChild(attemptBar);
+        }
+      } else if (response_json.error) {
         flash(response_json.error, 'error');
-    } 
-    else {
-      previousAttemptsList.innerHTML = '<p class="empty-msg">No attempts yet.</p>';
-    }
+      } else {
+        previousAttemptsList.innerHTML = '<p class="empty-msg">No attempts yet.</p>';
+      }
+    });
   });
 }
+
 
 if (modalClosePreviousAttemptsBtn) {
     modalClosePreviousAttemptsBtn.addEventListener('click', () => {

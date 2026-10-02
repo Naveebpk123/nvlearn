@@ -1686,15 +1686,26 @@ def practice_hub():
     quiz_stats_by_tag = {}
     overall_stats = {}
 
-    if all_quizes:
+    if all_quizzes:
         for quiz in all_quizzes:
             all_attempts.extend(quiz.attempts)
             all_tags.extend(quiz.tags)
-        total_questions = sum(attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered for attempt in all_attempts)
         overall_average_score = round((sum(attempt.percentage_score for attempt in all_attempts) / len(all_attempts)) if all_attempts else 0, 2)
-        all_correct_answers_percentages = [attempt.correct_answers*100/total_questions for attempt in all_attempts]
-        all_incorrect_answers_percentages = [attempt.incorrect_answers*100/total_questions for attempt in all_attempts]
-        all_unanswered_percentages = [attempt.unanswered*100/total_questions for attempt in all_attempts]
+        all_correct_answers_percentages = [
+            (attempt.correct_answers * 100 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
+            for attempt in all_attempts
+            if (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered) > 0
+        ]
+        all_incorrect_answers_percentages = [
+            (attempt.incorrect_answers * 100 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
+            for attempt in all_attempts
+            if (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered) > 0
+        ]
+        all_unanswered_percentages = [
+            (attempt.unanswered * 100 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
+            for attempt in all_attempts
+            if (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered) > 0
+        ]
         average_correct_answers_percentage = round((sum(all_correct_answers_percentages) / len(all_correct_answers_percentages)) if all_correct_answers_percentages else 0, 2)
         average_incorrect_answers_percentage = round((sum(all_incorrect_answers_percentages) / len(all_incorrect_answers_percentages)) if all_incorrect_answers_percentages else 0, 2)
         average_unanswered_percentage = round((sum(all_unanswered_percentages) / len(all_unanswered_percentages)) if all_unanswered_percentages else 0, 2)
@@ -1709,8 +1720,8 @@ def practice_hub():
         for tag in all_tags:
             tag = tag.strip()
             tag_counts[tag] = tag_counts.get(tag,0) + 1
-        capitalised_default_tags = [tag.title for tag in DEFAULT_TAGS]
-        main_tags = [tag.title() for tag, count in tag_counts if count>2 or tag.title() in capitalised_default_tags]
+        capitalised_default_tags = [tag.title() for tag in DEFAULT_TAGS]
+        main_tags = list(set([tag.title() for tag, count in tag_counts.items() if count > 2 or tag.title() in capitalised_default_tags]))
         if main_tags:
             for tag in main_tags:
                 related_quizzes = []
@@ -1718,17 +1729,28 @@ def practice_hub():
                     lower_tags = [t.lower() for t in quiz.tags]
                     if tag.lower() in lower_tags:
                         related_quizzes.append(quiz)
-                all_attempts = []
+                tag_attempts = []
                 for quiz in related_quizzes:
-                    all_attempts.extend(quiz.attempts)
-                total_questions = sum(attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered for attempt in all_attempts)
-                average_score = round((sum(attempt.percentage_score for attempt in all_attempts) / len(all_attempts)) if all_attempts else 0, 2)
-                all_correct_answers_percentages = [attempt.correct_answers*100/total_questions for attempt in all_attempts]
-                all_incorrect_answers_percentages = [attempt.incorrect_answers*100/total_questions for attempt in all_attempts]
-                all_unanswered_percentages = [attempt.unanswered*100/total_questions for attempt in all_attempts]
-                average_correct_answers_percentage = round((sum(all_correct_answers_percentages) / len(all_correct_answers_percentages)) if all_correct_answers_percentages else 0, 2)
-                average_incorrect_answers_percentage = round((sum(all_incorrect_answers_percentages) / len(all_incorrect_answers_percentages)) if all_incorrect_answers_percentages else 0, 2)
-                average_unanswered_percentage = round((sum(all_unanswered_percentages) / len(all_unanswered_percentages)) if all_unanswered_percentages else 0, 2)
+                    tag_attempts.extend(quiz.attempts)
+                average_score = round((sum(attempt.percentage_score for attempt in tag_attempts) / len(tag_attempts)) if tag_attempts else 0, 2)
+                tag_correct_percentages = [
+                    (attempt.correct_answers * 100 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
+                    for attempt in tag_attempts
+                    if (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered) > 0
+                ]
+                tag_incorrect_percentages = [
+                    (attempt.incorrect_answers * 100 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
+                    for attempt in tag_attempts
+                    if (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered) > 0
+                ]
+                tag_unanswered_percentages = [
+                    (attempt.unanswered * 100 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
+                    for attempt in tag_attempts
+                    if (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered) > 0
+                ]
+                average_correct_answers_percentage = round((sum(tag_correct_percentages) / len(tag_correct_percentages)) if tag_correct_percentages else 0, 2)
+                average_incorrect_answers_percentage = round((sum(tag_incorrect_percentages) / len(tag_incorrect_percentages)) if tag_incorrect_percentages else 0, 2)
+                average_unanswered_percentage = round((sum(tag_unanswered_percentages) / len(tag_unanswered_percentages)) if tag_unanswered_percentages else 0, 2)
                 quiz_stats_by_tag[tag] = {
                     "total_quizzes": len(related_quizzes),
                     "average_score": average_score,
