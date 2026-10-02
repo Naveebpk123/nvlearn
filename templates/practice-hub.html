@@ -120,6 +120,7 @@
     </div>
 
     {% if overall_stats %}
+    <div id="analytics-section">
     <h2>Analytics</h2>
     <h3>Overall Scores ({{ overall_stats['total_quizzes'] }} {{ 'Quiz' if overall_stats['total_quizzes'] == 1 else 'Quizzes' }})</h3>
     <div class="attempts-summary-container">
@@ -164,4 +165,5 @@
         {% endfor %}
         {% endif %}
     {% endif %}
+    </div> 
 {% endblock %}

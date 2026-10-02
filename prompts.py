@@ -81,6 +81,7 @@ Rules:
 - Be concise but comprehensive.
 - Do not include conversational text such as "Sure" or "Here's your note."
 - Do not explain your reasoning.
+- Metadata tags should contain one core subject and up to 2-3 additional relevant tags.
 - If asked for only metadata, return ONLY that based on content sent and metadata must follow the schema above."""
 
 NOTE_ACTION_PROMPT = """

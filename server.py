@@ -61,7 +61,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///notes.db"
 app.config["SECRET_KEY"] = os.urandom(24)
 VERIFICATION_TTL_SECONDS = 10 * 60
 NOTE_ACTION_COOLDOWN_SECONDS = 5 * 60
-DEFAULT_TAGS = ["personal", "mathematics", "science", "history", "computer science","literature", "physics", "biology", "chemistry"]
+DEFAULT_TAGS = ["personal", "mathematics", "science", "history", "computer science","literature", "physics", "biology", "chemistry","math"]
 
 # ── Logging Configuration ──────────────────────────────────────────────
 logging.basicConfig(

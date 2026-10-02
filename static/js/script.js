@@ -48,6 +48,7 @@ const avgCorrectElement = document.getElementById('avgCorrect');
 const avgIncorrectElement = document.getElementById('avgIncorrect');
 const avgUnansweredElement = document.getElementById('avgUnanswered');
 const previousAttemptsList = document.getElementById('previousAttemptsList');
+const analyticsSection = document.getElementById('analytics-section');
 
 const noteViewOptionsBtn = document.getElementById('note-view-options-btn');
 const noteViewOptions = document.getElementById('view-options-menu');
@@ -343,6 +344,7 @@ if (backBtn) {
         flashcardsContent?.classList.add('hidden');
         quizzesContent?.classList.add('hidden');
         backBtn.classList.add('hidden');
+        analyticsSection?.classList.remove('hidden');
     });
 }
 
@@ -453,6 +455,7 @@ if (flashcardsTab) {
         tabcontainer.classList.add('hidden');
         flashcardsContent.classList.remove('hidden');
         backBtn.classList.remove('hidden');
+        analyticsSection?.classList.add('hidden');
     });
 }
 
@@ -461,6 +464,7 @@ if (quizzesTab) {
         tabcontainer.classList.add('hidden');
         quizzesContent?.classList.remove('hidden');
         backBtn.classList.remove('hidden');
+        analyticsSection?.classList.add('hidden');
     });
 }
 
