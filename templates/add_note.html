@@ -3,14 +3,16 @@
 {% block title %}Add Note{% endblock %}
 
 {% block content %}
+    <button class="button top-left-back-btn hidden" id="backToEditBtn">↩ Back</button>
+
     <header>
-        <h1>Add a note</h1>
+        <h1 id="noteTitleDisplay">Add a note</h1>
     </header>
-    <form class="form" method="POST" novalidate>
+    <form class="form" method="POST" novalidate id="edit-note-form">
         {{ form.hidden_tag() }}
         <div class="form-control">
             {{form.title.label}}
-            {{form.title(class="form-input"+(" invalid" if form.title.errors else ""), placeholder="Title of note")}}
+            {{form.title(class="form-input"+(" invalid" if form.title.errors else ""), placeholder="Title of note", id="noteTitleInput")}}
             {% if form.title.errors %}
                 {% for error in form.title.errors %}
                     <span class="error-message">{{error}}</span>
@@ -34,4 +36,7 @@
             <a class="button cancel" href="{{url_for('notes')}}">Cancel</a>
         </div>
     </form>
+        <div id="read-note-content" class="hidden">
+
+    </div>
 {% endblock %}

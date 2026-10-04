@@ -479,12 +479,17 @@
                 const readNoteContent = document.getElementById('read-note-content');
                 const editNoteForm = document.getElementById('edit-note-form');
                 const editorWrapper = document.querySelector('.quill-editor-wrapper');
+                const noteTitleInput = document.getElementById('noteTitleInput');
+                const noteTitleDisplay = document.getElementById('noteTitleDisplay');
+
 
                 if (!window.quillEditor || !readNoteContent || !editNoteForm) return;
 
                 // Get the current rich HTML content from the Quill editor
                 const content = window.quillEditor.root.innerHTML;
                 readNoteContent.innerHTML = content;
+
+                noteTitleDisplay.textContent = noteTitleInput.value || 'Untitled Note';
 
                 // Hide editor and form, show read view
                 editNoteForm.classList.add('hidden');
@@ -518,6 +523,7 @@
                         readNoteContent.innerHTML = '';
                         readNoteContent.classList.add('hidden');
                         backBtn.classList.add('hidden');
+                        noteTitleDisplay.textContent = 'Add Note';
                     });
                 }
             });

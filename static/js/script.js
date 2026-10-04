@@ -699,7 +699,8 @@ chatInput?.addEventListener('keydown', async function(e) {
         const aiResponse = await response.json();
         const aiBubble = document.createElement('div');
         aiBubble.classList.add('ai-bubble');
-        aiBubble.innerHTML = `${aiResponse.chat || ''}<br>${aiResponse.note_action || ''}<br>${aiResponse.notes || ''}`;        if (aiResponse.flashcard_id) {
+        aiBubble.innerHTML = `${aiResponse.chat || ''}<br>${aiResponse.note_action || ''}<br>${aiResponse.notes || ''}`;        
+        if (aiResponse.flashcard_id) {
             const flashcardLink = document.createElement('a');
             flashcardLink.className = 'button';
             flashcardLink.href = `/flashcards/${aiResponse.flashcard_id}`;
