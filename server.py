@@ -1687,143 +1687,140 @@ def practice_hub():
     recent_attempts_graph_data = None
 
     if all_quizzes:
-    for quiz in all_quizzes:
-        all_attempts.extend(quiz.attempts)
-        all_tags.extend(quiz.tags)
+        for quiz in all_quizzes:
+            all_attempts.extend(quiz.attempts)
+            all_tags.extend(quiz.tags)
 
-    # Overall Percentages
-    all_correct_percentages = [
-        (a.correct_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
-        for a in all_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
-    ]
-    all_incorrect_percentages = [
-        (a.incorrect_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
-        for a in all_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
-    ]
-    all_unanswered_percentages = [
-        (a.unanswered * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
-        for a in all_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
-    ]
+        # Overall Percentages
+        all_correct_percentages = [
+            (a.correct_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
+            for a in all_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
+        ]
+        all_incorrect_percentages = [
+            (a.incorrect_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
+            for a in all_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
+        ]
+        all_unanswered_percentages = [
+            (a.unanswered * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
+            for a in all_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
+        ]
 
-    average_correct_answers_percentage = round(sum(all_correct_percentages) / len(all_correct_percentages), 2) if all_correct_percentages else 0.0
-    average_incorrect_answers_percentage = round(sum(all_incorrect_percentages) / len(all_incorrect_percentages), 2) if all_incorrect_percentages else 0.0
-    average_unanswered_percentage = round(sum(all_unanswered_percentages) / len(all_unanswered_percentages), 2) if all_unanswered_percentages else 0.0
+        average_correct_answers_percentage = round(sum(all_correct_percentages) / len(all_correct_percentages), 2) if all_correct_percentages else 0.0
+        average_incorrect_answers_percentage = round(sum(all_incorrect_percentages) / len(all_incorrect_percentages), 2) if all_incorrect_percentages else 0.0
+        average_unanswered_percentage = round(sum(all_unanswered_percentages) / len(all_unanswered_percentages), 2) if all_unanswered_percentages else 0.0
 
-    # Overall Most Recent 5 Attempts
-    recent_attempts = sorted(all_attempts, key=lambda a: a.attempted_at, reverse=True)[:5]
-    
-    recent_correct = [
-        (a.correct_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
-        for a in recent_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
-    ]
-    recent_incorrect = [
-        (a.incorrect_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
-        for a in recent_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
-    ]
-    recent_unanswered = [
-        (a.unanswered * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
-        for a in recent_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
-    ]
+        # Overall Most Recent 5 Attempts
+        recent_attempts = sorted(all_attempts, key=lambda a: a.attempted_at, reverse=True)[:5]
+        
+        recent_correct = [
+            (a.correct_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
+            for a in recent_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
+        ]
+        recent_incorrect = [
+            (a.incorrect_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
+            for a in recent_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
+        ]
+        recent_unanswered = [
+            (a.unanswered * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
+            for a in recent_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
+        ]
 
-    recent_attempts_data = {
-        'recent_attempts_average_correct': round(sum(recent_correct) / len(recent_correct), 2) if recent_correct else 0.0,
-        'recent_attempts_average_incorrect': round(sum(recent_incorrect) / len(recent_incorrect), 2) if recent_incorrect else 0.0,
-        'recent_attempts_average_unanswered': round(sum(recent_unanswered) / len(recent_unanswered), 2) if recent_unanswered else 0.0
-    }
+        recent_attempts_data = {
+            'recent_attempts_average_correct': round(sum(recent_correct) / len(recent_correct), 2) if recent_correct else 0.0,
+            'recent_attempts_average_incorrect': round(sum(recent_incorrect) / len(recent_incorrect), 2) if recent_incorrect else 0.0,
+            'recent_attempts_average_unanswered': round(sum(recent_unanswered) / len(recent_unanswered), 2) if recent_unanswered else 0.0
+        }
 
-    overall_stats = {
-        "total_quizzes": len(all_quizzes),
-        "average_correct_answers_percentage": average_correct_answers_percentage,
-        "average_incorrect_answers_percentage": average_incorrect_answers_percentage,
-        "average_unanswered_percentage": average_unanswered_percentage,
-        "recent_attempts_data": recent_attempts_data
-    }
+        overall_stats = {
+            "total_quizzes": len(all_quizzes),
+            "average_correct_answers_percentage": average_correct_answers_percentage,
+            "average_incorrect_answers_percentage": average_incorrect_answers_percentage,
+            "average_unanswered_percentage": average_unanswered_percentage,
+            "recent_attempts_data": recent_attempts_data
+        }
 
-    # Process Tag Metrics
-    tag_counts = {}
-    for tag in all_tags:
-        clean_tag = tag.strip()
-        tag_counts[clean_tag] = tag_counts.get(clean_tag, 0) + 1
+        # Process Tag Metrics
+        tag_counts = {}
+        for tag in all_tags:
+            clean_tag = tag.strip()
+            tag_counts[clean_tag] = tag_counts.get(clean_tag, 0) + 1
 
-    capitalised_default_tags = [tag.title() for tag in DEFAULT_TAGS]
-    main_tags = list(set([tag.title() for tag, count in tag_counts.items() if count > 2 or tag.title() in capitalised_default_tags]))
+        capitalised_default_tags = [tag.title() for tag in DEFAULT_TAGS]
+        main_tags = list(set([tag.title() for tag, count in tag_counts.items() if count > 2 or tag.title() in capitalised_default_tags]))
 
-    graph_data = None
-    recent_attempts_graph_data = None
+        if main_tags:
+            for tag in main_tags:
+                related_quizzes = [quiz for quiz in all_quizzes if tag.lower() in [t.lower() for t in quiz.tags]]
+                tag_attempts = []
+                for quiz in related_quizzes:
+                    tag_attempts.extend(quiz.attempts)
 
-    if main_tags:
-        for tag in main_tags:
-            related_quizzes = [quiz for quiz in all_quizzes if tag.lower() in [t.lower() for t in quiz.tags]]
-            tag_attempts = []
-            for quiz in related_quizzes:
-                tag_attempts.extend(quiz.attempts)
+                # Tag Overall Averages
+                tag_correct = [
+                    (a.correct_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
+                    for a in tag_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
+                ]
+                tag_incorrect = [
+                    (a.incorrect_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
+                    for a in tag_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
+                ]
+                tag_unanswered = [
+                    (a.unanswered * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
+                    for a in tag_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
+                ]
 
-            # Tag Overall Averages
-            tag_correct = [
-                (a.correct_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
-                for a in tag_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
-            ]
-            tag_incorrect = [
-                (a.incorrect_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
-                for a in tag_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
-            ]
-            tag_unanswered = [
-                (a.unanswered * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
-                for a in tag_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
-            ]
+                # Tag Recent 5 Attempts 
+                recent_tag_attempts = sorted(tag_attempts, key=lambda a: a.attempted_at, reverse=True)[:5]
+                
+                tag_recent_correct = [
+                    (a.correct_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
+                    for a in recent_tag_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
+                ]
+                tag_recent_incorrect = [
+                    (a.incorrect_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
+                    for a in recent_tag_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
+                ]
+                tag_recent_unanswered = [
+                    (a.unanswered * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
+                    for a in recent_tag_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
+                ]
 
-            # Tag Recent 5 Attempts 
-            recent_tag_attempts = sorted(tag_attempts, key=lambda a: a.attempted_at, reverse=True)[:5]
-            
-            tag_recent_correct = [
-                (a.correct_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
-                for a in recent_tag_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
-            ]
-            tag_recent_incorrect = [
-                (a.incorrect_answers * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
-                for a in recent_tag_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
-            ]
-            tag_recent_unanswered = [
-                (a.unanswered * 100.0 / (a.correct_answers + a.incorrect_answers + a.unanswered))
-                for a in recent_tag_attempts if (a.correct_answers + a.incorrect_answers + a.unanswered) > 0
-            ]
-
-            quiz_stats_by_tag[tag] = {
-                "total_quizzes": len(related_quizzes),
-                "average_correct_answers_percentage": round(sum(tag_correct) / len(tag_correct), 2) if tag_correct else 0.0,
-                "average_incorrect_answers_percentage": round(sum(tag_incorrect) / len(tag_incorrect), 2) if tag_incorrect else 0.0,
-                "average_unanswered_percentage": round(sum(tag_unanswered) / len(tag_unanswered), 2) if tag_unanswered else 0.0,
-                "recent_attempts_data": {
-                    "recent_attempts_average_correct": round(sum(tag_recent_correct) / len(tag_recent_correct), 2) if tag_recent_correct else 0.0,
-                    "recent_attempts_average_incorrect": round(sum(tag_recent_incorrect) / len(tag_recent_incorrect), 2) if tag_recent_incorrect else 0.0,
-                    "recent_attempts_average_unanswered": round(sum(tag_recent_unanswered) / len(tag_recent_unanswered), 2) if tag_recent_unanswered else 0.0,
+                quiz_stats_by_tag[tag] = {
+                    "total_quizzes": len(related_quizzes),
+                    "average_correct_answers_percentage": round(sum(tag_correct) / len(tag_correct), 2) if tag_correct else 0.0,
+                    "average_incorrect_answers_percentage": round(sum(tag_incorrect) / len(tag_incorrect), 2) if tag_incorrect else 0.0,
+                    "average_unanswered_percentage": round(sum(tag_unanswered) / len(tag_unanswered), 2) if tag_unanswered else 0.0,
+                    "recent_attempts_data": {
+                        "recent_attempts_average_correct": round(sum(tag_recent_correct) / len(tag_recent_correct), 2) if tag_recent_correct else 0.0,
+                        "recent_attempts_average_incorrect": round(sum(tag_recent_incorrect) / len(tag_recent_incorrect), 2) if tag_recent_incorrect else 0.0,
+                        "recent_attempts_average_unanswered": round(sum(tag_recent_unanswered) / len(tag_recent_unanswered), 2) if tag_recent_unanswered else 0.0,
+                    }
                 }
+
+            graph_data = {
+                "tags": list(quiz_stats_by_tag.keys()),
+                "average_correct_answers_percentages": [stats["average_correct_answers_percentage"] for stats in quiz_stats_by_tag.values()],
+                "average_incorrect_answers_percentages": [stats["average_incorrect_answers_percentage"] for stats in quiz_stats_by_tag.values()],
+                "average_unanswered_percentages": [stats["average_unanswered_percentage"] for stats in quiz_stats_by_tag.values()]
+            }
+            recent_attempts_graph_data = {
+                "tags": list(quiz_stats_by_tag.keys()),
+                "recent_attempts_average_correct": [stats["recent_attempts_data"]["recent_attempts_average_correct"] for stats in quiz_stats_by_tag.values()],
+                "recent_attempts_average_incorrect": [stats["recent_attempts_data"]["recent_attempts_average_incorrect"] for stats in quiz_stats_by_tag.values()],
+                "recent_attempts_average_unanswered": [stats["recent_attempts_data"]["recent_attempts_average_unanswered"] for stats in quiz_stats_by_tag.values()]
             }
 
-        graph_data = {
-            "tags": list(quiz_stats_by_tag.keys()),
-            "average_correct_answers_percentages": [stats["average_correct_answers_percentage"] for stats in quiz_stats_by_tag.values()],
-            "average_incorrect_answers_percentages": [stats["average_incorrect_answers_percentage"] for stats in quiz_stats_by_tag.values()],
-            "average_unanswered_percentages": [stats["average_unanswered_percentage"] for stats in quiz_stats_by_tag.values()]
-        }
-        recent_attempts_graph_data = {
-            "tags": list(quiz_stats_by_tag.keys()),
-            "recent_attempts_average_correct": [stats["recent_attempts_data"]["recent_attempts_average_correct"] for stats in quiz_stats_by_tag.values()],
-            "recent_attempts_average_incorrect": [stats["recent_attempts_data"]["recent_attempts_average_incorrect"] for stats in quiz_stats_by_tag.values()],
-            "recent_attempts_average_unanswered": [stats["recent_attempts_data"]["recent_attempts_average_unanswered"] for stats in quiz_stats_by_tag.values()]
-        }
-
-return render_template(
-    "practice-hub.html",
-    flashcards=all_flashcards,
-    quizzes=all_quizzes,
-    saved_flashcards=len(all_flashcards),
-    saved_quizzes=len(all_quizzes),
-    overall_stats=overall_stats,
-    quiz_stats_by_tag=quiz_stats_by_tag,
-    graph_data=graph_data,
-    recent_attempts_graph_data=recent_attempts_graph_data
-)
+    return render_template(
+        "practice-hub.html",
+        flashcards=all_flashcards,
+        quizzes=all_quizzes,
+        saved_flashcards=len(all_flashcards),
+        saved_quizzes=len(all_quizzes),
+        overall_stats=overall_stats,
+        quiz_stats_by_tag=quiz_stats_by_tag,
+        graph_data=graph_data,
+        recent_attempts_graph_data=recent_attempts_graph_data
+    )
 
 """
 Route: /save_diagram [POST]

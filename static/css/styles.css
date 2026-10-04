@@ -1118,6 +1118,39 @@ body.editor-lock-scroll {
     white-space: nowrap; /* Prevents long text like "AVG INCORRECT %" from wrapping */
 }
 
+/* Segmented Control / Toggle Switch */
+.segmented-control {
+    display: inline-flex;
+    background-color: var(--bg-dark, #e2e8f0);
+    border: 1px solid var(--border-color, #cbd5e1);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 3px;
+    user-select: none;
+}
+
+.segmented-btn {
+    border: none;
+    background: transparent;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted, #64748b);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.segmented-btn:hover {
+    color: var(--text-main, #0f172a);
+}
+
+.segmented-btn.active {
+    background-color: var(--bg-card, #ffffff);
+    color: var(--primary-blue, #2563eb);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
 /* Color Palette Utilities */
 .text-purple { color: #8b5cf6; }
 .text-green  { color: #22c55e; }
@@ -2144,4 +2177,18 @@ html.dark .ql-snow button:hover {
 
 .dark .apexcharts-legend-text {
     color: var(--text-muted) !important;
+}
+
+.dark .segmented-control {
+    background-color: var(--bg-dark);
+    border-color: var(--border-color);
+}
+
+.dark .segmented-btn {
+    color: var(--text-muted);
+}
+
+.dark .segmented-btn.active {
+    background-color: var(--bg-card);
+    color: #60a5fa;
 }

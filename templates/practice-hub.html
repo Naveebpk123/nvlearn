@@ -92,20 +92,26 @@
                     <h2>Previous Attempts</h2>
                     <button class="modalCloseBtn" id="closePreviousAttemptsModal">X</button>
                 </div>
+                <div style="display: flex; justify-content: center; margin: 10px 0 15px 0;">
+                    <div class="segmented-control" id="modalSegmentedToggle">
+                        <button type="button" class="segmented-btn active" data-mode="all">All-Time</button>
+                        <button type="button" class="segmented-btn" data-mode="recent">Most Recent 5</button>
+                    </div>
+                </div>
                 <div class="attempts-summary-container" id="attemptsSummaryContainer">
-            <div class="stat-box">
-                <span id="avgCorrect" class="stat-value text-green"></span>
-                <span class="stat-label">AVG CORRECT</span>
-            </div>
-            <div class="stat-box">
-                <span id="avgIncorrect" class="stat-value text-red"></span>
-                <span class="stat-label">AVG INCORRECT</span>
-            </div>
-            <div class="stat-box">
-                <span id="avgUnanswered" class="stat-value text-amber"></span>
-                <span class="stat-label">AVG UNANSWERED</span>
-            </div>
-        </div>
+                    <div class="stat-box">
+                        <span id="avgCorrect" class="stat-value text-green"></span>
+                        <span class="stat-label">AVG CORRECT</span>
+                    </div>
+                    <div class="stat-box">
+                        <span id="avgIncorrect" class="stat-value text-red"></span>
+                        <span class="stat-label">AVG INCORRECT</span>
+                    </div>
+                    <div class="stat-box">
+                        <span id="avgUnanswered" class="stat-value text-amber"></span>
+                        <span class="stat-label">AVG UNANSWERED</span>
+                    </div>
+                </div>
                 <div id="previousAttemptsList">
                     <div class="previous-attempt"></div>
                 </div>
@@ -119,40 +125,93 @@
 
     {% if overall_stats %}
     <div id="analytics-section">
-    <h2>Analytics</h2>
-    <h3>Overall Scores ({{ overall_stats['total_quizzes'] }} {{ 'Quiz' if overall_stats['total_quizzes'] == 1 else 'Quizzes' }})</h3>
-    <div class="attempts-summary-container">
-            <div class="stat-box">
-                <span  class="stat-value text-green">{{overall_stats['average_correct_answers_percentage']}}%</span>
-                <span class="stat-label">AVG CORRECT %</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-value text-red">{{overall_stats['average_incorrect_answers_percentage']}}%</span>
-                <span class="stat-label">AVG INCORRECT %</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-value text-amber">{{overall_stats['average_unanswered_percentage']}}%</span>
-                <span class="stat-label">AVG UNANSWERED %</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+            <h2 style="margin: 0;">Analytics</h2>
+            <div class="segmented-control" id="analyticsSegmentedToggle">
+                <button type="button" class="segmented-btn active" data-mode="all">All-Time</button>
+                <button type="button" class="segmented-btn" data-mode="recent">Most Recent 5</button>
             </div>
         </div>
+
+        <!-- Overall Scores (All-Time) -->
+        <div class="analytics-all-time-group">
+            <h3>Overall Scores ({{ overall_stats['total_quizzes'] }} {{ 'Quiz' if overall_stats['total_quizzes'] == 1 else 'Quizzes' }})</h3>
+            <div class="attempts-summary-container">
+                <div class="stat-box">
+                    <span class="stat-value text-green">{{ overall_stats['average_correct_answers_percentage'] }}%</span>
+                    <span class="stat-label">AVG CORRECT %</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-value text-red">{{ overall_stats['average_incorrect_answers_percentage'] }}%</span>
+                    <span class="stat-label">AVG INCORRECT %</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-value text-amber">{{ overall_stats['average_unanswered_percentage'] }}%</span>
+                    <span class="stat-label">AVG UNANSWERED %</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overall Scores (Most Recent 5) -->
+        <div class="analytics-recent-group hidden">
+            <h3>Overall Scores (Most Recent 5 Attempts)</h3>
+            <div class="attempts-summary-container">
+                <div class="stat-box">
+                    <span class="stat-value text-green">{{ overall_stats['recent_attempts_data']['recent_attempts_average_correct'] }}%</span>
+                    <span class="stat-label">AVG CORRECT %</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-value text-red">{{ overall_stats['recent_attempts_data']['recent_attempts_average_incorrect'] }}%</span>
+                    <span class="stat-label">AVG INCORRECT %</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-value text-amber">{{ overall_stats['recent_attempts_data']['recent_attempts_average_unanswered'] }}%</span>
+                    <span class="stat-label">AVG UNANSWERED %</span>
+                </div>
+            </div>
+        </div>
+
         {% if quiz_stats_by_tag %}
         {% for tag_name, stats_by_tag in quiz_stats_by_tag.items() %}
-        <h3>{{tag_name}} Scores ({{ stats_by_tag['total_quizzes'] }} {{ 'Quiz' if stats_by_tag['total_quizzes'] == 1 else 'Quizzes' }})</h3>
-         <div class="attempts-summary-container">
-            <div class="stat-box">
-                <span  class="stat-value text-green">{{stats_by_tag['average_correct_answers_percentage']}}%</span>
-                <span class="stat-label">AVG CORRECT %</span>
+        <!-- Tag Scores (All-Time) -->
+        <div class="analytics-all-time-group">
+            <h3>{{ tag_name }} Scores ({{ stats_by_tag['total_quizzes'] }} {{ 'Quiz' if stats_by_tag['total_quizzes'] == 1 else 'Quizzes' }})</h3>
+            <div class="attempts-summary-container">
+                <div class="stat-box">
+                    <span class="stat-value text-green">{{ stats_by_tag['average_correct_answers_percentage'] }}%</span>
+                    <span class="stat-label">AVG CORRECT %</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-value text-red">{{ stats_by_tag['average_incorrect_answers_percentage'] }}%</span>
+                    <span class="stat-label">AVG INCORRECT %</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-value text-amber">{{ stats_by_tag['average_unanswered_percentage'] }}%</span>
+                    <span class="stat-label">AVG UNANSWERED %</span>
+                </div>
             </div>
-            <div class="stat-box">
-                <span class="stat-value text-red">{{stats_by_tag['average_incorrect_answers_percentage']}}%</span>
-                <span class="stat-label">AVG INCORRECT %</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-value text-amber">{{stats_by_tag['average_unanswered_percentage']}}%</span>
-                <span class="stat-label">AVG UNANSWERED %</span>
+        </div>
+
+        <!-- Tag Scores (Most Recent 5) -->
+        <div class="analytics-recent-group hidden">
+            <h3>{{ tag_name }} Scores (Most Recent 5 Attempts)</h3>
+            <div class="attempts-summary-container">
+                <div class="stat-box">
+                    <span class="stat-value text-green">{{ stats_by_tag['recent_attempts_data']['recent_attempts_average_correct'] }}%</span>
+                    <span class="stat-label">AVG CORRECT %</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-value text-red">{{ stats_by_tag['recent_attempts_data']['recent_attempts_average_incorrect'] }}%</span>
+                    <span class="stat-label">AVG INCORRECT %</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-value text-amber">{{ stats_by_tag['recent_attempts_data']['recent_attempts_average_unanswered'] }}%</span>
+                    <span class="stat-label">AVG UNANSWERED %</span>
+                </div>
             </div>
         </div>
         {% endfor %}
+
         <h3>Overall Stats by Tags</h3>
         <div class="chart-container">
             <div id="subject-performance-chart"></div>
@@ -161,103 +220,110 @@
         <script>
         const isDark = document.documentElement.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches;
         const categories = {{ graph_data['tags'] | tojson }};
-        const textColor = isDark ? '#64748b' : '#1e293b'; // Light text for dark mode, dark text for light mode
+        const textColor = isDark ? '#64748b' : '#1e293b';
+
+        const allTimeSeriesData = [
+            {
+                name: 'Unanswered',
+                data: {{ graph_data['average_unanswered_percentages'] | tojson }}
+            },
+            {
+                name: 'Correct',
+                data: {{ graph_data['average_correct_answers_percentages'] | tojson }}
+            },
+            {
+                name: 'Incorrect',
+                data: {{ graph_data['average_incorrect_answers_percentages'] | tojson }}
+            }
+        ];
+
+        const recentSeriesData = [
+            {
+                name: 'Unanswered',
+                data: {{ recent_attempts_graph_data['recent_attempts_average_unanswered'] | tojson }}
+            },
+            {
+                name: 'Correct',
+                data: {{ recent_attempts_graph_data['recent_attempts_average_correct'] | tojson }}
+            },
+            {
+                name: 'Incorrect',
+                data: {{ recent_attempts_graph_data['recent_attempts_average_incorrect'] | tojson }}
+            }
+        ];
+
         const options = {
-            // Chart Configuration
             chart: {
                 type: 'bar',
                 height: 420,
                 toolbar: { show: false },
                 fontFamily: 'Helvetica, Arial, sans-serif'
             },
-            
-            // Series Data (4 bars per category)
-            series: [
-                {
-                    name: 'Unanswered',
-                    data: {{ graph_data['average_unanswered_percentages'] | tojson }}
-                },
-                {
-                    name: 'Correct',
-                    data: {{ graph_data['average_correct_answers_percentages'] | tojson }}
-                },
-                {
-                    name: 'Incorrect',
-                    data: {{ graph_data['average_incorrect_answers_percentages'] | tojson }}
-                },
-            ],
-            
-            // Bar Grouping & Style
+            series: allTimeSeriesData,
             plotOptions: {
                 bar: {
                     horizontal: false,
                     columnWidth: '65%',
                     endingShape: 'rounded',
                     borderRadius: 4,
-                    dataLabels: {
-                        position: 'top'
-                    }
+                    dataLabels: { position: 'top' }
                 }
             },
-
-            // Colors matching each series order
-            colors: [
-                '#cbd5e1', // Unanswered (Gray)
-                '#22c55e', // Correct (Green)
-                '#ef4444', // Incorrect (Red)
-            ],
-
+            colors: ['#cbd5e1', '#22c55e', '#ef4444'],
             dataLabels: {
                 enabled: true,
-                style: {
-                    fontSize: '11px',
-                    colors: [textColor]
-                },
+                style: { fontSize: '11px', colors: [textColor] },
                 offsetY: -20
             },
-
-            // X-Axis Categories
             xaxis: {
                 categories: categories,
-                labels: {
-                    style: { fontSize: '13px', fontWeight: 600 }
-                }
+                labels: { style: { fontSize: '13px', fontWeight: 600 } }
             },
-
-            // Y-Axis Configuration
             yaxis: {
-                title: {
-                    text: 'Average stats by tags (%)',
-                },
+                title: { text: 'Average stats by tags (%)' },
                 max: 100
             },
-
-            // Legend Configuration
             legend: {
                 position: 'top',
                 horizontalAlign: 'right',
                 fontSize: '13px',
-                markers: {
-                    radius: 12
-                }
+                markers: { radius: 12 }
             },
-
-            // 9. Interactive Tooltip
             tooltip: {
                 shared: true,
                 intersect: false,
-                y: {
-                    formatter: function (val) {
-                        return val+'%'
-                    }
-                }
+                y: { formatter: function (val) { return val + '%'; } }
             }
         };
 
-        // Render the chart
         const chart = new ApexCharts(document.querySelector("#subject-performance-chart"), options);
         chart.render();
-    </script>
+
+        const analyticsSegmentedToggle = document.getElementById('analyticsSegmentedToggle');
+        if (analyticsSegmentedToggle) {
+            const btns = analyticsSegmentedToggle.querySelectorAll('.segmented-btn');
+            btns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    btns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    const mode = btn.dataset.mode;
+                    const allTimeGroups = document.querySelectorAll('.analytics-all-time-group');
+                    const recentGroups = document.querySelectorAll('.analytics-recent-group');
+
+                    if (mode === 'recent') {
+                        allTimeGroups.forEach(g => g.classList.add('hidden'));
+                        recentGroups.forEach(g => g.classList.remove('hidden'));
+                        chart.updateSeries(recentSeriesData);
+                    } else {
+                        recentGroups.forEach(g => g.classList.add('hidden'));
+                        allTimeGroups.forEach(g => g.classList.remove('hidden'));
+                        chart.updateSeries(allTimeSeriesData);
+                    }
+                });
+            });
+        }
+        </script>
         {% endif %}
     {% endif %}
     </div> 

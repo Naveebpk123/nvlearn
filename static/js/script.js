@@ -348,70 +348,115 @@ if (backBtn) {
     });
 }
 
+let currentModalAttempts = [];
+
+function renderModalAttempts(mode) {
+    if (!previousAttemptsList) return;
+    previousAttemptsList.innerHTML = '';
+
+    if (!currentModalAttempts || currentModalAttempts.length === 0) {
+        if (avgScoreElement) avgScoreElement.textContent = '0.00%';
+        if (avgCorrectElement) avgCorrectElement.textContent = '0.00';
+        if (avgIncorrectElement) avgIncorrectElement.textContent = '0.00';
+        if (avgUnansweredElement) avgUnansweredElement.textContent = '0.00';
+        previousAttemptsList.innerHTML = '<p class="empty-msg">No attempts yet.</p>';
+        return;
+    }
+
+    const attemptsToDisplay = mode === 'recent' ? currentModalAttempts.slice(0, 5) : currentModalAttempts;
+    const count = attemptsToDisplay.length;
+
+    const sumCorrect = attemptsToDisplay.reduce((acc, a) => acc + a.correct_answers, 0);
+    const sumIncorrect = attemptsToDisplay.reduce((acc, a) => acc + a.incorrect_answers, 0);
+    const sumUnanswered = attemptsToDisplay.reduce((acc, a) => acc + a.unanswered, 0);
+
+    if (avgCorrectElement) avgCorrectElement.textContent = (sumCorrect / count).toFixed(2);
+    if (avgIncorrectElement) avgIncorrectElement.textContent = (sumIncorrect / count).toFixed(2);
+    if (avgUnansweredElement) avgUnansweredElement.textContent = (sumUnanswered / count).toFixed(2);
+
+    const fields = [
+        { 
+          type: 'correct', 
+          label: 'Correct', 
+          value: (a) => {
+            const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
+            const pct = total > 0 ? Math.round((a.correct_answers * 100) / total) : 0;
+            return `${a.correct_answers}/${total} (${pct}%)`;
+          } 
+        },
+        { 
+          type: 'incorrect', 
+          label: 'Wrong', 
+          value: (a) => {
+            const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
+            const pct = total > 0 ? Math.round((a.incorrect_answers * 100) / total) : 0;
+            return `${a.incorrect_answers}/${total} (${pct}%)`;
+          } 
+        },
+        { 
+          type: 'unanswered', 
+          label: 'Unanswered', 
+          value: (a) => {
+            const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
+            const pct = total > 0 ? Math.round((a.unanswered * 100) / total) : 0;
+            return `${a.unanswered}/${total} (${pct}%)`;
+          } 
+        }
+    ];
+
+    for (const attempt of attemptsToDisplay) {
+        const statsHtml = fields.map(field => `
+          <div class="stat-item ${field.type}">
+            <span class="stat-value">${field.value(attempt)}</span>
+            <span class="stat-label">${field.label}</span>
+          </div>
+        `).join('');
+
+        const attemptBar = document.createElement('div');
+        attemptBar.className = 'previous-attempt';
+        attemptBar.innerHTML = statsHtml;
+        previousAttemptsList.appendChild(attemptBar);
+    }
+}
+
+const modalSegmentedToggle = document.getElementById('modalSegmentedToggle');
+if (modalSegmentedToggle) {
+    const btns = modalSegmentedToggle.querySelectorAll('.segmented-btn');
+    btns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            btns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderModalAttempts(btn.dataset.mode);
+        });
+    });
+}
+
 if (quizPreviousAttemptsBtns && quizPreviousAttemptsBtns.length > 0) {
   Array.from(quizPreviousAttemptsBtns).forEach(btn => {
     btn.addEventListener('click', async () => {
       previousAttemptsModalBackground.style.display = 'flex';
-      const quizId = btn.dataset.quizId;
       
+      // Reset toggle to all-time
+      if (modalSegmentedToggle) {
+          const btns = modalSegmentedToggle.querySelectorAll('.segmented-btn');
+          btns.forEach(b => b.classList.remove('active'));
+          if (btns[0]) btns[0].classList.add('active');
+      }
+
+      const quizId = btn.dataset.quizId;
       const response = await fetch(`/quiz-attempts/${quizId}`);
       const response_json = await response.json();
-      
-      previousAttemptsList.innerHTML = '';
 
-      if (response_json.attempts && response_json.attempts.length > 0) {
-        if (avgScoreElement) avgScoreElement.textContent = `${response_json.averages.average_percentage.toFixed(2)}%`;
-        if (avgCorrectElement) avgCorrectElement.textContent = response_json.averages.average_correct.toFixed(2);
-        if (avgIncorrectElement) avgIncorrectElement.textContent = response_json.averages.average_incorrect.toFixed(2);
-        if (avgUnansweredElement) avgUnansweredElement.textContent = response_json.averages.average_unanswered.toFixed(2);
-
-        const fields = [
-            { 
-              type: 'correct', 
-              label: 'Correct', 
-              value: (a) => {
-                const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
-                const pct = total > 0 ? Math.round((a.correct_answers * 100) / total) : 0;
-                return `${a.correct_answers}/${total} (${pct}%)`;
-              } 
-            },
-            { 
-              type: 'incorrect', 
-              label: 'Wrong', 
-              value: (a) => {
-                const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
-                const pct = total > 0 ? Math.round((a.incorrect_answers * 100) / total) : 0;
-                return `${a.incorrect_answers}/${total} (${pct}%)`;
-              } 
-            },
-            { 
-              type: 'unanswered', 
-              label: 'Unanswered', 
-              value: (a) => {
-                const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
-                const pct = total > 0 ? Math.round((a.unanswered * 100) / total) : 0;
-                return `${a.unanswered}/${total} (${pct}%)`;
-              } 
-            }
-        ];
-
-        for (const attempt of response_json.attempts) {
-            const statsHtml = fields.map(field => `
-              <div class="stat-item ${field.type}">
-                <span class="stat-value">${field.value(attempt)}</span>
-                <span class="stat-label">${field.label}</span>
-              </div>
-            `).join('');
-
-            const attemptBar = document.createElement('div');
-            attemptBar.className = 'previous-attempt';
-            attemptBar.innerHTML = statsHtml;
-            previousAttemptsList.appendChild(attemptBar);
-        }
+      if (response_json.attempts) {
+          currentModalAttempts = response_json.attempts;
+          renderModalAttempts('all');
       } else if (response_json.error) {
-        flash(response_json.error, 'error');
+          flash(response_json.error, 'error');
+          currentModalAttempts = [];
+          renderModalAttempts('all');
       } else {
-        previousAttemptsList.innerHTML = '<p class="empty-msg">No attempts yet.</p>';
+          currentModalAttempts = [];
+          renderModalAttempts('all');
       }
     });
   });
