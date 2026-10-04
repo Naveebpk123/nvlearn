@@ -1091,6 +1091,12 @@ body.editor-lock-scroll {
     align-items: flex-start; /* Align top edges of numbers */
 }
 
+.chart-container{
+    width: 100%;
+    max-width: 600px;
+    margin: 15px;
+}
+
 .stat-box {
     display: flex;
     flex-direction: column;
@@ -2118,3 +2124,24 @@ html.dark .ql-snow button:hover {
 .dark .text-green  { color: #22c55e !important; }
 .dark .text-red    { color: #ef4444 !important; }
 .dark .text-amber  { color: #f59e0b !important; }
+
+.dark .chart-container{
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+}
+
+.dark .apexcharts-text.apexcharts-yaxis-title-text {
+    fill: var(--text-muted) !important;
+}
+
+.dark .apexcharts-text.apexcharts-yaxis-label {
+    fill: var(--text-muted) !important;
+}
+
+.dark .apexcharts-text.apexcharts-xaxis-label {
+    fill: var(--text-muted) !important;
+}
+
+.dark .apexcharts-legend-text {
+    color: var(--text-muted) !important;
+}

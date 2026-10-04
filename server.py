@@ -1759,6 +1759,15 @@ def practice_hub():
                     "average_incorrect_answers_percentage": average_incorrect_answers_percentage,
                     "average_unanswered_percentage": average_unanswered_percentage
                 }
+            # Data for overall stats across all tags to display in graph
+            graph_data = {
+                "tags": list(quiz_stats_by_tag.keys()),
+                "average_scores": [stats["average_score"] for stats in quiz_stats_by_tag.values()],
+                "average_correct_answers_percentages": [stats["average_correct_answers_percentage"] for stats in quiz_stats_by_tag.values()],
+                "average_incorrect_answers_percentages": [stats["average_incorrect_answers_percentage"] for stats in quiz_stats_by_tag.values()],
+                "average_unanswered_percentages": [stats["average_unanswered_percentage"] for stats in quiz_stats_by_tag.values()]
+            }
+
     return render_template(
         "practice-hub.html",
         flashcards=all_flashcards,
@@ -1766,7 +1775,8 @@ def practice_hub():
         saved_flashcards=len(all_flashcards),
         saved_quizzes=len(all_quizzes),
         overall_stats=overall_stats,
-        quiz_stats_by_tag = quiz_stats_by_tag
+        quiz_stats_by_tag = quiz_stats_by_tag,
+        graph_data = graph_data if all_quizzes else None
     )
 
 """

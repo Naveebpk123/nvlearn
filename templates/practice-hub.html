@@ -163,6 +163,116 @@
             </div>
         </div>
         {% endfor %}
+        <h3>Overall Stats by Tags</h3>
+        <div class="chart-container">
+            <div id="subject-performance-chart"></div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+        <script>
+        const isDark = document.documentElement.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const categories = {{ graph_data['tags'] | tojson }};
+        const textColor = isDark ? '#64748b' : '#1e293b'; // Light text for dark mode, dark text for light mode
+        const options = {
+            // Chart Configuration
+            chart: {
+                type: 'bar',
+                height: 420,
+                toolbar: { show: false },
+                fontFamily: 'Helvetica, Arial, sans-serif'
+            },
+            
+            // Series Data (4 bars per category)
+            series: [
+                {
+                    name: 'Unanswered',
+                    data: {{ graph_data['average_unanswered_percentages'] | tojson }}
+                },
+                {
+                    name: 'Correct',
+                    data: {{ graph_data['average_correct_answers_percentages'] | tojson }}
+                },
+                {
+                    name: 'Incorrect',
+                    data: {{ graph_data['average_incorrect_answers_percentages'] | tojson }}
+                },
+                {
+                    name: 'Average Score (%)',
+                    data: {{ graph_data['average_scores'] | tojson }}
+                }
+            ],
+            
+            // Bar Grouping & Style
+            plotOptions: {
+                bar: {
+                    horizontal: false,
+                    columnWidth: '65%',
+                    endingShape: 'rounded',
+                    borderRadius: 4,
+                    dataLabels: {
+                        position: 'top'
+                    }
+                }
+            },
+
+            // Colors matching each series order
+            colors: [
+                '#cbd5e1', // Unanswered (Gray)
+                '#22c55e', // Correct (Green)
+                '#ef4444', // Incorrect (Red)
+                '#3b82f6'  // Average Score % (Blue)
+            ],
+
+            dataLabels: {
+                enabled: true,
+                style: {
+                    fontSize: '11px',
+                    colors: [textColor]
+                },
+                offsetY: -20
+            },
+
+            // X-Axis Categories
+            xaxis: {
+                categories: categories,
+                labels: {
+                    style: { fontSize: '13px', fontWeight: 600 }
+                }
+            },
+
+            // Y-Axis Configuration
+            yaxis: {
+                title: {
+                    text: 'Average stats by tags (%)',
+                },
+                max: 100
+            },
+
+            // Legend Configuration
+            legend: {
+                position: 'top',
+                horizontalAlign: 'right',
+                fontSize: '13px',
+                markers: {
+                    radius: 12
+                }
+            },
+
+            // 9. Interactive Tooltip
+            tooltip: {
+                shared: true,
+                intersect: false,
+                y: {
+                    formatter: function (val) {
+                        return val+'%'
+                    }
+                }
+            }
+        };
+
+        // Render the chart
+        const chart = new ApexCharts(document.querySelector("#subject-performance-chart"), options);
+        chart.render();
+    </script>
         {% endif %}
     {% endif %}
     </div> 
