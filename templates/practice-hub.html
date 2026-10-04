@@ -50,21 +50,23 @@
                             {% endif %}
                         </div>
 
+                        {% set last_attempt = quiz.attempts[-1] %}
+                        {% set total_q = last_attempt.correct_answers + last_attempt.incorrect_answers + last_attempt.unanswered %}
+                        {% set correct_pct = (last_attempt.correct_answers * 100 / total_q) | round | int if total_q > 0 else 0 %}
+                        {% set incorrect_pct = (last_attempt.incorrect_answers * 100 / total_q) | round | int if total_q > 0 else 0 %}
+                        {% set unanswered_pct = (last_attempt.unanswered * 100 / total_q) | round | int if total_q > 0 else 0 %}
+
                         <div class="stats-grid">
-                            <div class="stat-item score">
-                                <span class="stat-value text-purple">{{ quiz.attempts[-1].percentage_score | int }}%</span>
-                                <span class="stat-label">Score</span>
-                            </div>
                             <div class="stat-item correct">
-                                <span class="stat-value text-green">{{ quiz.attempts[-1].correct_answers }}</span>
+                                <span class="stat-value text-green">{{ last_attempt.correct_answers }}/{{ total_q }} ({{ correct_pct }}%)</span>
                                 <span class="stat-label">Correct</span>
                             </div>
                             <div class="stat-item incorrect">
-                                <span class="stat-value text-red">{{ quiz.attempts[-1].incorrect_answers }}</span>
+                                <span class="stat-value text-red">{{ last_attempt.incorrect_answers }}/{{ total_q }} ({{ incorrect_pct }}%)</span>
                                 <span class="stat-label">Wrong</span>
                             </div>
                             <div class="stat-item unanswered">
-                                <span class="stat-value text-amber">{{ quiz.attempts[-1].unanswered }}</span>
+                                <span class="stat-value text-amber">{{ last_attempt.unanswered }}/{{ total_q }} ({{ unanswered_pct }}%)</span>
                                 <span class="stat-label">Unanswered</span>
                             </div>
                         </div>
@@ -91,10 +93,6 @@
                     <button class="modalCloseBtn" id="closePreviousAttemptsModal">X</button>
                 </div>
                 <div class="attempts-summary-container" id="attemptsSummaryContainer">
-            <div class="stat-box">
-                <span id="avgScore" class="stat-value text-purple"></span>
-                <span class="stat-label">AVG SCORE</span>
-            </div>
             <div class="stat-box">
                 <span id="avgCorrect" class="stat-value text-green"></span>
                 <span class="stat-label">AVG CORRECT</span>
@@ -125,10 +123,6 @@
     <h3>Overall Scores ({{ overall_stats['total_quizzes'] }} {{ 'Quiz' if overall_stats['total_quizzes'] == 1 else 'Quizzes' }})</h3>
     <div class="attempts-summary-container">
             <div class="stat-box">
-                <span class="stat-value text-purple">{{overall_stats['overall_average_score']}}%</span>
-                <span class="stat-label">AVG SCORE %</span>
-            </div>
-            <div class="stat-box">
                 <span  class="stat-value text-green">{{overall_stats['average_correct_answers_percentage']}}%</span>
                 <span class="stat-label">AVG CORRECT %</span>
             </div>
@@ -145,10 +139,6 @@
         {% for tag_name, stats_by_tag in quiz_stats_by_tag.items() %}
         <h3>{{tag_name}} Scores ({{ stats_by_tag['total_quizzes'] }} {{ 'Quiz' if stats_by_tag['total_quizzes'] == 1 else 'Quizzes' }})</h3>
          <div class="attempts-summary-container">
-            <div class="stat-box">
-                <span class="stat-value text-purple">{{stats_by_tag['average_score']}}%</span>
-                <span class="stat-label">AVG SCORE %</span>
-            </div>
             <div class="stat-box">
                 <span  class="stat-value text-green">{{stats_by_tag['average_correct_answers_percentage']}}%</span>
                 <span class="stat-label">AVG CORRECT %</span>
@@ -195,10 +185,6 @@
                     name: 'Incorrect',
                     data: {{ graph_data['average_incorrect_answers_percentages'] | tojson }}
                 },
-                {
-                    name: 'Average Score (%)',
-                    data: {{ graph_data['average_scores'] | tojson }}
-                }
             ],
             
             // Bar Grouping & Style
@@ -219,7 +205,6 @@
                 '#cbd5e1', // Unanswered (Gray)
                 '#22c55e', // Correct (Green)
                 '#ef4444', // Incorrect (Red)
-                '#3b82f6'  // Average Score % (Blue)
             ],
 
             dataLabels: {

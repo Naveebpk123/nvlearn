@@ -146,7 +146,6 @@ class QuizAttempt(db.Model):
     correct_answers: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     incorrect_answers: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     unanswered: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    percentage_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     attempted_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     # Relationship back to Quiz
     quiz: Mapped["Quiz"] = relationship("Quiz", back_populates="attempts")
@@ -1615,14 +1614,12 @@ def save_quiz(quiz_id):
     total_questions = request.json.get("total_questions", 0)
     correct_answers = request.json.get("correct_answers", 0)
     incorrect_answers = request.json.get("incorrect_answers", 0)
-    percentage_score = request.json.get("percentage_score", 0.0)
     quiz_obj.is_saved = True
     attempt = QuizAttempt(
         user_id=current_user.id,
         correct_answers=correct_answers,
         incorrect_answers=incorrect_answers,
         unanswered=total_questions - (correct_answers + incorrect_answers),
-        percentage_score=percentage_score,
     )
     quiz_obj.attempts.append(attempt)
     db.session.commit()
@@ -1655,7 +1652,8 @@ def quiz_attempts(quiz_id):
             "correct_answers": attempt.correct_answers,
             "incorrect_answers": attempt.incorrect_answers,
             "unanswered": attempt.unanswered,
-            "percentage_score": attempt.percentage_score,
+            "total_questions": attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered,
+            "percentage_score": round((attempt.correct_answers * 100.0 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered)), 2) if (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered) > 0 else 0.0
         }
         for attempt in quiz_obj.attempts
     ]
@@ -1690,19 +1688,19 @@ def practice_hub():
         for quiz in all_quizzes:
             all_attempts.extend(quiz.attempts)
             all_tags.extend(quiz.tags)
-        overall_average_score = round((sum(attempt.percentage_score for attempt in all_attempts) / len(all_attempts)) if all_attempts else 0, 2)
         all_correct_answers_percentages = [
-            (attempt.correct_answers * 100 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
+            (attempt.correct_answers * 100.0 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
             for attempt in all_attempts
             if (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered) > 0
         ]
+
         all_incorrect_answers_percentages = [
-            (attempt.incorrect_answers * 100 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
+            (attempt.incorrect_answers * 100.0 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
             for attempt in all_attempts
             if (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered) > 0
         ]
         all_unanswered_percentages = [
-            (attempt.unanswered * 100 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
+            (attempt.unanswered * 100.0 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
             for attempt in all_attempts
             if (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered) > 0
         ]
@@ -1711,7 +1709,6 @@ def practice_hub():
         average_unanswered_percentage = round((sum(all_unanswered_percentages) / len(all_unanswered_percentages)) if all_unanswered_percentages else 0, 2)
         overall_stats = {
             "total_quizzes": len(all_quizzes),
-            "overall_average_score": overall_average_score,
             "average_correct_answers_percentage": average_correct_answers_percentage,
             "average_incorrect_answers_percentage": average_incorrect_answers_percentage,
             "average_unanswered_percentage": average_unanswered_percentage
@@ -1733,19 +1730,19 @@ def practice_hub():
                 tag_attempts = []
                 for quiz in related_quizzes:
                     tag_attempts.extend(quiz.attempts)
-                average_score = round((sum(attempt.percentage_score for attempt in tag_attempts) / len(tag_attempts)) if tag_attempts else 0, 2)
+            
                 tag_correct_percentages = [
-                    (attempt.correct_answers * 100 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
+                    (attempt.correct_answers * 100.0 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
                     for attempt in tag_attempts
                     if (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered) > 0
                 ]
                 tag_incorrect_percentages = [
-                    (attempt.incorrect_answers * 100 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
+                    (attempt.incorrect_answers * 100.0 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
                     for attempt in tag_attempts
                     if (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered) > 0
                 ]
                 tag_unanswered_percentages = [
-                    (attempt.unanswered * 100 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
+                    (attempt.unanswered * 100.0 / (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered))
                     for attempt in tag_attempts
                     if (attempt.correct_answers + attempt.incorrect_answers + attempt.unanswered) > 0
                 ]
@@ -1754,7 +1751,6 @@ def practice_hub():
                 average_unanswered_percentage = round((sum(tag_unanswered_percentages) / len(tag_unanswered_percentages)) if tag_unanswered_percentages else 0, 2)
                 quiz_stats_by_tag[tag] = {
                     "total_quizzes": len(related_quizzes),
-                    "average_score": average_score,
                     "average_correct_answers_percentage": average_correct_answers_percentage,
                     "average_incorrect_answers_percentage": average_incorrect_answers_percentage,
                     "average_unanswered_percentage": average_unanswered_percentage
@@ -1762,7 +1758,6 @@ def practice_hub():
             # Data for overall stats across all tags to display in graph
             graph_data = {
                 "tags": list(quiz_stats_by_tag.keys()),
-                "average_scores": [stats["average_score"] for stats in quiz_stats_by_tag.values()],
                 "average_correct_answers_percentages": [stats["average_correct_answers_percentage"] for stats in quiz_stats_by_tag.values()],
                 "average_incorrect_answers_percentages": [stats["average_incorrect_answers_percentage"] for stats in quiz_stats_by_tag.values()],
                 "average_unanswered_percentages": [stats["average_unanswered_percentage"] for stats in quiz_stats_by_tag.values()]

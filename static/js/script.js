@@ -360,16 +360,39 @@ if (quizPreviousAttemptsBtns && quizPreviousAttemptsBtns.length > 0) {
       previousAttemptsList.innerHTML = '';
 
       if (response_json.attempts && response_json.attempts.length > 0) {
-        avgScoreElement.textContent = `${response_json.averages.average_percentage.toFixed(2)}%`;
-        avgCorrectElement.textContent = response_json.averages.average_correct.toFixed(2);
-        avgIncorrectElement.textContent = response_json.averages.average_incorrect.toFixed(2);
-        avgUnansweredElement.textContent = response_json.averages.average_unanswered.toFixed(2);
+        if (avgScoreElement) avgScoreElement.textContent = `${response_json.averages.average_percentage.toFixed(2)}%`;
+        if (avgCorrectElement) avgCorrectElement.textContent = response_json.averages.average_correct.toFixed(2);
+        if (avgIncorrectElement) avgIncorrectElement.textContent = response_json.averages.average_incorrect.toFixed(2);
+        if (avgUnansweredElement) avgUnansweredElement.textContent = response_json.averages.average_unanswered.toFixed(2);
 
         const fields = [
-            { type: 'score', label: 'Score', value: (a) => `${a.percentage_score}%` },
-            { type: 'correct', label: 'Correct', value: (a) => a.correct_answers },
-            { type: 'incorrect', label: 'Wrong', value: (a) => a.incorrect_answers },
-            { type: 'unanswered', label: 'Unanswered', value: (a) => a.unanswered }
+            { 
+              type: 'correct', 
+              label: 'Correct', 
+              value: (a) => {
+                const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
+                const pct = total > 0 ? Math.round((a.correct_answers * 100) / total) : 0;
+                return `${a.correct_answers}/${total} (${pct}%)`;
+              } 
+            },
+            { 
+              type: 'incorrect', 
+              label: 'Wrong', 
+              value: (a) => {
+                const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
+                const pct = total > 0 ? Math.round((a.incorrect_answers * 100) / total) : 0;
+                return `${a.incorrect_answers}/${total} (${pct}%)`;
+              } 
+            },
+            { 
+              type: 'unanswered', 
+              label: 'Unanswered', 
+              value: (a) => {
+                const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
+                const pct = total > 0 ? Math.round((a.unanswered * 100) / total) : 0;
+                return `${a.unanswered}/${total} (${pct}%)`;
+              } 
+            }
         ];
 
         for (const attempt of response_json.attempts) {
