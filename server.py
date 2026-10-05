@@ -556,6 +556,7 @@ def load_user(user_id):
 def home():
     welcome_msg = None
     recent_notes = []
+    cards_to_review = []
     if current_user.is_authenticated:
         welcome_msg = get_welcome_message(current_user.name)
         try:
@@ -573,8 +574,29 @@ def home():
                 e,
             )
             recent_notes = []
+
+        try:
+            cards_result = db.session.execute(
+                db.select(Flashcard)
+                .where(Flashcard.user_id == current_user.id)
+                .where(Flashcard.is_saved == True)
+                .order_by(Flashcard.incorrect_ratio.desc())
+                .limit(5)
+            )
+            cards_to_review = cards_result.scalars().all()
+        except Exception as e:
+            app.logger.error(
+                "[home] Failed to fetch cards to review for user_id=%s: %s",
+                current_user.id,
+                e,
+            )
+            cards_to_review = []
+
     return render_template(
-        "index.html", welcome_msg=welcome_msg, recent_notes=recent_notes[:5]
+        "index.html",
+        welcome_msg=welcome_msg,
+        recent_notes=recent_notes[:5],
+        cards_to_review=cards_to_review,
     )
 
 

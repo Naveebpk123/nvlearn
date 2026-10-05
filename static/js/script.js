@@ -31,6 +31,10 @@ const previousBtn = document.getElementById('previousButton');
 const saveFlashcardsBtn = document.getElementById('saveFlashcardsBtn');
 const innerFlashcardContainer = document.querySelector('.inner-flashcard-container');
 const deleteFlashcardsBtn = document.getElementsByClassName('delete-flashcard-btn');
+const needsReviewBtn = document.getElementById('needsReviewBtn');
+const gotItBtn = document.getElementById('gotItBtn');
+const incorrectAttempts = 0;
+const flashcardsIndices = [];
 
 const flashcardsTab = document.getElementById('flashcardsTab');
 const quizzesTab = document.getElementById('quizzesTab');
@@ -284,6 +288,27 @@ if (flashcards && flashcards.length > 0) {
         currentCardIndex = initialCurrentIndex;
     }
 
+if(needsReviewBtn){
+    needsReviewBtn.addEventListener('click', () => {
+        for(const card of flashcards){
+            if (card.classList.contains('current')) {
+                currentCardIndex = Array.from(flashcards).indexOf(card);
+                flashcardsIndices.push(currentCardIndex);
+                incorrectAttempts++;
+                needsReviewBtn?.classList.add('hidden');
+                gotItBtn?.classList.add('hidden');
+            }
+        }
+    })
+}
+
+if(gotItBtn){
+    gotItBtn.addEventListener('click', () => {
+        gotItBtn?.classList.add('hidden');
+        needsReviewBtn?.classList.add('hidden');
+    }
+}
+
     function updateFlashcardPosition() {
         if (currentCardIndex < 0) currentCardIndex = 0;
         if (currentCardIndex >= flashcards.length) currentCardIndex = flashcards.length - 1;
@@ -316,6 +341,11 @@ if (flashcards && flashcards.length > 0) {
     Array.from(flashcards).forEach(flashcard => {
         flashcard.addEventListener('click', () => {
             flashcard.classList.toggle('flipped');
+            if( flashcard.classList.contains('flipped') ){
+                needsReviewBtn?.classList.remove('hidden');
+                gotItBtn?.classList.remove('hidden');
+            };
+
         });
     });
 
