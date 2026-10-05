@@ -581,6 +581,7 @@ def home():
                 .where(Flashcard.user_id == current_user.id)
                 .where(Flashcard.is_saved == True)
                 .order_by(Flashcard.incorrect_ratio.desc())
+                .where(Flashcard.incorrect_ratio > 0.0)
                 .limit(5)
             )
             cards_to_review = cards_result.scalars().all()
