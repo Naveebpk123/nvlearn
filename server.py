@@ -119,6 +119,7 @@ class Flashcard(db.Model):
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id"), nullable=False
     )
+    incorrect_ratio: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
 class Quiz(db.Model):
     __tablename__ = "quizzes"
@@ -1535,7 +1536,10 @@ def view_flashcards(flashcard_id):
 def save_flashcard(flashcard_id):
     flashcard_obj = db.session.get(Flashcard, flashcard_id)
     if flashcard_obj and flashcard_obj.user_id == current_user.id:
+        incorrect_attempts = request.json.get("incorrect_attempts", 0)
         flashcard_obj.is_saved = True
+        flashcard_count = len(flashcard_obj.card_data) - 1 # Subtract one due to the first element being the topic
+        flashcard_obj.incorrect_ratio = (incorrect_attempts / flashcard_count) if flashcard_count > 0 else 0.0
         db.session.commit()
         return jsonify({"status": "saved"})
     return jsonify({"status": "failed"})
