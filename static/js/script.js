@@ -306,8 +306,8 @@ if(gotItBtn){
     gotItBtn.addEventListener('click', () => {
         gotItBtn?.classList.add('hidden');
         needsReviewBtn?.classList.add('hidden');
-    }
-}
+    })
+};
 
     function updateFlashcardPosition() {
         if (currentCardIndex < 0) currentCardIndex = 0;
@@ -572,7 +572,9 @@ if (saveFlashcardsBtn) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+                incorrect_attempts: incorrectAttempts,})
         });
         const responseJSON = await response.json();
         if (responseJSON.status == 'saved') {
