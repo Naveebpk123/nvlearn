@@ -7,7 +7,7 @@ email-validator
 APScheduler
 python-dotenv
 google-genai
-mistralai
+requests
 Markdown
 pymdown-extensions
 chromadb

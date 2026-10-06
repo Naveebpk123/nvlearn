@@ -5,10 +5,10 @@ import os
 import random
 import threading
 import logging
+import requests
 from google import genai
 from google.genai import types
 import markdown
-from mistralai.client import Mistral
 import json
 from prompts import *
 
@@ -17,11 +17,12 @@ logger = logging.getLogger(__name__)
 dotenv.load_dotenv()
 
 SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
+SMTP_PORT = 465
 EMAIL = os.getenv("EMAIL")
 EMAIL_PASSWORD = os.getenv("APP_PASSWORD")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+CLOUDFLARE_API_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN")
+CLOUDFLARE_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
 
 
 def send_email(recipient, subject, msg_content):
@@ -31,8 +32,7 @@ def send_email(recipient, subject, msg_content):
     msg["To"] = recipient
     msg.set_content(msg_content)
     try:
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
             server.login(EMAIL, EMAIL_PASSWORD)
             server.send_message(msg)
         logger.info(
@@ -101,7 +101,6 @@ def get_welcome_message(username):
 
 
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-mistral_client = Mistral(api_key=MISTRAL_API_KEY)
 
 
 def is_rate_limit_error(e):
@@ -188,11 +187,11 @@ def validate_router_response(response_json):
     return None
 
 
-def ask_mistral(contents, username="", chat_only=False):
+def ask_intent_router(contents, username="", chat_only=False):
     system_prompt = CHAT_ONLY_PROMPT if chat_only else SYSTEM_PROMPT
     
     messages = [
-        {"role": "system", "content": system_prompt + f"\nusername of user is: {username}"}
+        {"role": "system", "content": system_prompt + f"\nusername of user is: {username}\nRespond ONLY in valid JSON format matching the schema."}
     ]
     
     for msg in contents:
@@ -203,15 +202,31 @@ def ask_mistral(contents, username="", chat_only=False):
         elif role == "assistant":
             messages.append({"role": "assistant", "content": msg_content})
             
+    url = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.1-8b-instruct"
+    headers = {
+        "Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {"messages": messages}
+
     try:
-        response = mistral_client.chat.complete(
-            model="ministral-3b-latest",
-            messages=messages,
-            response_format={"type": "json_object"},
-            temperature=0.7,
-        )
+        response = requests.post(url, headers=headers, json=payload)
         
-        raw_content = response.choices[0].message.content
+        if response.status_code == 429:
+            return ai_error(
+                "rate_limit",
+                "NVLearn AI is receiving too many requests right now. Please wait a few minutes before trying again.",
+            )
+            
+        res_data = response.json()
+        if not res_data.get("success", False):
+            logger.error("[ask_intent_router] Intent router returned error: %s", res_data)
+            return ai_error(
+                "api_error",
+                "NVLearn AI is currently experiencing some issues. Please try again shortly.",
+            )
+            
+        raw_content = res_data.get("result", {}).get("response", "")
         
         response_json = parse_json_object(
             raw_content,
@@ -229,16 +244,17 @@ def ask_mistral(contents, username="", chat_only=False):
         
     except Exception as e:
         if is_rate_limit_error(e):
-            logger.warning("[ask_mistral] Rate limit hit: %s", e)
+            logger.warning("[ask_intent_router] Rate limit hit: %s", e)
             return ai_error(
                 "rate_limit",
                 "NVLearn AI is receiving too many requests right now. Please wait a few minutes before trying again.",
             )
-        logger.exception("[ask_mistral] API error: %s", e)
+        logger.exception("[ask_intent_router] API error: %s", e)
         return ai_error(
             "api_error",
             "NVLearn AI is currently experiencing some issues. Please try again shortly.",
         )
+
 
 def build_ai_instructions(contents, username, metadata=False, chat_only=False):
     instructions = []
@@ -263,7 +279,7 @@ def build_ai_instructions(contents, username, metadata=False, chat_only=False):
             )
             return "error"
 
-    response_json = ask_mistral(contents, username, chat_only=chat_only)
+    response_json = ask_intent_router(contents, username, chat_only=chat_only)
     if is_ai_error(response_json):
         return [{"action": "error", "content": response_json}]
 
