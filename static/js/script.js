@@ -346,8 +346,11 @@ if(gotItBtn){
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ flashcards: flashcardsIndices })
-                });
+                    body: JSON.stringify({'incorrect_attempts': incorrectAttempts })
+                })
+                if (response.status === 'saved') {
+                    flash('Saved flashcard attempts', 'success');
+                };
             })
         }
     };
