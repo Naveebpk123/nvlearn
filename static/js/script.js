@@ -33,8 +33,9 @@ const innerFlashcardContainer = document.querySelector('.inner-flashcard-contain
 const deleteFlashcardsBtn = document.getElementsByClassName('delete-flashcard-btn');
 const needsReviewBtn = document.getElementById('needsReviewBtn');
 const gotItBtn = document.getElementById('gotItBtn');
-const incorrectAttempts = 0;
+let incorrectAttempts = 0;
 const flashcardsIndices = [];
+const saveFlashcardsAttemptsBtn = document.getElementById('saveFlashcardsAttemptsBtn');
 
 const flashcardsTab = document.getElementById('flashcardsTab');
 const quizzesTab = document.getElementById('quizzesTab');
@@ -292,8 +293,8 @@ if(needsReviewBtn){
     needsReviewBtn.addEventListener('click', () => {
         for(const card of flashcards){
             if (card.classList.contains('current')) {
-                currentCardIndex = Array.from(flashcards).indexOf(card);
-                flashcardsIndices.push(currentCardIndex);
+                let cardIndex = Array.from(flashcards).findIndex(card => card.classList.contains('current'));
+                flashcardsIndices.push(cardIndex);
                 incorrectAttempts++;
                 needsReviewBtn?.classList.add('hidden');
                 gotItBtn?.classList.add('hidden');
@@ -306,10 +307,14 @@ if(gotItBtn){
     gotItBtn.addEventListener('click', () => {
         gotItBtn?.classList.add('hidden');
         needsReviewBtn?.classList.add('hidden');
+        let cardIndex = Array.from(flashcards).findIndex(card => card.classList.contains('current'));
+        flashcardsIndices.push(cardIndex);
     })
 };
 
     function updateFlashcardPosition() {
+        gotItBtn?.classList.add('hidden');
+        needsReviewBtn?.classList.add('hidden');
         if (currentCardIndex < 0) currentCardIndex = 0;
         if (currentCardIndex >= flashcards.length) currentCardIndex = flashcards.length - 1;
 
@@ -333,7 +338,19 @@ if(gotItBtn){
         if (nextBtn) {
             nextBtn.disabled = (currentCardIndex >= flashcards.length - 1);
         }
-    }
+        if (currentCardIndex === flashcards.length - 1) {
+            saveFlashcardsAttemptsBtn?.classList.remove('hidden');
+            saveFlashcardsAttemptsBtn?.addEventListener('click', async function() {
+                const response = await fetch(`/save-flashcards/${saveFlashcardsAttemptsBtn.dataset.id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ flashcards: flashcardsIndices })
+                });
+            })
+        }
+    };
 
     updateFlashcardPosition();
 
@@ -341,7 +358,8 @@ if(gotItBtn){
     Array.from(flashcards).forEach(flashcard => {
         flashcard.addEventListener('click', () => {
             flashcard.classList.toggle('flipped');
-            if( flashcard.classList.contains('flipped') ){
+            let cardIndex = Array.from(flashcards).findIndex(card => card.classList.contains('current'));
+            if( flashcard.classList.contains('flipped') && !(cardIndex in flashcardsIndices) ) {
                 needsReviewBtn?.classList.remove('hidden');
                 gotItBtn?.classList.remove('hidden');
             };
