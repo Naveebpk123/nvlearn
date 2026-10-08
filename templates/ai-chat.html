@@ -7,6 +7,10 @@
     <div class="user-input-box" id="userInputContainer">
         <textarea id="user-input" placeholder="Ask anything..."></textarea>
     </div>
+    <div class="chat-loading hidden" id="chatLoading" role="status" aria-live="polite" aria-label="Working">
+        <span class="chat-loading-spinner" aria-hidden="true"></span>
+        <span>Working</span>
+    </div>
     <script>
         window.MathJax = {
             tex: {

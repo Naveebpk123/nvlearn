@@ -20,6 +20,7 @@ const restoreBtns = document.getElementsByClassName('restore-btn');
 
 const chatInput = document.getElementById('user-input');
 const userInputContainer = document.getElementById('userInputContainer');
+const chatLoading = document.getElementById('chatLoading');
 const readNoteContent = document.getElementById('read-note-content');
 
 const notes = document.getElementsByClassName('note');
@@ -784,43 +785,63 @@ chatInput?.addEventListener('keydown', async function(e) {
         chatInput.value = '';
         chatInput.style.height = 'auto';
         chatInput.disabled = true;
+        chatInput.setAttribute('aria-busy', 'true');
+        chatLoading?.classList.remove('hidden');
+        if (chatLoading) {
+            userInputContainer.insertAdjacentElement('beforebegin', chatLoading);
+        }
 
-        const response = await fetch('/ai-response', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                contents: messageHistory
-            })
-        });
-        const aiResponse = await response.json();
-        const aiBubble = document.createElement('div');
-        aiBubble.classList.add('ai-bubble');
-        aiBubble.innerHTML = `${aiResponse.chat || ''}<br>${aiResponse.note_action || ''}<br>${aiResponse.notes || ''}`;        
-        if (aiResponse.flashcard_id) {
-            const flashcardLink = document.createElement('a');
-            flashcardLink.className = 'button';
-            flashcardLink.href = `/flashcards/${aiResponse.flashcard_id}`;
-            flashcardLink.textContent = 'View Flashcards';
-            flashcardLink.target = '_blank';
-            aiBubble.appendChild(flashcardLink);
-        };
-        if (aiResponse.quiz_id) {
-            const quizLink = document.createElement('a');
-            quizLink.className = 'button';
-            quizLink.href = `/quiz/${aiResponse.quiz_id}`;
-            quizLink.textContent = 'View Quiz';
-            quizLink.target = '_blank';
-            aiBubble.appendChild(quizLink);
+        try {
+            const response = await fetch('/ai-response', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    contents: messageHistory
+                })
+            });
+            if (!response.ok) {
+                throw new Error(`AI request failed with status ${response.status}`);
+            }
+
+            const aiResponse = await response.json();
+            const aiBubble = document.createElement('div');
+            aiBubble.classList.add('ai-bubble');
+            aiBubble.innerHTML = `${aiResponse.chat || ''}<br>${aiResponse.note_action || ''}<br>${aiResponse.notes || ''}`;
+            if (aiResponse.flashcard_id) {
+                const flashcardLink = document.createElement('a');
+                flashcardLink.className = 'button';
+                flashcardLink.href = `/flashcards/${aiResponse.flashcard_id}`;
+                flashcardLink.textContent = 'View Flashcards';
+                flashcardLink.target = '_blank';
+                aiBubble.appendChild(flashcardLink);
+            }
+            if (aiResponse.quiz_id) {
+                const quizLink = document.createElement('a');
+                quizLink.className = 'button';
+                quizLink.href = `/quiz/${aiResponse.quiz_id}`;
+                quizLink.textContent = 'View Quiz';
+                quizLink.target = '_blank';
+                aiBubble.appendChild(quizLink);
+            }
+            userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
+            // Trigger MathJax LaTeX typesetting for generated AI mathematical equations
+            if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+                MathJax.typesetPromise([aiBubble]).catch(() => {});
+            }
+        } catch (error) {
+            console.error('AI chat request failed:', error);
+            const errorBubble = document.createElement('div');
+            errorBubble.classList.add('ai-bubble');
+            errorBubble.textContent = 'Sorry, I could not complete that request. Please try again.';
+            userInputContainer.insertAdjacentElement('beforebegin', errorBubble);
+        } finally {
+            chatLoading?.classList.add('hidden');
+            chatInput.disabled = false;
+            chatInput.removeAttribute('aria-busy');
+            chatInput.focus();
         }
-        userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
-        // Trigger MathJax LaTeX typesetting for generated AI mathematical equations
-        if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-            MathJax.typesetPromise([aiBubble]).catch(() => {});
-        }
-        chatInput.disabled = false;
-        chatInput.focus();
     }
 });
 

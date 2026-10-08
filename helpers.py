@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 dotenv.load_dotenv()
 
 SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 465
+SMTP_PORT = 587
 EMAIL = os.getenv("EMAIL")
 EMAIL_PASSWORD = os.getenv("APP_PASSWORD")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -32,7 +32,10 @@ def send_email(recipient, subject, msg_content):
     msg["To"] = recipient
     msg.set_content(msg_content)
     try:
-        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
             server.login(EMAIL, EMAIL_PASSWORD)
             server.send_message(msg)
         logger.info(

@@ -648,6 +648,37 @@ body.editor-lock-scroll {
     margin-bottom: 12px;
 }
 
+/* AI response progress indicator */
+.chat-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    align-self: flex-start;
+    margin-bottom: 12px;
+    color: #8B5CF6;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.chat-loading.hidden {
+    display: none;
+}
+
+.chat-loading-spinner {
+    width: 18px;
+    height: 18px;
+    border: 3px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: chat-spinner-rotate 0.75s linear infinite;
+}
+
+@keyframes chat-spinner-rotate {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* Floating fixed AI Chat input bar - centered at viewport bottom */
 .user-input-box {
     display: flex;
@@ -1920,6 +1951,10 @@ html.dark {
 
 .dark .ai-bubble {
     color: var(--text-main);
+}
+
+.dark .chat-loading {
+    color: #A78BFA;
 }
 
 .dark .user-input-box {
