@@ -49,6 +49,7 @@ from vector_store import (
 )
 
 import os
+import re
 
 
 class Base(DeclarativeBase):
@@ -215,6 +216,56 @@ def associate_diagrams_with_note(note, draft_diagram_ids=None):
             diagram.note_id = note.id
 
     db.session.commit()
+
+def prepare_note_and_diagrams(md_content, user_id):
+    """
+    Scans markdown for diagram references, replaces image tags with markers,
+    fetches raw diagram base64 strings from the database, and constructs Gemini image objects.
+    """
+    if not md_content:
+        return md_content, []
+
+    # Match both img src routes (/diagram_image/123.png) and data attributes (data-diagram-id="123")
+    patterns = [
+        r'/diagram_image/(\d+)\.png',
+        r'data-diagram-id=["\'](\d+)["\']'
+    ]
+    
+    diagram_ids = set()
+    for pattern in patterns:
+        matches = re.findall(pattern, md_content)
+        diagram_ids.update(int(d_id) for d_id in matches)
+
+    image_parts = []
+
+    for d_id in diagram_ids:
+        diagram = db.session.get(Diagram, d_id)
+        if diagram and diagram.user_id == user_id and diagram.diagram_data:
+            raw_data = diagram.diagram_data
+            
+            # Clean data URL header if present (e.g. "data:image/png;base64,...")
+            if "," in raw_data:
+                base64_str = raw_data.split(",", 1)[1]
+            else:
+                base64_str = raw_data
+
+            base64_str = base64_str.replace(" ", "+").strip()
+
+            image_parts.append({
+                "inline_data": {
+                    "mime_type": "image/png",
+                    "data": base64_str
+                }
+            })
+
+    # Replace <img> tags with inline markers so Gemini understands diagram placements
+    cleaned_md = re.sub(
+        r'<img[^>]*\/diagram_image\/(\d+)\.png[^>]*>',
+        r'\n[Diagram ID: \1]\n',
+        md_content
+    )
+    
+    return cleaned_md, image_parts
 
 def get_meta_data(content):
     metadata = build_ai_instructions(content, username="", metadata=True)

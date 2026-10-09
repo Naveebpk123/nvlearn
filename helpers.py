@@ -345,16 +345,14 @@ def build_ai_instructions(contents, username, metadata=False, chat_only=False):
             )
     return instructions
 
-
+    
 def ask_gemini(question, action):
-    # Models restricted exclusively to Lite tier
     lite_models = [
         "gemini-3.5-flash-lite",
         "gemini-3.1-flash-lite",
         "gemini-2.5-flash-lite",
     ]
 
-    # Models for standard tasks (combining Flash and Flash-Lite)
     all_models = [
         "gemini-3.8-flash",
         "gemini-3.7-flash",
@@ -367,11 +365,16 @@ def ask_gemini(question, action):
         "gemini-3-flash",
     ]
 
-    # Lite-only actions
     lite_only_actions = {"batch_summary", "metadata", "summarize"}
-
-    # Select model list based on action type
     models_to_try = lite_models if action in lite_only_actions else all_models
+
+    # Helper to build prompt content whether 'question' is a string or a list with images
+    def build_contents(prompt_prefix, payload):
+        if isinstance(payload, list):
+            # First element is text prompt, remaining elements are image parts
+            text_prompt = prompt_prefix + f"prompt: {payload[0]}"
+            return [text_prompt, *payload[1:]]
+        return [prompt_prefix + f"prompt: {payload}"]
 
     last_error = None
     for model in models_to_try:
@@ -379,7 +382,7 @@ def ask_gemini(question, action):
             if action == "create_note":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=NOTE_CREATION_PROMPT + f"prompt: {question}",
+                    contents=build_contents(NOTE_CREATION_PROMPT, question),
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                     ),
@@ -389,7 +392,7 @@ def ask_gemini(question, action):
             elif action == "note_action":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=NOTE_ACTION_PROMPT + f"prompt: {question}",
+                    contents=build_contents(NOTE_ACTION_PROMPT, question),
                 )
                 html_content = md_to_html(response.text)
                 return html_content, response.text
@@ -397,7 +400,7 @@ def ask_gemini(question, action):
             elif action == "metadata":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=NOTE_CREATION_PROMPT + f"prompt: {question}",
+                    contents=build_contents(NOTE_CREATION_PROMPT, question),
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                     ),
@@ -407,21 +410,21 @@ def ask_gemini(question, action):
             elif action == "batch_summary":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=BATCH_SUMMARY_PROMPT + f"prompt: {question}",
+                    contents=build_contents(BATCH_SUMMARY_PROMPT, question),
                 )
                 return response.text
 
             elif action == "summarize":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=ACTION_SUMMARIZE_PROMPT + f"prompt: {question}",
+                    contents=build_contents(ACTION_SUMMARIZE_PROMPT, question),
                 )
                 return response.text
 
             elif action == "create_flashcards":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=FLASHCARD_CREATION_PROMPT + f"prompt: {question}",
+                    contents=build_contents(FLASHCARD_CREATION_PROMPT, question),
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                     ),
@@ -440,7 +443,7 @@ def ask_gemini(question, action):
             elif action == "create_quiz":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=QUIZ_CREATION_PROMPT + f"prompt: {question}",
+                    contents=build_contents(QUIZ_CREATION_PROMPT, question),
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                     ),
@@ -459,7 +462,7 @@ def ask_gemini(question, action):
             elif action == "edit_note":
                 response = gemini_client.models.generate_content(
                     model=model,
-                    contents=NOTE_EDITING_PROMPT + f"prompt: {question}",
+                    contents=build_contents(NOTE_EDITING_PROMPT, question),
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                     ),
@@ -474,20 +477,12 @@ def ask_gemini(question, action):
             continue
 
     if last_error and is_rate_limit_error(last_error):
-        logger.warning(
-            "[ask_gemini] All models exhausted (rate limited) for action='%s'", action
-        )
         return {
             "error": True,
             "type": "rate_limit",
             "msg": "Our AI services are experiencing high demand. Please avoid note-related requests for a few minutes.",
         }
 
-    logger.error(
-        "[ask_gemini] All models exhausted for action='%s'. Last error: %s",
-        action,
-        last_error,
-    )
     return {
         "error": True,
         "type": "api_error",
