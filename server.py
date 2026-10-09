@@ -267,7 +267,11 @@ def prepare_note_and_diagrams(md_content, user_id):
     
     return cleaned_md, image_parts
 
-def get_meta_data(content):
+def get_meta_data(content, user_id=None):
+    if user_id:
+        content, images = prepare_note_and_diagrams(content, user_id)
+        if images:
+            content = [content, *images]
     metadata = build_ai_instructions(content, username="", metadata=True)
     return metadata
 
@@ -353,7 +357,7 @@ def get_keyword_and_vector_matched_notes(query: str, user_id: int):
     return title_notes + [note for note in vector_notes if note.id not in seen_ids]
 
 
-MAX_CONTENT_CHAR_LIMIT = 8000
+MAX_CONTENT_CHAR_LIMIT = 30000
 
 
 def get_notes_for_action(topic: str, user_id: int):
@@ -375,40 +379,50 @@ def get_notes_for_action(topic: str, user_id: int):
     return get_vector_matched_notes(topic, user_id)
 
 
-def chunk_notes_content(notes: list, char_limit: int = MAX_CONTENT_CHAR_LIMIT):
+def chunk_notes_content(notes: list, char_limit: int = MAX_CONTENT_CHAR_LIMIT, user_id: int = None):
     """
-    Splits a list of Note objects into text batches, each guaranteed to be
-    under char_limit characters.
+    Splits a list of Note objects into batches (each batch containing text and diagram image parts),
+    guaranteed to keep text under char_limit characters per batch.
     """
     batches = []
-    current_batch = ""
+    current_text = ""
+    current_images = []
 
     for note in notes:
         content = (note.md_content or "").strip()
         if not content:
             continue
 
+        images = []
+        if user_id:
+            content, images = prepare_note_and_diagrams(content, user_id)
+
         # If a single note exceeds char_limit, split it by paragraphs
         if len(content) > char_limit:
-            if current_batch:
-                batches.append(current_batch)
-                current_batch = ""
+            if current_text:
+                batches.append([current_text, *current_images] if current_images else current_text)
+                current_text = ""
+                current_images = []
             paragraphs = content.split("\n\n")
             for para in paragraphs:
-                if len(current_batch) + len(para) + 2 > char_limit and current_batch:
-                    batches.append(current_batch)
-                    current_batch = para
+                if len(current_text) + len(para) + 2 > char_limit and current_text:
+                    batches.append([current_text, *current_images] if current_images else current_text)
+                    current_text = para
+                    current_images = list(images)
                 else:
-                    current_batch = (current_batch + "\n\n" + para).strip()
+                    current_text = (current_text + "\n\n" + para).strip()
+                    current_images.extend(images)
         else:
-            if len(current_batch) + len(content) + 2 > char_limit and current_batch:
-                batches.append(current_batch)
-                current_batch = content
+            if len(current_text) + len(content) + 2 > char_limit and current_text:
+                batches.append([current_text, *current_images] if current_images else current_text)
+                current_text = content
+                current_images = list(images)
             else:
-                current_batch = (current_batch + "\n\n" + content).strip()
+                current_text = (current_text + "\n\n" + content).strip()
+                current_images.extend(images)
 
-    if current_batch:
-        batches.append(current_batch)
+    if current_text:
+        batches.append([current_text, *current_images] if current_images else current_text)
 
     return batches
 
@@ -420,11 +434,20 @@ def summarize_notes_in_batches(batches: list):
     """
     accumulated_summary = ""
     for i, batch in enumerate(batches):
-        prompt = f"Batch {i + 1} content:\n{batch}"
-        if accumulated_summary:
-            prompt = f"Previous accumulated summary:\n{accumulated_summary}\n\n" + prompt
+        if isinstance(batch, list):
+            batch_text = batch[0]
+            batch_images = batch[1:]
+        else:
+            batch_text = batch
+            batch_images = []
 
-        result = ask_gemini(action="batch_summary", question=prompt)
+        prompt_text = f"Batch {i + 1} content:\n{batch_text}"
+        if accumulated_summary:
+            prompt_text = f"Previous accumulated summary:\n{accumulated_summary}\n\n" + prompt_text
+
+        prompt_payload = [prompt_text, *batch_images] if batch_images else prompt_text
+
+        result = ask_gemini(action="batch_summary", question=prompt_payload)
         if is_ai_error(result):
             hit_rl = result.get("type") == "rate_limit"
             return accumulated_summary, hit_rl, result
@@ -466,7 +489,7 @@ def generate_meta_data():
             if not note:
                 return
 
-            metadata = get_meta_data(note.md_content)
+            metadata = get_meta_data(note.md_content, user_id=note.user_id)
             if metadata == "error":
                 app.logger.warning(
                     "Metadata generation returned 'error' for note_id=%s. Skipping.",
@@ -694,7 +717,7 @@ def add_note():
     if form.validate_on_submit():
         try:
             content = form.content.data
-            metadata = get_meta_data(content)
+            metadata = get_meta_data(content, user_id=current_user.id)
             note = Note(
                 title=form.title.data,
                 md_content=content,
@@ -768,7 +791,7 @@ def edit_note(note_id):
             if (
                 form.content.data != note.md_content
             ):  # Check if user editted note content
-                metadata = get_meta_data(form.content.data)
+                metadata = get_meta_data(form.content.data, user_id=current_user.id)
                 note.meta_data = normalize_metadata(metadata, note.id)
             note.md_content = form.content.data
             note.html_content = request.form.get("html_content")
@@ -1297,7 +1320,7 @@ def ai_response():
                 )
                 continue
 
-            batches = chunk_notes_content(matched_notes)
+            batches = chunk_notes_content(matched_notes, user_id=current_user.id)
             if len(batches) > 1:
                 accumulated_summary, hit_rl, err_dict = summarize_notes_in_batches(batches)
                 if accumulated_summary:
@@ -1308,10 +1331,20 @@ def ai_response():
                 elif err_dict:
                     all_errors.append(err_dict.get("msg", "An error occurred during note processing."))
             else:
-                note_content_list = batches[0] if batches else ""
+                batch_item = batches[0] if batches else ""
+                if isinstance(batch_item, list):
+                    note_content_text = batch_item[0]
+                    note_images = batch_item[1:]
+                else:
+                    note_content_text = batch_item
+                    note_images = []
+
+                prompt_text = f"Instructions:{ai_reply} content:{note_content_text}"
+                prompt_payload = [prompt_text, *note_images] if note_images else prompt_text
+
                 gemini_result = ask_gemini(
                     action="note_action",
-                    question=f"Instructions:{ai_reply} content:{note_content_list}",
+                    question=prompt_payload,
                 )
                 if is_ai_error(gemini_result):
                     app.logger.error(
@@ -1356,9 +1389,13 @@ def ai_response():
                 )
                 continue
             if matched_note:
+                cleaned_md, images = prepare_note_and_diagrams(matched_note.md_content, current_user.id)
+                prompt_text = f"Instruction: {ai_reply} note: {cleaned_md}"
+                prompt_payload = [prompt_text, *images] if images else prompt_text
+
                 edited_note = ask_gemini(
                     action="edit_note",
-                    question=f"Instruction: {ai_reply} note: {matched_note.md_content}"
+                    question=prompt_payload
                 )
                 if is_ai_error(edited_note):
                     app.logger.error(
@@ -1397,17 +1434,17 @@ def ai_response():
             matched_notes, vector_msg, vector_error = get_notes_for_action(
                 search_topic, current_user.id
             )
-            note_content_list = ""
+            note_content_payload = ""
 
             if vector_error:
                 app.logger.warning(
                     "[ai_response/create_flashcards] Note search failed, falling back to topic. msg=%s",
                     vector_msg,
                 )
-                note_content_list = f"Topic: {ai_reply}"
+                note_content_payload = f"Topic: {ai_reply}"
             else:
                 if matched_notes:
-                    batches = chunk_notes_content(matched_notes)
+                    batches = chunk_notes_content(matched_notes, user_id=current_user.id)
                     if len(batches) > 1:
                         accumulated_summary, hit_rl, err_dict = summarize_notes_in_batches(batches)
                         if hit_rl or err_dict or not accumulated_summary:
@@ -1417,14 +1454,18 @@ def ai_response():
                                 "AI service is busy or rate limited. Please avoid using note-related actions for a while."
                             )
                             continue
-                        note_content_list = accumulated_summary
+                        note_content_payload = accumulated_summary
                     else:
-                        note_content_list = batches[0] if batches else f"Topic: {ai_reply}"
+                        batch_item = batches[0] if batches else f"Topic: {ai_reply}"
+                        if isinstance(batch_item, list):
+                            note_content_payload = [batch_item[0], *batch_item[1:]]
+                        else:
+                            note_content_payload = batch_item
                 else:
-                    note_content_list = f"Topic: {ai_reply}"
+                    note_content_payload = f"Topic: {ai_reply}"
 
             gemini_result = ask_gemini(
-                action="create_flashcards", question=note_content_list
+                action="create_flashcards", question=note_content_payload
             )
             if is_ai_error(gemini_result):
                 app.logger.error(
@@ -1452,7 +1493,7 @@ def ai_response():
             matched_notes, vector_msg, vector_error = get_notes_for_action(
                 search_topic, current_user.id
             )
-            note_content_list = ""
+            note_content_payload = ""
             collected_tags = []
 
             if vector_error:
@@ -1460,13 +1501,13 @@ def ai_response():
                     "[ai_response/create_quiz] Note search failed, falling back to topic. msg=%s",
                     vector_msg,
                 )
-                note_content_list = f"Topic: {ai_reply}"
+                note_content_payload = f"Topic: {ai_reply}"
             else:
                 if matched_notes:
                     for note in matched_notes:
                         if isinstance(note.meta_data, dict):
                             collected_tags.extend(note.meta_data.get("tags", []))
-                    batches = chunk_notes_content(matched_notes)
+                    batches = chunk_notes_content(matched_notes, user_id=current_user.id)
                     if len(batches) > 1:
                         accumulated_summary, hit_rl, err_dict = summarize_notes_in_batches(batches)
                         if hit_rl or err_dict or not accumulated_summary:
@@ -1476,13 +1517,17 @@ def ai_response():
                                 "AI service is busy or rate limited. Please avoid using note-related actions for a while."
                             )
                             continue
-                        note_content_list = accumulated_summary
+                        note_content_payload = accumulated_summary
                     else:
-                        note_content_list = batches[0] if batches else f"Topic: {ai_reply}"
+                        batch_item = batches[0] if batches else f"Topic: {ai_reply}"
+                        if isinstance(batch_item, list):
+                            note_content_payload = [batch_item[0], *batch_item[1:]]
+                        else:
+                            note_content_payload = batch_item
                 else:
-                    note_content_list = f"Topic: {ai_reply}"
+                    note_content_payload = f"Topic: {ai_reply}"
 
-            gemini_result = ask_gemini(action="create_quiz", question=note_content_list)
+            gemini_result = ask_gemini(action="create_quiz", question=note_content_payload)
             if is_ai_error(gemini_result):
                 app.logger.error(
                     "[ai_response/create_quiz] Gemini quiz generation failed (type=%s): %s",
