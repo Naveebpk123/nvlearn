@@ -740,6 +740,7 @@ def save_mermaid_notes():
             # Update the note's content with the new Mermaid content
             note.md_content = replaced_md_content
             note.html_content = md_to_html(replaced_md_content)  # Convert Markdown to HTML
+            associate_diagrams_with_notes(note)
             db.session.commit()
 
             # Update the vector representation in ChromaDB

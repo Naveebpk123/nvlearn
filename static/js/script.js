@@ -854,7 +854,7 @@ chatInput?.addEventListener('keydown', async function(e) {
             if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
                 MathJax.typesetPromise([aiBubble]).catch(() => {});
             }
-            if (aiResponse.mermaid_notes) {
+if (aiResponse.mermaid_notes) {
     const mermaidRegex = /\[\[MERMAID_START\]\]([\s\S]*?)\[\[MERMAID_END\]\]/g;
 
     for (const note of aiResponse.mermaid_notes) {
@@ -881,11 +881,30 @@ chatInput?.addEventListener('keydown', async function(e) {
 
                 window.addEventListener('message', handleMessage);
                 iframe.src = 'https://embed.diagrams.net/?embed=1&spin=1&proto=json';
+            });
+
+            const diagramSaved = await fetch('/save-diagram', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ diagram_data: imgData })
+            });
+            
+            const diagramJson = await diagramSaved.json(); 
+
+            if (diagramJson.status === "success") {
+                updatedMd = updatedMd.replace(fullMatch, `![Diagram](${diagramJson.url})`); 
             }
-        );
         }
 
-        
+        const noteSaved = await fetch(`/update-note/${note.id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 'updated_md_content': updatedMd, 'note_id': note.id })
+        });
     }
 }
         } catch (error) {
