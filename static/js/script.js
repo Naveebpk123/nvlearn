@@ -126,6 +126,30 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
+function handleMessage(event) {
+    if (event.origin !== 'https://embed.diagrams.net') return;
+    try {
+        const msg = JSON.parse(event.data);
+        if (msg.event === 'init') {
+            iframe.contentWindow.postMessage(JSON.stringify({
+                action: 'load',
+                descriptor: { format: 'mermaid', xml: rawMermaid }
+            }), '*');
+            iframe.contentWindow.postMessage(JSON.stringify({
+                action: 'export',
+                format: 'xmlpng'
+            }), '*');
+        } else if (msg.event === 'export') {
+            clearTimeout(timeoutId);
+            window.removeEventListener('message', handleMessage);
+            const data = msg.data || ('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(msg.xml));
+            resolve(data);
+        }
+    } catch (err) {
+        reject(err);
+    }
+}
+
 if (notes !== null) {
     for (const note of notes) {
         const id = note.dataset.id;
@@ -830,6 +854,40 @@ chatInput?.addEventListener('keydown', async function(e) {
             if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
                 MathJax.typesetPromise([aiBubble]).catch(() => {});
             }
+            if (aiResponse.mermaid_notes) {
+    const mermaidRegex = /\[\[MERMAID_START\]\]([\s\S]*?)\[\[MERMAID_END\]\]/g;
+
+    for (const note of aiResponse.mermaid_notes) {
+        const text = note.md_content || '';
+        const matches = Array.from(text.matchAll(mermaidRegex));
+        let updatedMd = text;
+
+        for (const match of matches) {
+            const fullMatch = match[0]; // e.g. "[[MERMAID_START]]...[[MERMAID_END]]"
+            const rawMermaid = match[1].trim(); // The raw mermaid code inside
+
+            // Conversion logic using the iframe and global message listener
+            const imgData = await new Promise((resolve, reject) => {
+                const iframe = document.getElementById('drawioFrame');
+                const timeoutId = setTimeout(() => {
+                    window.removeEventListener('message', handleMessage);
+                    reject(new Error('Timeout'));
+                }, 15000);
+
+                window._currentRawMermaid = rawMermaid;
+                window._currentResolve = resolve;
+                window._currentReject = reject;
+                window._currentTimeout = timeoutId;
+
+                window.addEventListener('message', handleMessage);
+                iframe.src = 'https://embed.diagrams.net/?embed=1&spin=1&proto=json';
+            }
+        );
+        }
+
+        
+    }
+}
         } catch (error) {
             console.error('AI chat request failed:', error);
             const errorBubble = document.createElement('div');
