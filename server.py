@@ -163,6 +163,18 @@ class Diagram(db.Model):
         Integer, ForeignKey("notes.id"), nullable=True,default=None
     )
 
+def check_mermaid(md_content):
+    if not md_content:
+        return False, []
+
+    # Compiled regex pattern to match [[MERMAID_START]] ... [[MERMAID_END]] across multiple lines
+    MERMAID_REGEX = re.compile(r'\[\[MERMAID_START\]\]([\s\S]*?)\[\[MERMAID_END\]\]')
+    
+    # Check if the note contains any mermaid blocks
+    has_mermaid = bool(MERMAID_REGEX.search(md_content))
+        
+    return has_mermaid
+
 def associate_diagrams_with_note(note, draft_diagram_ids=None):
     """
     Parses Markdown and HTML content for diagram IDs. 
@@ -1193,6 +1205,7 @@ def ai_response():
     chat = None
     all_errors = []
     hit_rate_limit = False
+    mermaid_notes = [] #List to store notes with mermaid diagrams
 
     for instruction in all_instructions:
         action = instruction["action"]
@@ -1238,6 +1251,9 @@ def ai_response():
                 new_note.meta_data = normalize_metadata(new_note.meta_data, new_note.id)
                 db.session.commit()
                 upsert_note_vector(new_note)
+                has_mermaid = check_mermaid(new_note.md_content)
+                if has_mermaid:
+                    mermaid_notes.append({"note_id": new_note.id, "md_content": new_note.md_content})
                 all_results.append(f"Made new note '{ai_reply['title']}'")
             except Exception as e:
                 db.session.rollback()
@@ -1417,6 +1433,9 @@ def ai_response():
                         matched_note.html_content = md_to_html(edited_note)
                         db.session.commit()
                         upsert_note_vector(matched_note)
+                        has_mermaid = check_mermaid(new_note.md_content)
+                        if has_mermaid:
+                            mermaid_notes.append({"note_id": new_note.id, "md_content": new_note.md_content})
                         all_results.append(f"Edited note '{matched_note.title}'")
                     except SQLAlchemyError as e:
                         db.session.rollback()
@@ -1581,6 +1600,7 @@ def ai_response():
                 "note_action": note_action_html_content,
                 "flashcard_id": flashcard_id,
                 "quiz_id": quiz_id,
+                "mermaid_notes": mermaid_notes,
             }
         )
 
@@ -1591,6 +1611,7 @@ def ai_response():
                     "chat": all_results[0],
                     "flashcard_id": flashcard_id,
                     "quiz_id": quiz_id,
+                    "mermaid_notes": mermaid_notes,
                 }
             )
         elif results == 0 and errors == 1 and all_get_notes == "":
@@ -1599,6 +1620,7 @@ def ai_response():
                     "chat": all_errors[0],
                     "flashcard_id": flashcard_id,
                     "quiz_id": quiz_id,
+                    "mermaid_notes": mermaid_notes,
                 }
             )
         elif results == 0 and errors == 0 and all_get_notes != "":
@@ -1607,10 +1629,11 @@ def ai_response():
                     "chat": all_get_notes,
                     "flashcard_id": flashcard_id,
                     "quiz_id": quiz_id,
+                    "mermaid_notes": mermaid_notes,
                 }
             )
     if results == 0 and errors == 0 and chat:
-        return jsonify({"chat": chat, "flashcard_id": flashcard_id, "quiz_id": quiz_id})
+        return jsonify({"chat": chat, "flashcard_id": flashcard_id, "quiz_id": quiz_id, "mermaid_notes": mermaid_notes})
 
     final_summary = ask_gemini(question=final_result, action="summarize")
     if is_ai_error(final_summary):
@@ -1628,6 +1651,7 @@ def ai_response():
         "note_action": note_action_html_content,
         "flashcard_id": flashcard_id,
         "quiz_id": quiz_id,
+        "mermaid_notes": mermaid_notes,
     }
     return jsonify(output)
 
