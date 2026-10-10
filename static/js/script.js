@@ -179,7 +179,7 @@ function openModal(text, modal, action = null, id = null, triggerBtn = null) {
         });
     }
 
-    if (action) {
+    if (action && id) { 
         newConfirmBtn.addEventListener('click', async function() {
             if (action === 'delete-note') {
                 const response = await fetch(`/delete/${id}`, {
@@ -221,7 +221,7 @@ function openModal(text, modal, action = null, id = null, triggerBtn = null) {
                 targetModal.style.display = 'none';
                 flash(response_json[0], response_json[1]);
             }
-        });
+        }, { once: true }); //{ once: true } ensures the listener auto-destroys after one click, preventing stacking
     }
 }
 
@@ -806,31 +806,9 @@ chatInput?.addEventListener('keydown', async function(e) {
             }
 
             const aiResponse = await response.json();
-            const aiBubble = document.createElement('div');
-            aiBubble.classList.add('ai-bubble');
-            aiBubble.innerHTML = `${aiResponse.chat || ''}<br>${aiResponse.note_action || ''}<br>${aiResponse.notes || ''}`;
-            if (aiResponse.flashcard_id) {
-                const flashcardLink = document.createElement('a');
-                flashcardLink.className = 'button';
-                flashcardLink.href = `/flashcards/${aiResponse.flashcard_id}`;
-                flashcardLink.textContent = 'View Flashcards';
-                flashcardLink.target = '_blank';
-                aiBubble.appendChild(flashcardLink);
-            }
-            if (aiResponse.quiz_id) {
-                const quizLink = document.createElement('a');
-                quizLink.className = 'button';
-                quizLink.href = `/quiz/${aiResponse.quiz_id}`;
-                quizLink.textContent = 'View Quiz';
-                quizLink.target = '_blank';
-                aiBubble.appendChild(quizLink);
-            }
-            userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
-            // Trigger MathJax LaTeX typesetting for generated AI mathematical equations
-            if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-                MathJax.typesetPromise([aiBubble]).catch(() => {});
-            }
-if (aiResponse.mermaid_notes) {
+
+            // PROCESS MERMAID CONVERSIONS FIRST (Before rendering UI)
+            if (aiResponse.mermaid_notes) {
                 const mermaidRegex = /\[\[MERMAID_START\]\]([\s\S]*?)\[\[MERMAID_END\]\]/g;
 
                 for (const note of aiResponse.mermaid_notes) {
@@ -862,7 +840,7 @@ if (aiResponse.mermaid_notes) {
                                     if (msg.event === 'init') {
                                         iframe.contentWindow.postMessage(JSON.stringify({
                                             action: 'load',
-                                            descriptor: { format: 'mermaid', xml: rawMermaid }
+                                            descriptor: { format: 'mermaid', data: rawMermaid }
                                         }), '*');
                                         iframe.contentWindow.postMessage(JSON.stringify({
                                             action: 'export',
@@ -885,7 +863,7 @@ if (aiResponse.mermaid_notes) {
                             iframe.src = 'https://embed.diagrams.net/?embed=1&spin=1&proto=json';
                         });
 
-                        const diagramSaved = await fetch('/save-diagram', {
+                        const diagramSaved = await fetch('/save_diagram', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -896,19 +874,52 @@ if (aiResponse.mermaid_notes) {
                         const diagramJson = await diagramSaved.json(); 
 
                         if (diagramJson.status === "success") {
-                            updatedMd = updatedMd.replace(fullMatch, `![Diagram](${diagramJson.url})`); 
+                            updatedMd = updatedMd.replace(fullMatch, `![Diagram](${diagramJson.img_url})`); 
                         }
                     }
 
-                    await fetch(`/update-note/${note.id}`, {
+                    await fetch('/save_mermaid_notes', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ 'updated_md_content': updatedMd, 'note_id': note.id })
+                        body: JSON.stringify({ 
+                            'note_id': note.note_id, 
+                            'replaced_md_content': updatedMd 
+                        })
                     });
                 }
             }
+
+            // RENDER THE CHAT BUBBLE & LINKS AFTER CONVERSION FINISHES
+            const aiBubble = document.createElement('div');
+            aiBubble.classList.add('ai-bubble');
+            aiBubble.innerHTML = `${aiResponse.chat || ''}<br>${aiResponse.note_action || ''}<br>${aiResponse.notes || ''}`;
+            
+            if (aiResponse.flashcard_id) {
+                const flashcardLink = document.createElement('a');
+                flashcardLink.className = 'button';
+                flashcardLink.href = `/flashcards/${aiResponse.flashcard_id}`;
+                flashcardLink.textContent = 'View Flashcards';
+                flashcardLink.target = '_blank';
+                aiBubble.appendChild(flashcardLink);
+            }
+            if (aiResponse.quiz_id) {
+                const quizLink = document.createElement('a');
+                quizLink.className = 'button';
+                quizLink.href = `/quiz/${aiResponse.quiz_id}`;
+                quizLink.textContent = 'View Quiz';
+                quizLink.target = '_blank';
+                aiBubble.appendChild(quizLink);
+            }
+            
+            userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
+            
+            // Trigger MathJax LaTeX typesetting for generated AI mathematical equations
+            if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+                MathJax.typesetPromise([aiBubble]).catch(() => {});
+            }
+
         } catch (error) {
             console.error('AI chat request failed:', error);
             const errorBubble = document.createElement('div');

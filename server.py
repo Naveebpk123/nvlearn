@@ -172,7 +172,7 @@ def check_mermaid(md_content):
     
     # Check if the note contains any mermaid blocks
     has_mermaid = bool(MERMAID_REGEX.search(md_content))
-        
+    app.logger.info(f"Detected mermaid\n{md_content}") 
     return has_mermaid
 
 def associate_diagrams_with_note(note, draft_diagram_ids=None):
@@ -726,25 +726,25 @@ def notes():
 def save_mermaid_notes():
     try:
         data = request.get_json()
-        for note in data:
-            note_id = data.get("note_id")
-            replaced_md_content = data.get("replaced_md_content")
+        # REMOVE: for note in data:
+        note_id = data.get("note_id")
+        replaced_md_content = data.get("replaced_md_content")
 
-            if not note_id or not replaced_md_content:
-                return jsonify({"status": "error", "message": "Missing note_id or replaced_md_content"}), 400
+        if not note_id or not replaced_md_content:
+            return jsonify({"status": "error", "message": "Missing note_id or replaced_md_content"}), 400
 
-            note = db.session.get(Note, note_id)
-            if not note or note.user_id != current_user.id:
-                return jsonify({"status": "error", "message": "Note not found or unauthorized"}), 404
+        note = db.session.get(Note, note_id)
+        if not note or note.user_id != current_user.id:
+            return jsonify({"status": "error", "message": "Note not found or unauthorized"}), 404
 
-            # Update the note's content with the new Mermaid content
-            note.md_content = replaced_md_content
-            note.html_content = md_to_html(replaced_md_content)  # Convert Markdown to HTML
-            associate_diagrams_with_notes(note)
-            db.session.commit()
+        # Update the note's content with the new Mermaid content
+        note.md_content = replaced_md_content
+        note.html_content = md_to_html(replaced_md_content)
+        associate_diagrams_with_note(note)
+        db.session.commit()
 
-            # Update the vector representation in ChromaDB
-            upsert_note_vector(note)
+        # Update the vector representation in ChromaDB
+        upsert_note_vector(note)
 
         return jsonify({"status": "success", "message": "Mermaid content saved successfully"}), 200
 
@@ -1469,10 +1469,9 @@ def ai_response():
                         matched_note.html_content = md_to_html(edited_note)
                         db.session.commit()
                         upsert_note_vector(matched_note)
-                        has_mermaid = check_mermaid(new_note.md_content)
+                        has_mermaid = check_mermaid(matched_note.md_content) 
                         if has_mermaid:
-                            mermaid_notes.append({"note_id": new_note.id, "md_content": new_note.md_content})
-                        all_results.append(f"Edited note '{matched_note.title}'")
+                            mermaid_notes.append({"note_id": matched_note.id, "md_content": matched_note.md_content})
                     except SQLAlchemyError as e:
                         db.session.rollback()
                         app.logger.error(
