@@ -721,6 +721,41 @@ def notes():
 
     return render_template("notes.html", notes=notes, main_tags=main_tags if len(notes) > 1 else [], extra_tags=extra_tags if len(notes) > 1 else [])
 
+@app.route("/save_mermaid_notes", methods=["POST"])
+@login_required
+def save_mermaid_notes():
+    try:
+        data = request.get_json()
+        for note in data:
+            note_id = data.get("note_id")
+            replaced_md_content = data.get("replaced_md_content")
+
+            if not note_id or not replaced_md_content:
+                return jsonify({"status": "error", "message": "Missing note_id or replaced_md_content"}), 400
+
+            note = db.session.get(Note, note_id)
+            if not note or note.user_id != current_user.id:
+                return jsonify({"status": "error", "message": "Note not found or unauthorized"}), 404
+
+            # Update the note's content with the new Mermaid content
+            note.md_content = replaced_md_content
+            note.html_content = md_to_html(replaced_md_content)  # Convert Markdown to HTML
+            db.session.commit()
+
+            # Update the vector representation in ChromaDB
+            upsert_note_vector(note)
+
+        return jsonify({"status": "success", "message": "Mermaid content saved successfully"}), 200
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(
+            "[save_mermaid_notes] DB error saving mermaid content for note_id=%s, user_id=%s: %s",
+            note_id,
+            current_user.id,
+            e,
+        )
+        return jsonify({"status": "error", "message": "Database error occurred"}), 500
 
 @app.route("/add", methods=["GET", "POST"])
 @login_required
