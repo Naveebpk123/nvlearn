@@ -10,6 +10,7 @@ from flask import (
     abort,
     Response,
 )
+from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -75,6 +76,7 @@ app.logger.setLevel(logging.DEBUG)
 app.logger.info("Flask application initialized — logging is active.")
 
 db = SQLAlchemy(app, model_class=Base)
+migrat_ext = Migrate(app, db)
 
 scheduler = BackgroundScheduler()
 
@@ -101,6 +103,7 @@ class Note(db.Model):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+    mermaid_needs_conversion: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class User(db.Model, UserMixin):
@@ -560,9 +563,6 @@ def delete_flashcards():
         app.logger.error("Failed to delete flashcard in background job: %s", e)
         db.session.rollback()
 
-
-from datetime import datetime, timezone, timedelta
-
 def delete_expired_quizzes():
     """Delete ALL unsaved quizzes older than 5 hours."""
     try:
@@ -623,7 +623,7 @@ with app.app_context():
         app.logger.debug(
             "user_id column already exists in flashcards table (migration skipped)."
         )
-    backfill_metadata_ids()
+    #backfill_metadata_ids()
     sync_notes_to_chroma(db.session, Note)
 scheduler.start()  # Start the background process
 app.logger.info("Background scheduler started.")
