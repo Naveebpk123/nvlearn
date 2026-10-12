@@ -28,7 +28,7 @@
 <script>
 window.addEventListener('pagehide', () => {
                 if (window.mermaid_notes){
-                    const payload = JSON.stringify({ mermaid_note_ids: Array.from(sessionCreatedDiagramIds) });
+                    const payload = JSON.stringify({ note_ids: Array.from(sessionCreatedDiagramIds) });
                     const blob = new Blob([payload], { type: 'application/json' });
                     navigator.sendBeacon('/mark_mermaid_pending', blob);
                 };

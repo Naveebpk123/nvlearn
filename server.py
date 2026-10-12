@@ -758,6 +758,25 @@ def save_mermaid_notes():
         )
         return jsonify({"status": "error", "message": "Database error occurred"}), 500
 
+@app.route("/mark_mermaid_pending")
+@login_required
+def mark_mermaid_pending():
+    try:
+        data = request.get_json(silent=True) or {}
+        note_ids = data.get("note_ids", [])
+        
+        for note_id in note_ids:
+            note = db.session.get(Note, int(note_id))
+            if note and note.user_id == current_user.id:
+                note.mermaid_needs_conversion = True
+                
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Notes marked as pending conversion."})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error("[mark_mermaid_pending] Error: %s", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/add", methods=["GET", "POST"])
 @login_required
 def add_note():
