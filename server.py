@@ -726,25 +726,26 @@ def notes():
 def save_mermaid_notes():
     try:
         data = request.get_json()
-        # REMOVE: for note in data:
-        note_id = data.get("note_id")
-        replaced_md_content = data.get("replaced_md_content")
+        for note in data:
+            note_id = note['note_id']
+            replaced_md_content = note.["replaced_md_content"]
 
-        if not note_id or not replaced_md_content:
-            return jsonify({"status": "error", "message": "Missing note_id or replaced_md_content"}), 400
+            if not note_id or not replaced_md_content:
+                return jsonify({"status": "error", "message": "Missing note_id or replaced_md_content"}), 400
 
-        note = db.session.get(Note, note_id)
-        if not note or note.user_id != current_user.id:
-            return jsonify({"status": "error", "message": "Note not found or unauthorized"}), 404
+            note = db.session.get(Note, note_id)
+            if not note or note.user_id != current_user.id:
+                return jsonify({"status": "error", "message": "Note not found or unauthorized"}), 404
 
-        # Update the note's content with the new Mermaid content
-        note.md_content = replaced_md_content
-        note.html_content = md_to_html(replaced_md_content)
-        associate_diagrams_with_note(note)
-        db.session.commit()
+            # Update the note's content with the new Mermaid content
+            note.md_content = replaced_md_content
+            note.html_content = md_to_html(replaced_md_content)
+            note.mermaid_needs_conversion = False
+            associate_diagrams_with_note(note)
+            db.session.commit()
 
-        # Update the vector representation in ChromaDB
-        upsert_note_vector(note)
+            # Update the vector representation in ChromaDB
+            upsert_note_vector(note)
 
         return jsonify({"status": "success", "message": "Mermaid content saved successfully"}), 200
 
@@ -776,6 +777,24 @@ def mark_mermaid_pending():
         db.session.rollback()
         app.logger.error("[mark_mermaid_pending] Error: %s", e)
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/get_pending_mermaid_notes", methods=["GET"])
+@login_required
+def pending_mermaid_notes():
+    try:
+        notes = db.session.scalars(
+            db.select(Note).where(
+                Note.user_id == current_user.id,
+                Note.in_bin != True,
+                Note.mermaid_needs_conversion == True
+            )
+        ).all()
+        
+        pending = [{"note_id": note.id, "md_content": note.md_content} for note in notes]
+        return jsonify({"status": "success", "pending_notes": pending})
+    except Exception as e:
+        app.logger.error("[pending_mermaid_notes] Error: %s", e)
+        return jsonify({"status": "error", "pending_notes": []})
 
 @app.route("/add", methods=["GET", "POST"])
 @login_required
