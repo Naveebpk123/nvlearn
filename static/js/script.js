@@ -809,7 +809,7 @@ chatInput?.addEventListener('keydown', async function(e) {
 
             // PROCESS MERMAID CONVERSIONS FIRST (Before rendering UI)
             if (aiResponse.mermaid_notes) {
-                window.mermaid_notes = aiResponse.map(x=>x.note_id);
+                window.mermaid_pending_set = new Set(aiResponse.mermaid_notes.map(x => x.note_id));
                 const mermaidRegex = /\[\[MERMAID_START\]\]([\s\S]*?)\[\[MERMAID_END\]\]/g;
 
                 for (const note of aiResponse.mermaid_notes) {
@@ -891,8 +891,7 @@ chatInput?.addEventListener('keydown', async function(e) {
                     });
                     const responseJSON = await response.json();
                     if (responseJSON.status === "success"){
-                        window.mermaid_notes.splice(window.mermaid_notes.indexOf(num), 1);   
-                    }
+                    window.mermaid_pending_set.delete(note.note_id);                    }
 
                 }
             }
