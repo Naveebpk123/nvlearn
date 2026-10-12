@@ -623,7 +623,7 @@ with app.app_context():
         app.logger.debug(
             "user_id column already exists in flashcards table (migration skipped)."
         )
-    #backfill_metadata_ids()
+    backfill_metadata_ids()
     sync_notes_to_chroma(db.session, Note)
 scheduler.start()  # Start the background process
 app.logger.info("Background scheduler started.")
