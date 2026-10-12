@@ -25,15 +25,4 @@
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 {% endblock %}
-<script>
-window.addEventListener('pagehide', () => {
-    if (window.mermaid_pending_set.size === 0) return;
 
-    // Convert Set to an array using Array.from()
-    const remainingIds = Array.from(window.mermaid_pending_set);
-    const payload = JSON.stringify({ note_ids: remainingIds });
-    const blob = new Blob([payload], { type: 'application/json' });
-    
-    navigator.sendBeacon('/mark_mermaid_pending', blob);
-});
-</script>
