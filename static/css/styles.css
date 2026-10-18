@@ -1957,6 +1957,10 @@ html.dark {
     background-color: var(--bg-main);
 }
 
+.dark .add-note-dropdown-menu li:hover {
+    background-color: var(--bg-main);
+}
+
 /* Alerts / Notifications */
 .dark .alert-success {
     background-color: #064e3b;

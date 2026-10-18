@@ -71,6 +71,7 @@ const addNoteDropdownMenu = document.getElementById('addNoteDropdownMenu');
 const optionEditor = document.getElementById('optionUseEditor');
 const optionUpload = document.getElementById('optionUploadFile');
 const optionCamera = document.getElementById('optionCamera');
+const noteFileInput = document.getElementById('noteFileInput');
 
 /**
  * Creates and displays a dynamic floating notification alert.
@@ -745,10 +746,50 @@ if (addNoteDropdownBtn && addNoteDropdownMenu) {
         });
     }
 
-    // Option 2: Upload File (Placeholder)
+    // Option 2: Upload File 
     if (optionUpload) {
         optionUpload.addEventListener('click', () => {
-            alert('Upload File clicked (Frontend ready!)');
+            noteFileInput.click();
+            noteFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Trigger the requested flash message immediately
+            if (typeof flash === 'function') {
+                flash('Note being created, you will be redirected soon. Please do not close the page', 'info');
+            }
+
+            try {
+                const response = await fetch('/upload_note_file', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    // Short delay to let the user read the flash message, then redirect
+                    setTimeout(() => {
+                        window.location.href = `/edit_note/${data.note_id}`;
+                    }, 1200);
+                } else {
+                    if (typeof flash === 'function') {
+                        flash(data.message || 'Failed to create note.', 'error');
+                    }
+                }
+            } catch (err) {
+                console.error('File upload error:', err);
+                if (typeof flash === 'function') {
+                    flash('An error occurred while uploading the file.', 'error');
+                }
+            } finally {
+                // Reset file input
+                noteFileInput.value = '';
+            }
+        });
         });
     }
 

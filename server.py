@@ -721,6 +721,38 @@ def notes():
 
     return render_template("notes.html", notes=notes, main_tags=main_tags if len(notes) > 1 else [], extra_tags=extra_tags if len(notes) > 1 else [])
 
+@app.route("/upload_note_file", methods=["POST"])
+@login_required
+def upload_note_file():
+    if 'file' not in request.files:
+        return jsonify({"status": "error", "message": "No file part provided."}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"status": "error", "message": "No selected file."}), 400
+        
+    try:
+        filename = file.filename
+        title = filename.rsplit('.', 1)[0] # Extract title from filename
+        
+        new_note = Note(
+            title=title,
+            md_content=f"Uploaded file source: {filename}",
+            html_content=f"<p>Uploaded file source: {filename}</p>",
+            user_id=current_user.id,
+            in_bin=False
+        )
+        db.session.add(new_note)
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "note_id": new_note.id
+        })
+    except Exception as e:
+        app.logger.error(f"[upload_note_file] Error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/save_mermaid_notes", methods=["POST"])
 @login_required
 def save_mermaid_notes():
