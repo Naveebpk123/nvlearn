@@ -623,8 +623,8 @@ with app.app_context():
         app.logger.debug(
             "user_id column already exists in flashcards table (migration skipped)."
         )
-    backfill_metadata_ids()
-    sync_notes_to_chroma(db.session, Note)
+    # backfill_metadata_ids()
+    # sync_notes_to_chroma(db.session, Note)
 scheduler.start()  # Start the background process
 app.logger.info("Background scheduler started.")
 
@@ -728,7 +728,7 @@ def save_mermaid_notes():
         data = request.get_json()
         for note in data:
             note_id = note['note_id']
-            replaced_md_content = note.["replaced_md_content"]
+            replaced_md_content = note["replaced_md_content"]
 
             if not note_id or not replaced_md_content:
                 return jsonify({"status": "error", "message": "Missing note_id or replaced_md_content"}), 400
@@ -796,7 +796,7 @@ def pending_mermaid_notes():
         app.logger.error("[pending_mermaid_notes] Error: %s", e)
         return jsonify({"status": "error", "pending_notes": []})
 
-@app.route("/add", methods=["GET", "POST"])
+@app.route("/add_note", methods=["GET", "POST"])
 @login_required
 def add_note():
     form = AddNoteForm()

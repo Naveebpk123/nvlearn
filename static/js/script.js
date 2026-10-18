@@ -66,6 +66,12 @@ const filterMenu = document.getElementById('filter-menu');
 const filterTagOptions = document.querySelectorAll('.filter-tag-option');
 const moreFilterTags = document.getElementById('more-filter-tags');
 
+const addNoteDropdownBtn = document.getElementById('addNoteDropdownBtn');
+const addNoteDropdownMenu = document.getElementById('addNoteDropdownMenu');
+const optionEditor = document.getElementById('optionUseEditor');
+const optionUpload = document.getElementById('optionUploadFile');
+const optionCamera = document.getElementById('optionCamera');
+
 /**
  * Creates and displays a dynamic floating notification alert.
  * Auto-dismisses after 3 seconds or on close button click.
@@ -718,6 +724,41 @@ document.addEventListener('click', (e) => {
         filterMenu.classList.add('hidden');
     }
 });
+
+if (addNoteDropdownBtn && addNoteDropdownMenu) {
+        // Toggle dropdown on button click
+        addNoteDropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            addNoteDropdownMenu.classList.toggle('hidden');
+        });
+
+        // Close dropdown when clicking anywhere else on the page
+        document.addEventListener('click', () => {
+            addNoteDropdownMenu.classList.add('hidden');
+        });
+    }
+
+    // Option 1: Use Editor
+    if (optionEditor) {
+        optionEditor.addEventListener('click', () => {
+            window.location.href = "/add_note"; 
+        });
+    }
+
+    // Option 2: Upload File (Placeholder)
+    if (optionUpload) {
+        optionUpload.addEventListener('click', () => {
+            alert('Upload File clicked (Frontend ready!)');
+        });
+    }
+
+    // Option 3: Camera (Placeholder)
+    if (optionCamera) {
+        optionCamera.addEventListener('click', () => {
+            alert('Camera clicked (Frontend ready!)');
+        });
+    }
+
 
 if (restoreBtns) {
     for (const btn of restoreBtns) {

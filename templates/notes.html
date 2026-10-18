@@ -6,8 +6,16 @@
         <h1>My Notes</h1>
     </header>
     <div class="notes-controls-bar">
-        <a class="button" href="{{url_for('add_note')}}">Add Note</a>
-        <div class="dropdown-wrapper">
+<div class="add-note-dropdown-wrapper" id="addNoteDropdownWrapper">
+    <button type="button" class="add-note-dropdown-btn" id="addNoteDropdownBtn">
+        Add Note ▾
+    </button>
+    <ul class="add-note-dropdown-menu hidden" id="addNoteDropdownMenu">
+        <li id="optionUseEditor">Use Editor</li>
+        <li id="optionUploadFile">Upload File</li>
+        <li id="optionCamera">Camera</li>
+    </ul>
+</div>        <div class="dropdown-wrapper">
             <button id="note-view-options-btn" class="dropdown-btn">
                 View options <span class="arrow">▼</span>
             </button>

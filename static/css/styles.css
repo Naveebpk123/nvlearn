@@ -1420,6 +1420,60 @@ body.editor-lock-scroll {
     display: none;
 }
 
+
+/* Add Note Dropdown - Isolated from Note View Options */
+.add-note-dropdown-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.add-note-dropdown-btn {
+    background-color: var(--primary-blue);
+    color: #ffffff;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.add-note-dropdown-btn:hover {
+    background-color: var(--primary-hover);
+}
+
+.add-note-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0; /* Opens directly under the button */
+    background-color: var(--bg-card);
+    list-style: none;
+    padding: 6px 0;
+    margin: 6px 0 0 0;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px var(--shadow-color);
+    min-width: 160px;
+    z-index: 1000;
+}
+
+.add-note-dropdown-menu li {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    transition: background-color 0.15s ease;
+}
+
+.add-note-dropdown-menu li:hover {
+    background-color: #f1f5f9;
+    color: var(--primary-blue);
+}
+
 /* ==========================================================================
    Diagram Modal & Draw.io Overlay Styles
    ========================================================================== */
