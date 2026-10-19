@@ -400,6 +400,17 @@ def get_notes_for_action(topic: str, user_id: int):
 
     return get_vector_matched_notes(topic, user_id)
 
+def _normalize_image_to_png(img_bytes):
+    """Converts any image bytes (JPG, WEBP, etc.) into standard PNG bytes."""
+    try:
+        img = Image.open(BytesIO(img_bytes))
+        if img.mode in ("CMYK", "P"):
+            img = img.convert("RGB")
+        output = BytesIO()
+        img.save(output, format="PNG")
+        return output.getvalue()
+    except Exception:
+        return img_bytes
 
 def chunk_notes_content(notes: list, char_limit: int = MAX_CONTENT_CHAR_LIMIT, user_id: int = None):
     """
@@ -754,7 +765,7 @@ def upload_note_file():
         return jsonify({"status": "error", "message": "Audio and video files are not allowed."}), 400
 
     try:
-        def _to_data_url(b_data, m_type):
+        def _to_data_url(b_data, m_type):  
             encoded = base64.b64encode(b_data).decode("ascii")
             return f"data:{m_type or 'image/png'};base64,{encoded}"
 
@@ -798,7 +809,8 @@ def upload_note_file():
             db.session.flush()
 
             # Convert image to base64 and create a Diagram object linked to note
-            img_data_url = _to_data_url(file_bytes, mimetype or "image/png")
+            file_bytes = _normalize_image_to_png(file_bytes)
+            img_data_url = _to_data_url(file_bytes, "image/png")
             diagram = Diagram(
                 diagram_data=img_data_url,
                 user_id=current_user.id,
@@ -821,7 +833,8 @@ def upload_note_file():
             return jsonify({
                 "status": "success",
                 "note_id": note.id,
-                "diagram_id": diagram.id
+                "diagram_id": diagram.id,
+                "md_content":note.md_content
             })
 
         # 3. Mixed Format (PDF or DOCX containing Text + Images using PyMuPDF & Tesseract OCR)
@@ -842,7 +855,7 @@ def upload_note_file():
             extracted_diagrams = []
 
             if extension == ".pdf":
-                doc = fitz.open(stream=file_bytes, filetype="pdf")
+                doc = pymupdf.open(stream=file_bytes, filetype="pdf")
                 for page_num in range(len(doc)):
                     page = doc[page_num]
                     page_text = page.get_text().strip()
@@ -862,11 +875,13 @@ def upload_note_file():
                         base_image = doc.extract_image(xref)
                         img_bytes = base_image["image"]
                         img_ext = base_image["ext"]
-                        m_type = f"image/{img_ext}"
                         
-                        data_url = _to_data_url(img_bytes, m_type)
+                        # Normalize image bytes to PNG
+                        img_bytes = _normalize_image_to_png(img_bytes)
+                        img_data_url = _to_data_url(img_bytes, "image/png")
+                        
                         diagram = Diagram(
-                            diagram_data=data_url,
+                            diagram_data=img_data_url,  # Fixed variable name
                             user_id=current_user.id,
                             note_id=note.id
                         )
@@ -887,10 +902,13 @@ def upload_note_file():
                     for name in document.namelist():
                         if name.startswith("word/media/"):
                             media_bytes = document.read(name)
-                            m_type = mimetypes.guess_type(name)[0] or "image/png"
-                            data_url = _to_data_url(media_bytes, m_type)
+                            
+                            # Normalize image bytes to PNG
+                            media_bytes = _normalize_image_to_png(media_bytes)
+                            img_data_url = _to_data_url(media_bytes, "image/png")
+                            
                             diagram = Diagram(
-                                diagram_data=data_url,
+                                diagram_data=img_data_url,  # Fixed variable name
                                 user_id=current_user.id,
                                 note_id=note.id
                             )

@@ -781,71 +781,76 @@ if (addNoteDropdownBtn && addNoteDropdownMenu) {
                         const diagramIds = [...new Set(matches.map(m => m[1]))];
 
                         // Loop through each extracted diagram ID
-                        for (const diagramId of diagramIds) {
-                            try {
-                                // Fetch raw base64 diagram data
-                                const diagRes = await fetch(`/diagram_data/${diagramId}`);
-                                const diagJson = await diagRes.json();
+for (const diagramId of diagramIds) {
+    try {
+        // Fetch raw base64 diagram data
+        const diagRes = await fetch(`/diagram_data/${diagramId}`);
+        const diagJson = await diagRes.json();
 
-                                if (diagJson.status === 'success' && diagJson.diagram_data) {
-                                    const base64Data = diagJson.diagram_data;
+        // Inside your file upload loop in script.js:
+if (diagJson.status === 'success' && diagJson.diagram_data) {
+    const rawData = diagJson.diagram_data.replace(/\s+/g, '').trim();
 
-                                    // Convert base64 into xmlpng Draw.io format using iframe logic
-                                    const convertedData = await new Promise((resolve, reject) => {
-                                        const iframe = document.getElementById('drawioFrame');
-                                        if (!iframe) {
-                                            reject(new Error('Draw.io iframe not found'));
-                                            return;
-                                        }
+    // Replace the semicolon in the data URI header with %3B so mxGraph style parser doesn't split it
+    const safeDataUri = rawData.replace(';base64', '%3Bbase64');
 
-                                        const timeoutId = setTimeout(() => {
-                                            window.removeEventListener('message', handleMessage);
-                                            reject(new Error('Timeout'));
-                                        }, 15000);
+    // Wrap into a proper Draw.io XML structure with the safe image URI
+    const drawIoXml = `<mxfile host="app.diagrams.net"><diagram name="Page-1"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/><mxCell id="2" value="" style="shape=image;image=${safeDataUri};verticalLabelPosition=bottom;verticalAlign=top;aspect=fixed;" vertex="1" parent="1"><mxGeometry x="0" y="0" width="800" height="500" as="geometry"/></mxCell></root></mxGraphModel></diagram></mxfile>`;
 
-                                        function handleMessage(event) {
-                                            if (event.origin !== 'https://embed.diagrams.net') return;
-                                            try {
-                                                const msg = JSON.parse(event.data);
-                                                if (msg.event === 'init') {
-                                                    iframe.contentWindow.postMessage(JSON.stringify({
-                                                        action: 'load',
-                                                        descriptor: { format: 'xml', data: base64Data }
-                                                    }), '*');
-                                                    iframe.contentWindow.postMessage(JSON.stringify({
-                                                        action: 'export',
-                                                        format: 'xmlpng'
-                                                    }), '*');
-                                                } else if (msg.event === 'export') {
-                                                    clearTimeout(timeoutId);
-                                                    window.removeEventListener('message', handleMessage);
-                                                    const resData = msg.data || ('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(msg.xml));
-                                                    resolve(resData);
-                                                }
-                                            } catch (err) {
-                                                clearTimeout(timeoutId);
-                                                window.removeEventListener('message', handleMessage);
-                                                reject(err);
-                                            }
-                                        }
+    const convertedData = await new Promise((resolve, reject) => {
+        const iframe = document.getElementById('drawioFrame');
+        if (!iframe) {
+            reject(new Error('Draw.io iframe not found'));
+            return;
+        }
 
-                                        window.addEventListener('message', handleMessage);
-                                        iframe.src = 'https://embed.diagrams.net/?embed=1&spin=1&proto=json';
-                                    });
+        const timeoutId = setTimeout(() => {
+            window.removeEventListener('message', handleMessage);
+            reject(new Error('Timeout'));
+        }, 15000);
 
-                                    // Save the converted diagram using the save_diagram route
-                                    await fetch('/save_diagram', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json'
-                                        },
-                                        body: JSON.stringify({ id: diagramId, img_data: convertedData })
-                                    });
-                                }
-                            } catch (convErr) {
-                                console.error(`Error converting diagram ${diagramId}:`, convErr);
-                            }
-                        }
+        function handleMessage(event) {
+            if (event.origin !== 'https://embed.diagrams.net') return;
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.event === 'init') {
+                    iframe.contentWindow.postMessage(JSON.stringify({
+                        action: 'load',
+                        xml: drawIoXml
+                    }), '*');
+                    
+                    iframe.contentWindow.postMessage(JSON.stringify({
+                        action: 'export',
+                        format: 'xmlpng'
+                    }), '*');
+                } else if (msg.event === 'export') {
+                    clearTimeout(timeoutId);
+                    window.removeEventListener('message', handleMessage);
+                    const resData = msg.data || ('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(msg.xml));
+                    resolve(resData);
+                }
+            } catch (err) {
+                clearTimeout(timeoutId);
+                window.removeEventListener('message', handleMessage);
+                reject(err);
+            }
+        }
+
+        window.addEventListener('message', handleMessage);
+        iframe.src = 'https://embed.diagrams.net/?embed=1&spin=1&proto=json';
+    });
+
+    // Save the converted xmlpng diagram back to the backend
+    await fetch('/save_diagram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: diagramId, img_data: convertedData })
+    });
+}
+    } catch (convErr) {
+        console.error(`Error converting diagram ${diagramId}:`, convErr);
+    }
+}
                     }
 
                     // Flash success message and redirect user to edit page after conversion
