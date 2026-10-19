@@ -11,3 +11,7 @@ requests
 Markdown
 pymdown-extensions
 chromadb
+PyMuPDF
+pytesseract
+Pillow
+Flask-Migrate
