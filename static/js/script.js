@@ -745,21 +745,22 @@ if (addNoteDropdownBtn && addNoteDropdownMenu) {
             window.location.href = "/add_note"; 
         });
     }
-
-    // Option 2: Upload File 
-    if (optionUpload) {
+// Option 2: Upload File 
+    if (optionUpload && noteFileInput) {
         optionUpload.addEventListener('click', () => {
             noteFileInput.click();
-            noteFileInput.addEventListener('change', async (e) => {
+        });
+
+        noteFileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
             const formData = new FormData();
             formData.append('file', file);
 
-            // Trigger the requested flash message immediately
+            // Display formatted upload and processing notification
             if (typeof flash === 'function') {
-                flash('Note being created, you will be redirected soon. Please do not close the page', 'info');
+                flash('File uploaded successfully. Please wait while your note is being created and do not close the page.', 'info');
             }
 
             try {
@@ -771,10 +772,90 @@ if (addNoteDropdownBtn && addNoteDropdownMenu) {
                 const data = await response.json();
 
                 if (data.status === 'success') {
-                    // Short delay to let the user read the flash message, then redirect
+                    const mdContent = data.md_content || '';
+                    const diagramRegex = /\/diagram_image\/(\d+)\.png/g;
+                    const matches = Array.from(mdContent.matchAll(diagramRegex));
+
+                    // Check if diagram URLs exist and extract unique IDs
+                    if (matches.length > 0) {
+                        const diagramIds = [...new Set(matches.map(m => m[1]))];
+
+                        // Loop through each extracted diagram ID
+                        for (const diagramId of diagramIds) {
+                            try {
+                                // Fetch raw base64 diagram data
+                                const diagRes = await fetch(`/diagram_data/${diagramId}`);
+                                const diagJson = await diagRes.json();
+
+                                if (diagJson.status === 'success' && diagJson.diagram_data) {
+                                    const base64Data = diagJson.diagram_data;
+
+                                    // Convert base64 into xmlpng Draw.io format using iframe logic
+                                    const convertedData = await new Promise((resolve, reject) => {
+                                        const iframe = document.getElementById('drawioFrame');
+                                        if (!iframe) {
+                                            reject(new Error('Draw.io iframe not found'));
+                                            return;
+                                        }
+
+                                        const timeoutId = setTimeout(() => {
+                                            window.removeEventListener('message', handleMessage);
+                                            reject(new Error('Timeout'));
+                                        }, 15000);
+
+                                        function handleMessage(event) {
+                                            if (event.origin !== 'https://embed.diagrams.net') return;
+                                            try {
+                                                const msg = JSON.parse(event.data);
+                                                if (msg.event === 'init') {
+                                                    iframe.contentWindow.postMessage(JSON.stringify({
+                                                        action: 'load',
+                                                        descriptor: { format: 'xml', data: base64Data }
+                                                    }), '*');
+                                                    iframe.contentWindow.postMessage(JSON.stringify({
+                                                        action: 'export',
+                                                        format: 'xmlpng'
+                                                    }), '*');
+                                                } else if (msg.event === 'export') {
+                                                    clearTimeout(timeoutId);
+                                                    window.removeEventListener('message', handleMessage);
+                                                    const resData = msg.data || ('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(msg.xml));
+                                                    resolve(resData);
+                                                }
+                                            } catch (err) {
+                                                clearTimeout(timeoutId);
+                                                window.removeEventListener('message', handleMessage);
+                                                reject(err);
+                                            }
+                                        }
+
+                                        window.addEventListener('message', handleMessage);
+                                        iframe.src = 'https://embed.diagrams.net/?embed=1&spin=1&proto=json';
+                                    });
+
+                                    // Save the converted diagram using the save_diagram route
+                                    await fetch('/save_diagram', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify({ id: diagramId, img_data: convertedData })
+                                    });
+                                }
+                            } catch (convErr) {
+                                console.error(`Error converting diagram ${diagramId}:`, convErr);
+                            }
+                        }
+                    }
+
+                    // Flash success message and redirect user to edit page after conversion
+                    if (typeof flash === 'function') {
+                        flash('Note created successfully. You will be redirected in a few seconds.', 'success');
+                    }
+
                     setTimeout(() => {
-                        window.location.href = `/edit_note/${data.note_id}`;
-                    }, 1200);
+                        window.location.href = `/edit/${data.note_id}`;
+                    }, 2000);
                 } else {
                     if (typeof flash === 'function') {
                         flash(data.message || 'Failed to create note.', 'error');
@@ -786,10 +867,8 @@ if (addNoteDropdownBtn && addNoteDropdownMenu) {
                     flash('An error occurred while uploading the file.', 'error');
                 }
             } finally {
-                // Reset file input
                 noteFileInput.value = '';
             }
-        });
         });
     }
 
