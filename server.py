@@ -48,9 +48,16 @@ from vector_store import (
     search_notes_vector,
     sync_notes_to_chroma,
 )
-
 import os
 import re
+import pymupdf
+import pytesseract
+from PIL import Image
+from io import BytesIO
+import mimetypes
+import zipfile
+from pathlib import Path
+from xml.etree import ElementTree
 
 
 class Base(DeclarativeBase):
@@ -721,36 +728,204 @@ def notes():
 
     return render_template("notes.html", notes=notes, main_tags=main_tags if len(notes) > 1 else [], extra_tags=extra_tags if len(notes) > 1 else [])
 
+
 @app.route("/upload_note_file", methods=["POST"])
 @login_required
 def upload_note_file():
     if 'file' not in request.files:
-        return jsonify({"status": "error", "message": "No file part provided."}), 400
+        return jsonify({"status": "error", "message": "No file provided."}), 400
         
     file = request.files['file']
-    if file.filename == '':
+    if not file.filename:
         return jsonify({"status": "error", "message": "No selected file."}), 400
         
+    filename = file.filename
+    title = filename[:20]  # First 20 characters of file's name
+    mimetype = file.mimetype or ""
+    extension = Path(filename).suffix.lower()
+    file_bytes = file.read()
+
+    if not file_bytes:
+        return jsonify({"status": "error", "message": "The selected file is empty."}), 400
+
+    # Disallow audio and video files explicitly
+    audio_video_extensions = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".mp4", ".mov", ".avi", ".mkv", ".webm"}
+    if extension in audio_video_extensions or mimetype.startswith("audio/") or mimetype.startswith("video/"):
+        return jsonify({"status": "error", "message": "Audio and video files are not allowed."}), 400
+
     try:
-        filename = file.filename
-        title = filename.rsplit('.', 1)[0] # Extract title from filename
-        
-        new_note = Note(
-            title=title,
-            md_content=f"Uploaded file source: {filename}",
-            html_content=f"<p>Uploaded file source: {filename}</p>",
-            user_id=current_user.id,
-            in_bin=False
-        )
-        db.session.add(new_note)
-        db.session.commit()
-        
-        return jsonify({
-            "status": "success",
-            "note_id": new_note.id
-        })
+        def _to_data_url(b_data, m_type):
+            encoded = base64.b64encode(b_data).decode("ascii")
+            return f"data:{m_type or 'image/png'};base64,{encoded}"
+
+        # 1. Text-Only Format (.md, .txt, .doc)
+        if extension in {".md", ".txt", ".doc"} or mimetype.startswith("text/"):
+            text_content = file_bytes.decode("utf-8", errors="replace")
+            note = Note(
+                title=title,
+                md_content=text_content,
+                html_content=md_to_html(text_content),
+                in_bin=False,
+                user_id=current_user.id,
+                meta_data={},
+            )
+            db.session.add(note)
+            db.session.flush()
+            
+            # Generate metadata
+            metadata = get_meta_data(note.md_content, user_id=current_user.id)
+            note.meta_data = normalize_metadata(metadata, note.id)
+            db.session.commit()
+            upsert_note_vector(note)
+
+            return jsonify({
+                "status": "success",
+                "note_id": note.id
+            })
+
+        # 2. Image-Only Format
+        elif mimetype.startswith("image/") or extension in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}:
+            # First save note with placeholder values for md_content and html_content
+            note = Note(
+                title=title,
+                md_content="[Placeholder]",
+                html_content="<p>[Placeholder]</p>",
+                in_bin=False,
+                user_id=current_user.id,
+                meta_data={},
+            )
+            db.session.add(note)
+            db.session.flush()
+
+            # Convert image to base64 and create a Diagram object linked to note
+            img_data_url = _to_data_url(file_bytes, mimetype or "image/png")
+            diagram = Diagram(
+                diagram_data=img_data_url,
+                user_id=current_user.id,
+                note_id=note.id
+            )
+            db.session.add(diagram)
+            db.session.flush()
+
+            # Update note's md_content and html content into the image URL
+            img_url = f"/diagram_image/{diagram.id}.png"
+            note.md_content = f"![Diagram]({img_url})"
+            note.html_content = md_to_html(note.md_content)
+
+            # Generate metadata
+            metadata = get_meta_data(note.md_content, user_id=current_user.id)
+            note.meta_data = normalize_metadata(metadata, note.id)
+            db.session.commit()
+            upsert_note_vector(note)
+
+            return jsonify({
+                "status": "success",
+                "note_id": note.id,
+                "diagram_id": diagram.id
+            })
+
+        # 3. Mixed Format (PDF or DOCX containing Text + Images using PyMuPDF & Tesseract OCR)
+        elif extension in {".pdf", ".docx"}:
+            # First save note with placeholder values for md and html content
+            note = Note(
+                title=title,
+                md_content="[Placeholder]",
+                html_content="<p>[Placeholder]</p>",
+                in_bin=False,
+                user_id=current_user.id,
+                meta_data={},
+            )
+            db.session.add(note)
+            db.session.flush()
+
+            extracted_text_parts = []
+            extracted_diagrams = []
+
+            if extension == ".pdf":
+                doc = fitz.open(stream=file_bytes, filetype="pdf")
+                for page_num in range(len(doc)):
+                    page = doc[page_num]
+                    page_text = page.get_text().strip()
+                    
+                    # Fallback to Tesseract OCR if page text layer is empty (scanned docs/images)
+                    if not page_text:
+                        pix = page.get_pixmap(dpi=150)
+                        img = Image.open(BytesIO(pix.tobytes("png")))
+                        page_text = pytesseract.image_to_string(img).strip()
+                    
+                    if page_text:
+                        extracted_text_parts.append(page_text)
+
+                    # Extract embedded images from PDF page
+                    for img_info in page.get_images(full=True):
+                        xref = img_info[0]
+                        base_image = doc.extract_image(xref)
+                        img_bytes = base_image["image"]
+                        img_ext = base_image["ext"]
+                        m_type = f"image/{img_ext}"
+                        
+                        data_url = _to_data_url(img_bytes, m_type)
+                        diagram = Diagram(
+                            diagram_data=data_url,
+                            user_id=current_user.id,
+                            note_id=note.id
+                        )
+                        db.session.add(diagram)
+                        db.session.flush()
+                        extracted_diagrams.append(diagram)
+
+            elif extension == ".docx":
+                with zipfile.ZipFile(BytesIO(file_bytes)) as document:
+                    document_xml = document.read("word/document.xml")
+                    root = ElementTree.fromstring(document_xml)
+                    namespace = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+                    for paragraph in root.findall(".//w:p", namespace):
+                        text = "".join(node.text or "" for node in paragraph.findall(".//w:t", namespace)).strip()
+                        if text:
+                            extracted_text_parts.append(text)
+
+                    for name in document.namelist():
+                        if name.startswith("word/media/"):
+                            media_bytes = document.read(name)
+                            m_type = mimetypes.guess_type(name)[0] or "image/png"
+                            data_url = _to_data_url(media_bytes, m_type)
+                            diagram = Diagram(
+                                diagram_data=data_url,
+                                user_id=current_user.id,
+                                note_id=note.id
+                            )
+                            db.session.add(diagram)
+                            db.session.flush()
+                            extracted_diagrams.append(diagram)
+
+            text_content = "\n\n".join(extracted_text_parts)
+            diagram_markdowns = [f"![Diagram](/diagram_image/{diag.id}.png)" for diag in extracted_diagrams]
+
+            # Replace image parts in content and compile final Markdown
+            final_md = "\n\n".join([text_content, *diagram_markdowns]) if text_content or diagram_markdowns else "Uploaded file"
+
+            note.md_content = final_md
+            note.html_content = md_to_html(final_md)
+
+            # Generate metadata using get_meta_data helper
+            metadata = get_meta_data(note.md_content, user_id=current_user.id)
+            note.meta_data = normalize_metadata(metadata, note.id)
+            db.session.commit()
+            upsert_note_vector(note)
+
+            return jsonify({
+                "status": "success",
+                "note_id": note.id,
+                "md_content": note.md_content
+            })
+
+        else:
+            db.session.rollback()
+            return jsonify({"status": "error", "message": "Unsupported file type."}), 400
+
     except Exception as e:
-        app.logger.error(f"[upload_note_file] Error: {e}")
+        db.session.rollback()
+        app.logger.error(f"[upload_note_file] Error processing upload: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/save_mermaid_notes", methods=["POST"])
