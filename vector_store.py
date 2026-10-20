@@ -184,7 +184,7 @@ def search_notes_vector(
         }
 
 def sync_notes_to_chroma(db_session, NoteModel):
-    """Sync all active notes in SQLite to Chroma on startup."""
+    """Sync active SQLite notes to Chroma and return ``(synced, failed)``."""
     try:
         active_notes = db_session.scalars(
             select(NoteModel).where(NoteModel.in_bin != True)
@@ -194,7 +194,13 @@ def sync_notes_to_chroma(db_session, NoteModel):
             if upsert_note_vector(note):
                 synced += 1
         logger.info(
-            "[vector_store] Successfully synced %d active notes to ChromaDB.", synced
+            "[vector_store] Synced %d/%d active notes to ChromaDB.",
+            synced,
+            len(active_notes),
         )
+        return synced, len(active_notes) - synced
     except Exception as e:
         logger.exception("[vector_store] Error during sync_notes_to_chroma: %s", e)
+        # A non-zero failure count lets command-line callers report a failed
+        # sync while preserving the app's non-fatal startup behavior.
+        return 0, 1

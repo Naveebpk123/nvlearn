@@ -35,6 +35,10 @@ In short: NVLearn helps a learner move from passive note storage to active revis
   - Active pointer cursor and visual highlight indicators when hovering over diagram images.
   - Export diagrams in `xmlpng` format with embedded editable XML metadata for full editability.
   - Toggle Draw.io modal window between centered floating mode and 100vw/100vh full-screen view.
+- Document import with OCR and diagram preservation:
+  - Upload PDFs and DOCX files to extract their text into a new note.
+  - For scanned PDF pages without an embedded text layer, NVLearn renders the page and uses Tesseract OCR as a fallback.
+  - Images embedded in imported PDFs and DOCX files are normalized to PNG, saved as diagram assets, and inserted into the note as diagram images.
 - AI-generated Mermaid diagrams for notes:
   - When creating a note, the AI can generate a Mermaid flowchart, sequence diagram, or other helpful visual when it improves the explanation.
   - When editing a note, users can ask the AI to add a new Mermaid diagram without changing existing diagram images or unrelated note content.
@@ -93,6 +97,8 @@ study-project/
 +-- forms.py               # Flask-WTF forms for notes, auth, and verification
 +-- prompts.py             # AI system prompts for chat, notes, flashcards, quizzes, metadata
 +-- vector_store.py        # ChromaDB vector store helpers for note embeddings and semantic search
++-- sync.py                # Rebuilds ChromaDB vectors from the SQLite notes database
++-- migrations/            # Alembic migration environment and version history
 +-- .env.example           # Example environment variables
 +-- .env                   # Local secrets file, should not be committed
 +-- instance/
@@ -167,6 +173,31 @@ copy .env.example .env
 ```
 
 Then edit `.env` and replace the placeholder values.
+
+### 6. Install with a Provided Database
+
+If you received a pre-made `notes.db` file, use it to start with its existing accounts, notes, diagrams, flashcards, and quizzes. Database files are intentionally excluded from Git, so obtain the file through the project owner or another approved private channel; it is not part of a normal clone.
+
+Before copying it, stop NVLearn if it is running and preserve any database you already have. From the project folder in PowerShell:
+
+```powershell
+New-Item -ItemType Directory -Force instance
+Copy-Item "C:\path\to\provided\notes.db" ".\instance\notes.db"
+```
+
+Do not overwrite an existing `instance/notes.db` unless you intend to replace all local application data. Make a backup first:
+
+```powershell
+Copy-Item ".\instance\notes.db" ".\instance\notes.backup.db"
+```
+
+The SQLite database does not include the local ChromaDB vector index. After copying the database and configuring `.env`, rebuild the index:
+
+```powershell
+python sync.py
+```
+
+The script indexes every active (non-binned) note and reports the sync result. It may take time for large note libraries and uses the configured embedding service, so run it only when the index is missing or stale—for example after copying `notes.db`, deleting `instance/chroma_db/`, or changing the embedding model. If notes fail to sync, check the terminal logs and run the command again after resolving the reported issue.
 
 ## Environment Variables and API Keys
 
@@ -310,6 +341,56 @@ db.create_all()
 
 That creates the database tables if they do not exist.
 
+### Managing Schema Changes with Flask-Migrate
+
+This repository already includes Flask-Migrate, an Alembic migration environment in `migrations/`, and existing migration revisions. Use migrations whenever a model changes so existing local or deployed databases can be upgraded without being recreated.
+
+Run all commands from the project folder with the virtual environment activated. For an existing database created before the diagram-restoration columns were added, first back up `instance/notes.db`, then run:
+
+```powershell
+flask --app server:app db current
+flask --app server:app db upgrade
+```
+
+`db current` shows the revision applied to the configured database. `db upgrade` applies every pending revision. Run it after pulling changes that add a migration and before starting the app in an environment that already has a database.
+
+For a brand-new local database, the application startup hook creates the current tables with `db.create_all()`. Because the included migration history begins with an alteration to an existing `diagrams` table rather than a full initial-schema migration, mark that already-current fresh database as up to date instead of running `db upgrade`:
+
+```powershell
+flask --app server:app db stamp head
+```
+
+Use `db stamp head` only after confirming that the database was created from the current models and already has the expected schema. It records the revision without executing migrations.
+
+The same rule applies to a provided database that was created from this current project version and already contains the `diagrams.original_diagram_data` and `diagrams.dirty_since` columns: use `db stamp head` if it has not yet been stamped. If the database is from an earlier project version, use `db upgrade` after backing it up instead.
+
+After changing a SQLAlchemy model in `server.py`, generate a revision and inspect it before applying it:
+
+```powershell
+flask --app server:app db migrate -m "describe the schema change"
+flask --app server:app db upgrade
+```
+
+The generated file is placed in `migrations/versions/`. Check the generated `upgrade()` and `downgrade()` operations, commit that file with the model change, and do not edit an already-applied migration in a shared environment. To move back one revision during local development:
+
+```powershell
+flask --app server:app db downgrade
+```
+
+`db.create_all()` remains useful for bootstrapping an empty local database, but it does not alter existing tables. Migrations are the mechanism for evolving an existing schema. Back up `instance/notes.db` before applying schema changes to important data.
+
+## OCR and Imported Diagrams
+
+PDF and DOCX uploads are imported as notes. For PDFs, NVLearn first reads the page text directly. If a page is image-only or its text layer is empty, it renders that page at 150 DPI and passes the resulting image to Tesseract OCR. This means OCR quality depends on the source scan; clear, upright pages with readable text work best.
+
+For both PDFs and DOCX files, embedded images are retained as separate diagram records rather than discarded. They are converted to PNG when needed and inserted into the imported note as `![Diagram](/diagram_image/<id>.png)`. Once imported, the images behave like other note diagrams: they can be reopened in Draw.io, edited, and used as visual context for AI note actions.
+
+## Diagram Restoration
+
+When an existing saved diagram is edited, NVLearn keeps its original `xmlpng` data as a rollback snapshot before saving the new version. The editor can restore those diagram IDs through the authenticated `/restore_diagrams` endpoint. This restores the original image and clears the pending-change marker.
+
+As a safety net, a background job checks dirty diagrams every 30 minutes. If a diagram has remained pending for more than one hour, the app automatically restores its original version. Saving the parent note associates the current diagrams with the note and clears their rollback snapshots, making the edits permanent. Draft diagrams that were created in the editor but removed before the note is saved are cleaned up instead of being left orphaned.
+
 ## How to Use NVLearn
 
 ### 1. Register
@@ -328,17 +409,21 @@ Use `/add` to create notes manually. Notes support markdown-style content, and t
 
 In the note editor, click the **Add Diagram** button in the Quill toolbar to open the Draw.io editor modal. Create or design flowcharts, UML diagrams, or mind maps, and click **Save** inside Draw.io to insert the diagram directly into your note. You can click any existing diagram image inside your note at any time to re-open it in Draw.io and continue editing.
 
-### 5. Search Notes
+### 5. Import a PDF or DOCX
+
+Use the file-upload option when creating a note and select a PDF or DOCX file. NVLearn extracts document text, falls back to OCR for scanned PDF pages, and preserves embedded images as editable diagrams in the resulting note. Review the imported text—especially text recovered from scans—before relying on it for study material.
+
+### 6. Search Notes
 
 Use the search bar in the navbar to find notes with keyword matching combined with vector similarity search. The search modal calls `/search/<query>` for quick JSON results, and pressing Enter opens `/search-results/<query>`.
 
 AI note actions use semantic vector search instead of title-only matching. When you ask the assistant to summarize, explain, rewrite, edit, or extract information from existing notes, NVLearn searches your ChromaDB note vectors using the note title, tags, summary, and markdown content. For supported actions across the full notebook, the AI can use the special `all_notes` topic to process every active non-binned note instead of matching one topic.
 
-### 6. Filter Notes by Tags
+### 7. Filter Notes by Tags
 
 When note metadata is generated, the AI extracts tags and stores them with the note. On `/notes`, select one or more extracted tags to filter the visible notes in the browser. The tag menu prioritizes frequently used and default subject tags, with additional tags available through `More tags`.
 
-### 7. Sort Notes
+### 8. Sort Notes
 
 On `/notes`, use the `Sort By` menu to reorder notes in the browser without changing the database:
 
@@ -347,7 +432,7 @@ On `/notes`, use the `Sort By` menu to reorder notes in the browser without chan
 - `Recently Opened`
 - `Least recently opened`
 
-### 8. Use the AI Chat
+### 9. Use the AI Chat
 
 Open `/ai-chat` and ask the assistant to help with study tasks. Example prompts:
 
@@ -361,7 +446,7 @@ Edit my note about photosynthesis to make it simpler.
 Summarize all my notes.
 ```
 
-### 9. Practice and Analytics
+### 10. Practice and Analytics
 
 Generated flashcards and quizzes open in their own views. Save the ones you want to keep.
 
@@ -413,11 +498,12 @@ Quizzes work differently from flashcards: completing a quiz shows a score summar
 
 The app starts an APScheduler background scheduler when `server.py` runs.
 
-It has three interval jobs:
+It has four interval jobs:
 
 - Every 10 minutes, generate metadata for notes whose metadata is missing or invalid.
 - Every 10 minutes, delete one oldest unsaved flashcard set.
 - Every 3 hours, delete all unsaved quizzes that are more than 5 hours old.
+- Every 30 minutes, restore diagram edits that have been pending for more than one hour.
 
 Generated flashcards are temporary until saved and may be removed by the next flashcard cleanup run. Generated quizzes are temporary until saved and are eligible for removal after five hours. Saved flashcards and quizzes are not removed by these cleanup jobs.
 
@@ -437,7 +523,7 @@ Each user gets a separate Chroma collection named like:
 user_<user_id>_notes
 ```
 
-When a note is created, edited, or restored, the app upserts the note into ChromaDB. When a note is moved to the bin or permanently deleted, the app removes that note from ChromaDB. On startup, active notes are synced into ChromaDB so the vector store can be rebuilt from SQLite if needed.
+When a note is created, edited, or restored, the app upserts the note into ChromaDB. When a note is moved to the bin or permanently deleted, the app removes that note from ChromaDB. To rebuild the vector store from SQLite—for example after copying a database to another machine—run `python sync.py`.
 
 The vector document includes:
 
@@ -485,6 +571,31 @@ instance/notes.db
 ```
 
 If you delete this file, the app will create a fresh database on next startup.
+
+### I copied a database, but semantic search cannot find notes
+
+`notes.db` stores the notes, while `instance/chroma_db/` stores the local vector index separately. With `.env` configured, rebuild the index from the copied database:
+
+```powershell
+python sync.py
+```
+
+Only active notes are indexed; notes in the bin are intentionally excluded. The command may use embedding-service quota and should be run only when the index needs rebuilding.
+
+### A database migration fails or a column is missing
+
+Check the current revision and apply pending migrations:
+
+```powershell
+flask --app server:app db current
+flask --app server:app db upgrade
+```
+
+For an important local SQLite database, first copy `instance/notes.db` somewhere safe. If a generated migration is wrong, correct the migration before it is applied; do not delete or rewrite a migration that has already been used by another environment.
+
+### OCR output is incomplete or inaccurate
+
+Tesseract OCR is used only for PDF pages without extractable text. Use a higher-quality, correctly oriented scan with clear contrast, then review the imported note. PDFs that already contain selectable text bypass the OCR fallback.
 
 ### Vector search does not find expected notes
 
