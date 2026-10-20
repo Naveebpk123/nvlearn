@@ -238,6 +238,7 @@ def associate_diagrams_with_note(note, draft_diagram_ids=None):
         diagram = db.session.get(Diagram, d_id)
         if diagram and diagram.user_id == note.user_id:
             diagram.note_id = note.id
+            diagram.original_diagram_data = None
 
     db.session.commit()
 
@@ -2285,6 +2286,7 @@ Output: JSON response { "status": "success", "id": diagram_id, "img_url": "/diag
 @login_required
 def save_diagram():
     try:
+        dirty=False
         data = request.get_json() or {}
         diagram_id = data.get("id")
         img_data = data.get("img_data") or data.get("diagram_data") or data.get("image_data")
@@ -2300,6 +2302,9 @@ def save_diagram():
                 diagram = None
 
         if diagram and diagram.user_id == current_user.id:
+            if diagram.note_id is not None and diagram.original_diagram_data is None:
+                diagram.original_diagram_data = diagram.diagram_data
+                dirty=True
             diagram.diagram_data = img_data
         else:
             diagram = Diagram(
@@ -2313,12 +2318,27 @@ def save_diagram():
             "status": "success",
             "id": diagram.id,
             "img_url": f"/diagram_image/{diagram.id}.png",
-            "img_data": diagram.diagram_data
+            "img_data": diagram.diagram_data,
+            "dirty": dirty
         })
     except Exception as e:
         db.session.rollback()
         app.logger.error("[save_diagram] Failed to save diagram for user_id=%s: %s", current_user.id, e)
         return jsonify({"status": "error", "message": "Failed to save diagram. Please try again."}), 500
+
+@app.route("/restore_diagrams", methods=["POST"])
+@login_required
+def restore_diagrams():
+    ids = (request.get_json(silent=True) or {}).get("diagram_ids", [])
+    for d_id in ids:
+        d = db.session.get(Diagram, int(d_id))
+        if (d and d.user_id == current_user.id
+                and d.original_diagram_data is not None):   # actual dirty check
+            d.diagram_data = d.original_diagram_data
+            d.original_diagram_data = None
+            d.dirty_since = None
+    db.session.commit()
+    return jsonify({"status": "success"})
 
 """
 Route: /diagram_image/<int:diagram_id>.png [GET]
