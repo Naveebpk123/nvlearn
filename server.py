@@ -657,28 +657,11 @@ scheduler.add_job(
     rollback_stale_diagrams, "interval", minutes=30, max_instances=1, coalesce=True
 )
 
-
 with app.app_context():
-    db.create_all()
-    app.logger.info("Database tables created / verified.")
-    try:
-        with db.engine.connect() as conn:
-            conn.execute(
-                db.text(
-                    "ALTER TABLE flashcards ADD COLUMN user_id INTEGER REFERENCES users(id)"
-                )
-            )
-            conn.commit()
-            app.logger.info("Added user_id column to flashcards table.")
-    except Exception:
-        app.logger.debug(
-            "user_id column already exists in flashcards table (migration skipped)."
-        )
-    # backfill_metadata_ids()
-    # sync_notes_to_chroma(db.session, Note)
-scheduler.start()  # Start the background process
-app.logger.info("Background scheduler started.")
+    db.create_all()   # bootstrap fresh DBs; no-op on migrated DBs
 
+scheduler.start()
+app.logger.info("Background scheduler started.")
 
 @login_manager.user_loader
 def load_user(user_id):
