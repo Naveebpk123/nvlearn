@@ -241,6 +241,7 @@ def associate_diagrams_with_note(note, draft_diagram_ids=None):
         if diagram and diagram.user_id == note.user_id:
             diagram.note_id = note.id
             diagram.original_diagram_data = None
+            diagram.dirty_since = None
 
     db.session.commit()
 
@@ -2288,7 +2289,6 @@ Output: JSON response { "status": "success", "id": diagram_id, "img_url": "/diag
 @login_required
 def save_diagram():
     try:
-        dirty=False
         data = request.get_json() or {}
         diagram_id = data.get("id")
         img_data = data.get("img_data") or data.get("diagram_data") or data.get("image_data")
@@ -2306,14 +2306,18 @@ def save_diagram():
         if diagram and diagram.user_id == current_user.id:
             if diagram.note_id is not None and diagram.original_diagram_data is None:
                 diagram.original_diagram_data = diagram.diagram_data
-                dirty=True
+                diagram.dirty_since = datetime.now(timezone.utc)
+
             diagram.diagram_data = img_data
+            is_dirty = diagram.original_diagram_data is not None
         else:
             diagram = Diagram(
                 diagram_data=img_data,
                 user_id=current_user.id,
             )
             db.session.add(diagram)
+            db.session.flush()
+            is_dirty = False   
 
         db.session.commit()
         return jsonify({
@@ -2321,7 +2325,7 @@ def save_diagram():
             "id": diagram.id,
             "img_url": f"/diagram_image/{diagram.id}.png",
             "img_data": diagram.diagram_data,
-            "dirty": dirty
+            "dirty": is_dirty,
         })
     except Exception as e:
         db.session.rollback()

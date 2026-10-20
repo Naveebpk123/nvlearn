@@ -228,6 +228,7 @@
             let activeDiagramData = null;
             let activeDiagramId = null;
             const sessionCreatedDiagramIds = new Set();
+            window.dirty_diagrams = window.dirty_diagrams || new Set(); 
             let isFormSubmitting = false;
 
             /**
@@ -367,6 +368,9 @@
                             const data = await response.json();
 
                             if (data.status === 'success') {
+                                if (data.dirty) {
+                                    window.dirty_diagrams.add(parseInt(data.id, 10));
+                                }
                                 const savedId = data.id;
                                 sessionCreatedDiagramIds.add(parseInt(savedId, 10));
                                 const cleanImgUrl = data.img_url || `/diagram_image/${savedId}.png`;
@@ -773,6 +777,21 @@ document.addEventListener('DOMContentLoaded', async function() {
     } catch (err) {
         console.error("Background Mermaid worker error:", err);
     }
+});
+</script>
+
+<script>
+window.addEventListener('pagehide', (e) => {
+    if (e.persisted) return;                 // bfcache — defer to TTL
+    if (isFormSubmitting) return;            // note is being saved; nothing to roll back
+    if (!window.dirty_diagrams || window.dirty_diagrams.size === 0) return;
+
+    const payload = JSON.stringify({
+        diagram_ids: Array.from(window.dirty_diagrams)
+    });
+    const blob = new Blob([payload], { type: 'application/json' });
+    const ok = navigator.sendBeacon('/restore_diagrams', blob);
+    if (!ok) console.warn('Server will handle');
 });
 </script>
     <script>
