@@ -173,6 +173,8 @@ class Diagram(db.Model):
         Integer, ForeignKey("notes.id"), nullable=True,default=None
     )
     original_diagram_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)  # rollback snapshot; NULL = clean
+    dirty_since: Mapped[datetime] = mapped_column(DateTime, default=None, nullable=True)
+
 
 
 def check_mermaid(md_content):
