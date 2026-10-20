@@ -34,7 +34,7 @@ from helpers import (
     md_to_html,
     is_ai_error,
 )
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
 import json
 import re
@@ -172,6 +172,8 @@ class Diagram(db.Model):
     note_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("notes.id"), nullable=True,default=None
     )
+    original_diagram_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)  # rollback snapshot; NULL = clean
+
 
 def check_mermaid(md_content):
     if not md_content:
@@ -2299,7 +2301,6 @@ def save_diagram():
 
         if diagram and diagram.user_id == current_user.id:
             diagram.diagram_data = img_data
-            diagram.is_saved = True
         else:
             diagram = Diagram(
                 diagram_data=img_data,
