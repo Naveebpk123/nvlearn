@@ -544,6 +544,27 @@ def generate_meta_data():
         )
         return
 
+def rollback_stale_diagrams():
+    try:
+        with app.app_context():
+            cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
+            stale = db.session.scalars(
+                db.select(Diagram).where(
+                    Diagram.original_diagram_data.is_not(None),
+                    Diagram.dirty_since.is_not(None),
+                    Diagram.dirty_since < cutoff,
+                )
+            ).all()
+            for d in stale:
+                d.diagram_data = d.original_diagram_data
+                d.original_diagram_data = None
+                d.dirty_since = None
+            if stale:
+                db.session.commit()
+                app.logger.info("[rollback_stale_diagrams] Rolled back %s diagram(s).", len(stale))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error("[rollback_stale_diagrams] Error: %s", e)
 
 def _clear_pending_auth():
     session.pop("pending_register", None)
@@ -630,6 +651,12 @@ scheduler.add_job(
 scheduler.add_job(
     delete_expired_quizzes, "interval", hours=3, max_instances=1, coalesce=True
 )
+
+# Add background job of cleaning up dirty diagrams
+scheduler.add_job(
+    rollback_stale_diagrams, "interval", minutes=30, max_instances=1, coalesce=True
+)
+
 
 with app.app_context():
     db.create_all()
@@ -1047,9 +1074,9 @@ def add_note():
             db.session.flush()
             note.meta_data = normalize_metadata(metadata, note.id)
             db.session.commit()
-            upsert_note_vector(note)
             draft_ids = request.form.get("draft_diagram_ids")
             associate_diagrams_with_note(note, draft_diagram_ids=draft_ids)
+            upsert_note_vector(note)
             flash("Note created successfully", "success")
             return redirect(url_for("notes"))
         except SQLAlchemyError as e:
@@ -1113,9 +1140,9 @@ def edit_note(note_id):
             note.md_content = form.content.data
             note.html_content = request.form.get("html_content")
             db.session.commit()
-            upsert_note_vector(note)
             draft_ids = request.form.get("draft_diagram_ids")
             associate_diagrams_with_note(note, draft_diagram_ids=draft_ids)
+            upsert_note_vector(note)
             flash("Changes saved successfully!", "success")
             return redirect(url_for("notes"))
         except SQLAlchemyError as e:
@@ -2306,8 +2333,7 @@ def save_diagram():
         if diagram and diagram.user_id == current_user.id:
             if diagram.note_id is not None and diagram.original_diagram_data is None:
                 diagram.original_diagram_data = diagram.diagram_data
-                diagram.dirty_since = datetime.now(timezone.utc)
-
+                diagram.dirty_since = datetime.now(timezone.utc).replace(tzinfo=None)
             diagram.diagram_data = img_data
             is_dirty = diagram.original_diagram_data is not None
         else:
