@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Flashcards{% endblock %}
+{% block content %}
+    <div class="outer-flashcard-container" data-id="{{cards_id}}" data-is-saved="{{ 'true' if is_saved else 'false' }}">
+        <div class="inner-flashcard-container">
+            {% if flashcards %}
+                {% for card in flashcards %}
+                    <div class="flashcard">
+                        <div class="front">
+                            {{card['front']}}
+                        </div>
+                        <div class="back">
+                            {{card['back']}}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="flashcard">
+                    <div class="front">
+                        An error occurred while generating flashcards
+                    </div>
+                    <div class="back">
+                        Please try again later.
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="action-buttons">
+        <button id="needsReviewBtn" class="button text-red hidden">Needs Review</button>
+        <button id="previousButton" class="button">&lt;</button>
+        <button id="nextButton" class="button">&gt;</button>
+        <button id="gotItBtn" class="button text-green hidden">Got it</button>
+    </div>
+    {% if not is_saved %}
+    <div class="action-buttons" style="margin-top: 0.5rem;">
+        <button class="button" id="saveFlashcardsBtn" data-id="{{cards_id}}">Save flashcards</button>
+        <button class="button hidden" id="saveFlashcardsAttemptsBtn" data-id="{{cards_id}}">Save flashcard attempts</button>
+    </div>
+    {% endif %}
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                processHtmlClass: 'math|arithmatex'
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+{% endblock %}

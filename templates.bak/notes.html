@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Notes{% endblock %}
+
+{% block content %}
+    <header>
+        <h1>My Notes</h1>
+    </header>
+    <div class="notes-controls-bar">
+<div class="add-note-dropdown-wrapper" id="addNoteDropdownWrapper">
+    <button type="button" class="add-note-dropdown-btn" id="addNoteDropdownBtn">
+        Add Note ▾
+    </button>
+    <ul class="add-note-dropdown-menu hidden" id="addNoteDropdownMenu">
+        <li id="optionUseEditor">Use Editor</li>
+        <li id="optionUploadFile">Upload File</li>
+        <li id="optionCamera">Camera</li>
+    </ul>
+    <input 
+    type="file" 
+    id="noteFileInput" 
+    accept=".pdf,.doc,.md,.docx,image/*" 
+    style="display: none;"
+>
+</div>        <div class="dropdown-wrapper">
+            <button id="note-view-options-btn" class="dropdown-btn">
+                View options <span class="arrow">▼</span>
+            </button>
+
+            <ul id="view-options-menu" class="dropdown-menu hidden">
+                <li id="filter-notes">Filter</li>
+                <li id="sort-notes">Sort</li>
+            </ul>
+
+            <ul id="sort-menu" class="dropdown-menu hidden">
+                <li data-sort="az">Title: A to Z</li>
+                <li data-sort="za">Title: Z to A</li>
+                <li data-sort="last-opened">Recently Opened</li>
+                <li data-sort="least-recently-opened">Least recently opened</li>
+            </ul>
+
+            <ul id="filter-menu" class="dropdown-menu hidden">
+                <div id="filter-tag-list" class="filter-tag-list">
+                    {% for tag in main_tags %}
+                        <li class="filter-tag-option">
+                            <label>
+                                <input type="checkbox" value="{{ tag }}">
+                                <span>{{ tag }}</span>
+                            </label>
+                        </li>
+                    {% endfor %}
+                    {% for tag in extra_tags %}
+                        <li class="filter-tag-option extra-filter-tag hidden">
+                            <label>
+                                <input type="checkbox" value="{{ tag }}">
+                                <span>{{ tag }}</span>
+                            </label>
+                        </li>
+                    {% endfor %}
+                </div>
+                {% if extra_tags %}
+                    <li id="more-filter-tags" class="more-filter-tags">More tags</li>
+                {% endif %}
+            </ul>
+
+        </div>
+    </div>
+    <div class="note-container">
+        {% if notes %}
+            {% for note in notes %}
+                <div class="note" data-id="{{note.id}}" data-last-opened="{{note.last_opened}}" data-tags='{{ note.meta_data.get("tags", []) | tojson }}'>
+                    <div class="note-title">{{note.title}}</div>
+                    <div class="note-preview">
+                        {{note.html_content | safe}}
+                    </div>
+                    <div class="action-buttons">
+                        <a href="{{url_for('edit_note',note_id=note.id)}}" class="button cancel">✎ Edit Note</a>
+                        <button class="button danger move-to-bin" data-note-id="{{note.id}}">Move to Bin 🗑️</button>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="note" data-id="_">
+                <div class="note-title">No notes created yet</div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

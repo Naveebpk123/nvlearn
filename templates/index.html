@@ -6,7 +6,7 @@
         {% if current_user.is_authenticated %}
             <h1>{{welcome_msg}}</h1>
         {% else %}
-            <h1>Welcome to <a class="brand-accent" href="{{url_for('about')}}">NVLearn</a></h1>
+            <h1>Welcome to <a class="brand-accent" href="{{url_for('main.about')}}">NVLearn</a></h1>
         {% endif %}
     </header>
 
@@ -15,12 +15,12 @@
         <p class="hero-p">Make, edit and format notes, generate quizzes and questions using our AI assistant. Generate flashcards and cheat sheets for quick revisions.</p>
         <div class="hero-navigation">
             {% if current_user.is_authenticated %}
-                <a href="{{url_for('notes')}}" class="button">View Notes</a>
+                <a href="{{url_for('notes.notes')}}" class="button">View Notes</a>
             {% else %}
-                <a class="button" href="{{url_for('register')}}">Register</a>
-                <a class="button" href="{{ url_for('login') }}">Login</a>
+                <a class="button" href="{{url_for('auth.register')}}">Register</a>
+                <a class="button" href="{{ url_for('auth.login') }}">Login</a>
             {% endif %}
-            <a href="{{url_for('about')}}" class="button">About NVLearn</a>
+            <a href="{{url_for('main.about')}}" class="button">About NVLearn</a>
         </div>
     </div>
     {% if cards_to_review %}
@@ -30,7 +30,7 @@
                 <div class="card flashcard-set" data-flashcard-id="{{ flashcard.id }}">
                     <h3>{{ flashcard.card_data[0] }}</h3>
                     <div class="action-buttons">
-                        <a href="{{ url_for('view_flashcards', flashcard_id=flashcard.id) }}" class="button cancel">View Set</a>
+                        <a href="{{ url_for('practice.view_flashcards', flashcard_id=flashcard.id) }}" class="button cancel">View Set</a>
                         <button class="button danger delete-flashcard-btn" data-flashcard-id="{{ flashcard.id }}">Delete Set</button>
                     </div>
                 </div>
@@ -47,7 +47,7 @@
                         {{note.html_content | safe}}
                     </div>
                     <div class="action-buttons">
-                        <a href="{{url_for('edit_note',note_id=note.id)}}" class="button cancel">✎ Edit Note</a>
+                        <a href="{{url_for('notes.edit_note',note_id=note.id)}}" class="button cancel">✎ Edit Note</a>
                         <button class="button danger move-to-bin" data-note-id="{{note.id}}">Move to Bin 🗑️</button>
                     </div>
                 </div>

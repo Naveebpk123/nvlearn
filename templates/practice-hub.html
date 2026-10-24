@@ -22,7 +22,7 @@
                     <div class="card flashcard-set" data-flashcard-id="{{ flashcard.id }}">
                         <h3>{{ flashcard.card_data[0] }}</h3>
                         <div class="action-buttons">
-                            <a href="{{ url_for('view_flashcards', flashcard_id=flashcard.id) }}" class="button cancel">View Set</a>
+                            <a href="{{ url_for('practice.view_flashcards', flashcard_id=flashcard.id) }}" class="button cancel">View Set</a>
                             <button class="button danger delete-flashcard-btn" data-flashcard-id="{{ flashcard.id }}">Delete Set</button>
                         </div>
                     </div>
@@ -72,7 +72,7 @@
                         </div>
 
                         <div class="card-actions">
-                            <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" class="btn btn-primary">Retake</a>
+                            <a href="{{ url_for('practice.take_quiz', quiz_id=quiz.id) }}" class="btn btn-primary">Retake</a>
                             <button class="btn btn-delete delete-quiz-btn" data-quiz-id="{{ quiz.id }}">Delete</button>
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="quizPreviousAttemptsBtn" data-quiz-id="{{ quiz.id }}">
                             <title>Previous Attempts</title>

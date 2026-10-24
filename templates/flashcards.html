@@ -8,7 +8,7 @@
                 <div class="card flashcard-set" data-flashcard-id="{{ flashcard.id }}">
                     <h3>{{ flashcard.card_data[0] }}</h3>
                     <div class="action-buttons">
-                        <a href="{{url_for('view_flashcards', flashcard_id=flashcard.id)}}" class="button cancel">View Set</a>
+                        <a href="{{url_for('practice.view_flashcards', flashcard_id=flashcard.id)}}" class="button cancel">View Set</a>
                         <button class="button danger delete-flashcard-btn" data-flashcard-id="{{ flashcard.id }}">Delete Set</button>
                     </div>
                 </div>

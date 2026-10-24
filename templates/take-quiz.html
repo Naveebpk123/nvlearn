@@ -21,7 +21,7 @@
     </head>
     <body class="site-layout">
         <nav>
-            <a href="{{ url_for('home') }}" class="button cancel">← Home</a>
+            <a href="{{ url_for('main.home') }}" class="button cancel">← Home</a>
             <h2 class="quiz-nav-title">NVLearn Quiz</h2>
             <div class="theme-dropdown-wrapper" id="themeDropdownWrapper">
                 <button type="button" class="theme-dropdown-btn" id="themeDropdownBtn" aria-label="Select Theme">
@@ -105,14 +105,14 @@
                 <div class="quiz-summary-actions">
                     <button class="button" id="retakeBtn">Retake Quiz</button>
                     <button class="button" id="saveQuizBtn" data-id="{{ quiz_id }}">Save Quiz</button>
-                    <a href="{{ url_for('home') }}" class="button cancel">Return Home</a>
+                    <a href="{{ url_for('main.home') }}" class="button cancel">Return Home</a>
                 </div>
             </div>
 
             <div id="quizError" class="quiz-error-card">
                 <h2>Failed to load quiz data.</h2>
                 <p>The quiz might not exist or you do not have permission to view it.</p>
-                <a href="{{ url_for('home') }}" class="button btn-return-home">Return Home</a>
+                <a href="{{ url_for('main.home') }}" class="button btn-return-home">Return Home</a>
             </div>
         </main>
         <script src="{{ url_for('static', filename='js/script.js') }}"></script>
