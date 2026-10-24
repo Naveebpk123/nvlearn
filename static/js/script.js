@@ -4,8 +4,8 @@ const notificationBar = document.getElementById('notificationBar');
 
 const modalBackground = document.getElementById('modalBackground'); //This is also container for the modal
 const modalText = document.getElementById('modalText');
-const modalCancelBtn = document.getElementById('modalCancelBtn');
-const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+let modalCancelBtn = document.getElementById('modalCancelBtn');
+let modalConfirmBtn = document.getElementById('modalConfirmBtn');
 
 const searchBar = document.getElementById('searchBar');
 const searchModalBg = document.getElementById('searchModalBackground');
@@ -156,12 +156,10 @@ function toggleSidebar() {
 
 /**
  * Opens a modal popup with confirmation handlers.
- * Replaces button nodes via cloneNode(true) to clear previous event listeners before binding new AJAX actions.
- * @param {string|null} text - Message text to display inside modal.
- * @param {HTMLElement} modal - Target modal container element.
- * @param {string|null} action - Action identifier ('delete-note', 'logout', 'delete-flashcards', 'delete-quiz').
- * @param {string|null} id - Target resource ID for deletion/action.
- * @param {HTMLElement|null} triggerBtn - Button element that triggered the modal.
+ * Swaps in fresh clones each call to strip stale listeners, then rebinds
+ * a new handler for the current action/id. The module-level refs are
+ * updated to the live clones so subsequent calls always operate on
+ * nodes that are actually attached to the DOM.
  */
 function openModal(text, modal, action = null, id = null, triggerBtn = null) {
     const targetModal = modal || modalBackground;
@@ -172,22 +170,23 @@ function openModal(text, modal, action = null, id = null, triggerBtn = null) {
         modalText.innerText = text;
     }
 
-    let newConfirmBtn;
-    let newCancelBtn;
     if (modalConfirmBtn && modalCancelBtn) {
         // Clone buttons to strip all previous event listeners
-        newConfirmBtn = modalConfirmBtn.cloneNode(true);
-        newCancelBtn = modalCancelBtn.cloneNode(true);
+        const newConfirmBtn = modalConfirmBtn.cloneNode(true);
+        const newCancelBtn = modalCancelBtn.cloneNode(true);
         modalConfirmBtn.replaceWith(newConfirmBtn);
         modalCancelBtn.replaceWith(newCancelBtn);
 
-        newCancelBtn.addEventListener('click', () => {
+        modalConfirmBtn = newConfirmBtn;
+        modalCancelBtn = newCancelBtn;
+
+        modalCancelBtn.addEventListener('click', () => {
             targetModal.style.display = 'none';
         });
     }
 
-    if (action && id) { 
-        newConfirmBtn.addEventListener('click', async function() {
+    if (action) {
+        modalConfirmBtn.addEventListener('click', async function () {
             if (action === 'delete-note') {
                 const response = await fetch(`/delete/${id}`, {
                     method: 'POST'
@@ -224,13 +223,13 @@ function openModal(text, modal, action = null, id = null, triggerBtn = null) {
                 const response_json = await response.json();
                 if (response_json[1] === 'success' && triggerBtn) {
                     triggerBtn.closest('.quiz-card').remove();
-                };
+                }
                 targetModal.style.display = 'none';
                 flash(response_json[0], response_json[1]);
             }
-        }, { once: true }); //{ once: true } ensures the listener auto-destroys after one click, preventing stacking
+        }, { once: true }); // self-destroys after one click, no stacking
     }
-}
+};
 
 /**
  * Live Search API Client:
