@@ -1,4 +1,5 @@
 import logging
+import os
 
 from flask import Flask
 
@@ -7,7 +8,13 @@ from .extensions import db, login_manager, migrate
 
 
 def create_app(config_class=Config):
-    app = Flask(__name__)
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    app = Flask(
+        __name__,
+        template_folder=os.path.join(base_dir, "templates"),
+        static_folder=os.path.join(base_dir, "static"),
+    )
     app.config.from_object(config_class)
 
     logging.basicConfig(
@@ -22,7 +29,7 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     login_manager.init_app(app)
 
-    from . import models  # noqa: F401  — register models
+    from . import models  # noqa: F401
 
     from .main import bp as main_bp
     from .auth import bp as auth_bp

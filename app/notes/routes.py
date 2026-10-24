@@ -251,25 +251,44 @@ def search_results(query):
 def save_mermaid_notes():
     try:
         data = request.get_json()
-        for item in data:
+
+        # Accept both a single object and a list of objects
+        if isinstance(data, dict):
+            items = [data]
+        elif isinstance(data, list):
+            items = data
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Expected a JSON object or array."
+            }), 400
+
+        for item in items:
             note_id = item["note_id"]
             replaced_md_content = item["replaced_md_content"]
+
             if not note_id or not replaced_md_content:
-                return jsonify(
-                    {"status": "error", "message": "Missing fields"}
-                ), 400
+                return jsonify({
+                    "status": "error",
+                    "message": "Missing note_id or replaced_md_content"
+                }), 400
+
             note = db.session.get(Note, note_id)
             if not note or note.user_id != current_user.id:
-                return jsonify(
-                    {"status": "error", "message": "Note not found or unauthorized"}
-                ), 404
+                return jsonify({
+                    "status": "error",
+                    "message": "Note not found or unauthorized"
+                }), 404
+
             note.md_content = replaced_md_content
             note.html_content = md_to_html(replaced_md_content)
             note.mermaid_needs_conversion = False
             associate_diagrams_with_note(note)
             db.session.commit()
             upsert_note_vector(note)
-        return jsonify({"status": "success"}), 200
+
+        return jsonify({"status": "success", "message": "Mermaid content saved successfully"}), 200
+
     except SQLAlchemyError as e:
         db.session.rollback()
         current_app.logger.error("[save_mermaid_notes] DB error: %s", e)

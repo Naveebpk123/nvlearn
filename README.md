@@ -67,11 +67,12 @@ In short: NVLearn helps a learner move from passive note storage to active revis
 ## Tech Stack
 
 - Python
-- Flask
+- Flask (application factory + blueprints)
 - Flask-SQLAlchemy
 - SQLAlchemy
 - Flask-Login
 - Flask-WTF
+- Flask-Migrate (Alembic)
 - WTForms
 - SQLite
 - APScheduler
@@ -88,11 +89,61 @@ In short: NVLearn helps a learner move from passive note storage to active revis
 - Gmail SMTP or another compatible SMTP email account
 - HTML, CSS, and vanilla JavaScript
 
+## Architecture at a Glance
+
+NVLearn uses the Flask **application factory** and **blueprint** patterns. Each user-facing feature is a self-contained blueprint under `app/<feature>/`, and shared business logic lives in `app/services/`. This keeps route handlers thin and lets the same helper serve both a route and a background job.
+
+```text
+run.py                          ← start here (dev)
+    │
+    ▼
+app/__init__.py  (create_app)
+    ├── loads Config (app/config.py)
+    ├── initializes db, migrate, login_manager (app/extensions.py)
+    ├── registers blueprints
+    │     ├── main/      auth/      notes/      uploads/
+    │     └── diagrams/  ai/        practice/
+    ├── runs db.create_all()
+    └── starts APScheduler (app/jobs.py)
+                │
+                ▼
+        app/services/*          ← shared business logic
+                │
+                ▼
+        helpers.py, vector_store.py, prompts.py
+        (external integrations + utilities)
+```
+
+**Why this pattern?**
+
+- **Testability** — `create_app(TestConfig)` returns an isolated app per test run, so tests don't share state or a running server.
+- **Isolation** — changes to one blueprint can't accidentally affect another; each imports only what it needs.
+- **Discoverability** — "the AI code is in `app/ai/`" is easier to find than grepping a single 2000-line file.
+- **No URL changes** — blueprints were added without URL prefixes, so every existing HTTP route, bookmark, and JavaScript `fetch()` call still works exactly as before.
+
 ## Project Structure
 
 ```text
 study-project/
-+-- server.py              # Main Flask app, routes, models, scheduler, database setup
++-- run.py                 # Application entrypoint — create_app() + app.run()
++-- app/
+|   +-- __init__.py        # create_app() factory, user_loader, logging setup
+|   +-- config.py          # Config class (SECRET_KEY, DB URI, TTLs, DEFAULT_TAGS)
+|   +-- extensions.py      # db, migrate, login_manager, scheduler instances
+|   +-- models.py          # Note, User, Flashcard, Quiz, QuizAttempt, Diagram
+|   +-- jobs.py            # Background scheduler jobs (metadata, cleanup, rollback)
+|   +-- services/
+|   |   +-- auth_service.py      # 2FA session helpers
+|   |   +-- diagram_service.py   # diagram linking + multimodal preparation
+|   |   +-- metadata_service.py  # AI metadata generation + normalization
+|   |   +-- note_service.py      # vector search, chunking, batch summaries
+|   +-- main/              # Home, About, 404 handler
+|   +-- auth/              # Register, login, logout (2FA)
+|   +-- notes/             # CRUD, bin, search, mermaid conversion
+|   +-- uploads/           # PDF/DOCX/image ingestion
+|   +-- diagrams/          # save, restore, image serving
+|   +-- ai/                # chat + multi-action AI orchestrator
+|   +-- practice/          # flashcards, quizzes, analytics
 +-- helpers.py             # Email helpers, AI clients, AI parsing, markdown rendering
 +-- forms.py               # Flask-WTF forms for notes, auth, and verification
 +-- prompts.py             # AI system prompts for chat, notes, flashcards, quizzes, metadata
@@ -197,7 +248,7 @@ The SQLite database does not include the local ChromaDB vector index. After copy
 python sync.py
 ```
 
-The script indexes every active (non-binned) note and reports the sync result. It may take time for large note libraries and uses the configured embedding service, so run it only when the index is missing or stale—for example after copying `notes.db`, deleting `instance/chroma_db/`, or changing the embedding model. If notes fail to sync, check the terminal logs and run the command again after resolving the reported issue.
+The script indexes every active (non-binned) note and reports the sync result. It may take time for large note libraries and uses the configured embedding service, so run it only when the index is missing or stale — for example after copying `notes.db`, deleting `instance/chroma_db/`, or changing the embedding model. If notes fail to sync, check the terminal logs and run the command again after resolving the reported issue.
 
 ## Environment Variables and API Keys
 
@@ -304,10 +355,10 @@ The app attempts several Gemini model names in sequence. If one fails, it tries 
 From the project folder with the virtual environment activated:
 
 ```powershell
-python server.py
+python run.py
 ```
 
-The app runs in Flask debug mode because `server.py` contains:
+`run.py` calls `create_app()` from the `app` package and then starts the Flask development server. It contains:
 
 ```python
 app.run(debug=True, use_reloader=False)
@@ -319,12 +370,25 @@ Open the local URL shown in the terminal. It is usually:
 http://127.0.0.1:5000
 ```
 
+### Additional entry points
+
+| Task | Command |
+| --- | --- |
+| Dev server | `python run.py` |
+| Rebuild ChromaDB from `notes.db` | `python sync.py` |
+| Flask CLI (migrations, shell, etc.) | `flask --app app:create_app <command>` |
+| Production (WSGI server) | `gunicorn "app:create_app()"` |
+
+`run.py` is intended for local development only. For production, point a WSGI server at the `create_app()` factory as shown above.
+
 ## Database Setup
 
-The app uses SQLite:
+The app uses SQLite, configured in `app/config.py`:
 
 ```python
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///notes.db"
+# app/config.py
+class Config:
+    SQLALCHEMY_DATABASE_URI = "sqlite:///notes.db"
 ```
 
 Flask stores this database under the app instance folder:
@@ -333,7 +397,7 @@ Flask stores this database under the app instance folder:
 instance/notes.db
 ```
 
-You do not need to run a separate migration command for a fresh local setup. On startup, the app calls:
+You do not need to run a separate migration command for a fresh local setup. On startup, `create_app()` calls:
 
 ```python
 db.create_all()
@@ -345,36 +409,49 @@ That creates the database tables if they do not exist.
 
 This repository already includes Flask-Migrate, an Alembic migration environment in `migrations/`, and existing migration revisions. Use migrations whenever a model changes so existing local or deployed databases can be upgraded without being recreated.
 
-Run all commands from the project folder with the virtual environment activated. For an existing database created before the diagram-restoration columns were added, first back up `instance/notes.db`, then run:
+Run all commands from the project folder with the virtual environment activated. Set `FLASK_APP` once per terminal session so you can omit `--app` from every command:
 
 ```powershell
-flask --app server:app db current
-flask --app server:app db upgrade
+$env:FLASK_APP = "app:create_app"
+```
+
+For an existing database created before the diagram-restoration columns were added, first back up `instance/notes.db`, then run:
+
+```powershell
+flask db current
+flask db upgrade
 ```
 
 `db current` shows the revision applied to the configured database. `db upgrade` applies every pending revision. Run it after pulling changes that add a migration and before starting the app in an environment that already has a database.
 
+If you prefer not to set `FLASK_APP`, prefix each command with `--app` instead:
+
+```powershell
+flask --app app:create_app db current
+flask --app app:create_app db upgrade
+```
+
 For a brand-new local database, the application startup hook creates the current tables with `db.create_all()`. Because the included migration history begins with an alteration to an existing `diagrams` table rather than a full initial-schema migration, mark that already-current fresh database as up to date instead of running `db upgrade`:
 
 ```powershell
-flask --app server:app db stamp head
+flask db stamp head
 ```
 
 Use `db stamp head` only after confirming that the database was created from the current models and already has the expected schema. It records the revision without executing migrations.
 
 The same rule applies to a provided database that was created from this current project version and already contains the `diagrams.original_diagram_data` and `diagrams.dirty_since` columns: use `db stamp head` if it has not yet been stamped. If the database is from an earlier project version, use `db upgrade` after backing it up instead.
 
-After changing a SQLAlchemy model in `server.py`, generate a revision and inspect it before applying it:
+After changing a SQLAlchemy model in `app/models.py`, generate a revision and inspect it before applying it:
 
 ```powershell
-flask --app server:app db migrate -m "describe the schema change"
-flask --app server:app db upgrade
+flask db migrate -m "describe the schema change"
+flask db upgrade
 ```
 
 The generated file is placed in `migrations/versions/`. Check the generated `upgrade()` and `downgrade()` operations, commit that file with the model change, and do not edit an already-applied migration in a shared environment. To move back one revision during local development:
 
 ```powershell
-flask --app server:app db downgrade
+flask db downgrade
 ```
 
 `db.create_all()` remains useful for bootstrapping an empty local database, but it does not alter existing tables. Migrations are the mechanism for evolving an existing schema. Back up `instance/notes.db` before applying schema changes to important data.
@@ -403,7 +480,7 @@ Go to `/login`, enter your credentials, and complete email verification.
 
 ### 3. Create Notes
 
-Use `/add` to create notes manually. Notes support markdown-style content, and the app stores both markdown and rendered HTML.
+Use `/add_note` to create notes manually. Notes support markdown-style content, and the app stores both markdown and rendered HTML.
 
 ### 4. Create and Edit Diagrams
 
@@ -411,7 +488,7 @@ In the note editor, click the **Add Diagram** button in the Quill toolbar to ope
 
 ### 5. Import a PDF or DOCX
 
-Use the file-upload option when creating a note and select a PDF or DOCX file. NVLearn extracts document text, falls back to OCR for scanned PDF pages, and preserves embedded images as editable diagrams in the resulting note. Review the imported text—especially text recovered from scans—before relying on it for study material.
+Use the file-upload option when creating a note and select a PDF or DOCX file. NVLearn extracts document text, falls back to OCR for scanned PDF pages, and preserves embedded images as editable diagrams in the resulting note. Review the imported text — especially text recovered from scans — before relying on it for study material.
 
 ### 6. Search Notes
 
@@ -464,20 +541,24 @@ Quizzes work differently from flashcards: completing a quiz shows a score summar
 
 ## Main Routes
 
+All routes and their URL paths are unchanged from previous versions. Blueprints were introduced without URL prefixes, so existing bookmarks and JavaScript `fetch()` calls continue to work.
+
 | Route | Purpose |
 | --- | --- |
 | `/` | Home page and recent notes |
 | `/notes` | All active notes |
-| `/add` | Add a note |
+| `/add_note` | Add a note |
 | `/edit/<note_id>` | Edit a note |
-| `/read_note/<note_id>` | Read a note |
 | `/move_to_bin/<note_id>` | Move note to bin |
 | `/note-bin` | View deleted notes |
 | `/restore/<note_id>` | Restore a note |
 | `/delete/<note_id>` | Permanently delete a note |
+| `/upload_note_file` | Upload a PDF, DOCX, image, or text file as a new note |
 | `/save_diagram` | Create or update diagram asset |
 | `/diagram_image/<diagram_id>.png` | Serve rendered PNG diagram image binary |
 | `/diagram_data/<diagram_id>` | JSON endpoint for raw diagram data URI |
+| `/restore_diagrams` | Roll back dirty diagram snapshots |
+| `/cleanup_draft_diagrams` | Delete unsaved draft diagrams |
 | `/register` | Register account and verify email |
 | `/login` | Login and verify email |
 | `/logout` | Logout |
@@ -485,6 +566,9 @@ Quizzes work differently from flashcards: completing a quiz shows a score summar
 | `/search-results/<query>` | Search results page |
 | `/ai-chat` | AI assistant page |
 | `/ai-response` | AI assistant API endpoint |
+| `/save_mermaid_notes` | Persist AI-converted Mermaid diagrams |
+| `/mark_mermaid_pending` | Flag notes for background Mermaid conversion |
+| `/get_pending_mermaid_notes` | Fetch notes needing Mermaid conversion |
 | `/flashcards/<flashcard_id>` | View generated flashcards |
 | `/save-flashcards/<flashcard_id>` | Save flashcard set |
 | `/delete-flashcards/<flashcard_id>` | Delete flashcard set |
@@ -496,7 +580,7 @@ Quizzes work differently from flashcards: completing a quiz shows a score summar
 
 ## Background Jobs
 
-The app starts an APScheduler background scheduler when `server.py` runs.
+The app starts an APScheduler background scheduler inside `create_app()` (implemented in `app/jobs.py`) when `run.py` starts the app.
 
 It has four interval jobs:
 
@@ -523,7 +607,7 @@ Each user gets a separate Chroma collection named like:
 user_<user_id>_notes
 ```
 
-When a note is created, edited, or restored, the app upserts the note into ChromaDB. When a note is moved to the bin or permanently deleted, the app removes that note from ChromaDB. To rebuild the vector store from SQLite—for example after copying a database to another machine—run `python sync.py`.
+When a note is created, edited, or restored, the app upserts the note into ChromaDB. When a note is moved to the bin or permanently deleted, the app removes that note from ChromaDB. To rebuild the vector store from SQLite — for example after copying a database to another machine — run `python sync.py`.
 
 The vector document includes:
 
@@ -587,8 +671,16 @@ Only active notes are indexed; notes in the bin are intentionally excluded. The 
 Check the current revision and apply pending migrations:
 
 ```powershell
-flask --app server:app db current
-flask --app server:app db upgrade
+$env:FLASK_APP = "app:create_app"
+flask db current
+flask db upgrade
+```
+
+Or without `FLASK_APP`:
+
+```powershell
+flask --app app:create_app db current
+flask --app app:create_app db upgrade
 ```
 
 For an important local SQLite database, first copy `instance/notes.db` somewhere safe. If a generated migration is wrong, correct the migration before it is applied; do not delete or rewrite a migration that has already been used by another environment.
@@ -612,39 +704,123 @@ Check:
 The app sets:
 
 ```python
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+# app/config.py
+SEND_FILE_MAX_AGE_DEFAULT = 0
 ```
 
 That helps reduce caching, but the browser may still cache files. Try a hard refresh.
 
 ## Development Notes
 
-- Most backend behavior lives in `server.py`.
-- AI provider logic lives in `helpers.py`.
-- Prompt design lives in `prompts.py`.
-- Vector search logic lives in `vector_store.py`.
-- Forms live in `forms.py`.
-- Shared layout and navigation live in `templates/base.html`.
-- Main client-side behavior lives in `static/js/script.js`.
+### Where code lives
+
+- **`run.py`** — entrypoint (dev server + factory call)
+- **`app/__init__.py`** — `create_app()` factory, blueprint registration, scheduler startup, user loader
+- **`app/config.py`** — all constants and app config (SECRET_KEY, DB URI, verification TTL, cooldown, DEFAULT_TAGS)
+- **`app/extensions.py`** — `db`, `migrate`, `login_manager`, `scheduler` instances
+- **`app/models.py`** — every SQLAlchemy model
+- **`app/jobs.py`** — four background scheduler jobs
+- **`app/services/`** — business logic reused by routes and jobs:
+  - `auth_service.py` — 2FA session helpers
+  - `diagram_service.py` — diagram linking, multimodal preparation
+  - `metadata_service.py` — AI metadata generation and normalization
+  - `note_service.py` — vector search, chunking, batch summaries
+- **`app/<blueprint>/`** — routes grouped by feature:
+  - `main/` — home, about, 404
+  - `auth/` — register, login, logout
+  - `notes/` — CRUD, bin, search, Mermaid
+  - `uploads/` — PDF/DOCX/image ingestion
+  - `diagrams/` — save, restore, image serving
+  - `ai/` — chat + multi-action orchestrator
+  - `practice/` — flashcards, quizzes, analytics
+- **`helpers.py`** — external integrations (Gemini, SMTP, Cloudflare) + pure utilities
+- **`prompts.py`** — AI prompt templates
+- **`vector_store.py`** — ChromaDB client and sync
+- **`forms.py`** — WTForms definitions
+- **`templates/base.html`** — shared layout and navigation
+- **`static/js/script.js`** — main client behavior
+
+### Adding a new endpoint
+
+Add a route to the relevant `app/<blueprint>/routes.py` with `@bp.route(...)`. Reference it in Jinja using the blueprint-qualified name:
+
+```python
+# app/notes/routes.py
+@bp.route("/my_endpoint")
+def my_endpoint():
+    ...
+```
+
+```jinja
+{# in a template #}
+<a href="{{ url_for('notes.my_endpoint') }}">Go</a>
+```
+
+### Adding a new feature (blueprint)
+
+1. Create `app/myfeature/__init__.py`:
+
+   ```python
+   from flask import Blueprint
+   bp = Blueprint("myfeature", __name__)
+   from . import routes  # noqa: E402, F401
+   ```
+
+2. Create `app/myfeature/routes.py`:
+
+   ```python
+   from . import bp
+   @bp.route("/myfeature")
+   def index():
+       ...
+   ```
+
+3. Register in `app/__init__.py` inside `create_app()`:
+
+   ```python
+   from .myfeature import bp as myfeature_bp
+   app.register_blueprint(myfeature_bp)
+   ```
+
+4. Reference endpoints in templates as `url_for('myfeature.index')`.
+
+### Writing tests
+
+Use the factory with a test config:
+
+```python
+# tests/conftest.py
+import pytest
+from app import create_app
+from app.config import Config
+from app.extensions import db
+
+class TestConfig(Config):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    WTF_CSRF_ENABLED = False
+
+@pytest.fixture
+def app():
+    app = create_app(TestConfig)
+    with app.app_context():
+        db.create_all()
+        yield app
+        db.drop_all()
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
+```
+
+Because `create_app()` accepts a config class, tests never touch `instance/notes.db` or start the real scheduler endpoints.
 
 ## Production Notes
 
-This project is currently structured for local development. Before deploying publicly, consider:
+This project is currently structured for local development. The application factory pattern (introduced in the blueprint refactor) makes deployment straightforward. Before deploying publicly, consider:
 
-- Move `SECRET_KEY` to an environment variable instead of generating it randomly on every server start.
-- Turn off Flask debug mode.
-- Use a production WSGI server.
-- Add proper database migrations instead of relying only on `db.create_all()`.
-- Use a production database such as PostgreSQL.
-- Add CSRF handling for JSON POST endpoints if exposed publicly.
-- Add rate limiting for auth and AI routes.
-- Review API key storage and provider billing limits.
-- Add automated tests for auth, note ownership, AI fallback behavior, and practice flows.
-
-## License
-
-This project is licensed under the MIT License.
-
-Copyright (c) 2026 Naveeb Pacheerikkuth.
-
-See `LICENSE` for the full license text.
+- **WSGI server** — run Gunicorn against the factory: `gunicorn "app:create_app()"`. Do not use `run.py` in production.
+- **Secret key** — `Config.SECRET_KEY` already reads from `os.environ.get("SECRET_KEY")`; set that variable in your deploy environment so keys survive restarts.
+- **Disable debug** — `run.py` enables debug; a WSGI server bypasses `run.py` automatically. Ensure `FLASK_DEBUG` is not set in production.
+- **Production database** — override `SQLALCHEMY_DATABASE_URI` in a `ProdConfig` subclass and point it at PostgreSQL.
+- **CSRF for JSON endpoints** — Flask-WTF covers form submissions; JSON POST routes (`/ai-response`, `/save_diagram`, etc.) need a token check
