@@ -6,6 +6,18 @@ from flask import Flask
 from .config import Config
 from .extensions import db, login_manager, migrate
 
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+import sqlite3
+
+
+@event.listens_for(Engine, "connect")
+def _set_sqlite_pragma(dbapi_connection, connection_record):
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL;")
+        cursor.execute("PRAGMA busy_timeout=10000;")  # wait up to 10s on lock
+        cursor.close()
 
 def create_app(config_class=Config):
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
