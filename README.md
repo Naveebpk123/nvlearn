@@ -39,6 +39,10 @@ In short: NVLearn helps a learner move from passive note storage to active revis
   - Upload PDFs and DOCX files to extract their text into a new note.
   - For scanned PDF pages without an embedded text layer, NVLearn renders the page and uses Tesseract OCR as a fallback.
   - Images embedded in imported PDFs and DOCX files are normalized to PNG, saved as diagram assets, and inserted into the note as diagram images.
+- AI-powered OCR post-formatting:
+  - After PDF/DOCX extraction, a Gemini pass cleans up the raw OCR output: splits paragraph walls at natural topic boundaries, promotes detected section titles to Markdown headings, rebuilds collapsed lists, reconstructs flattened tables, normalizes spacing, and fixes only 100% unambiguous OCR typos.
+  - The same pass repositions diagrams: each embedded image is sent to Gemini alongside the text, and the AI moves its placeholder next to the paragraph or section that describes what the image shows.
+  - Content is never invented, summarized, or paraphrased — the pass is guarded by placeholder-preservation, invented-ID rejection, and a 5% word-drift tolerance. Any failure falls back to the original OCR text, so uploads always succeed.
 - AI-generated Mermaid diagrams for notes:
   - When creating a note, the AI can generate a Mermaid flowchart, sequence diagram, or other helpful visual when it improves the explanation.
   - When editing a note, users can ask the AI to add a new Mermaid diagram without changing existing diagram images or unrelated note content.
@@ -83,7 +87,7 @@ In short: NVLearn helps a learner move from passive note storage to active revis
 - Turndown.js & Marked.js (Markdown parsing & HTML conversion)
 - MathJax (LaTeX math rendering)
 - Markdown / pymdown-extensions
-- Google Gemini API
+- Google Gemini API (content generation, note formatting, vision)
 - Cloudflare Workers AI (intent routing)
 - ChromaDB
 - Gmail SMTP or another compatible SMTP email account
@@ -390,20 +394,10 @@ The app uses SQLite, configured in `app/config.py`:
 class Config:
     SQLALCHEMY_DATABASE_URI = "sqlite:///notes.db"
 ```
-
 Flask stores this database under the app instance folder:
 
 ```text
 instance/notes.db
-```
-
-You do not need to run a separate migration command for a fresh local setup. On startup, `create_app()` calls:
-
-```python
-db.create_all()
-```
-
-That creates the database tables if they do not exist.
 
 ### Managing Schema Changes with Flask-Migrate
 
@@ -461,6 +455,37 @@ flask db downgrade
 PDF and DOCX uploads are imported as notes. For PDFs, NVLearn first reads the page text directly. If a page is image-only or its text layer is empty, it renders that page at 150 DPI and passes the resulting image to Tesseract OCR. This means OCR quality depends on the source scan; clear, upright pages with readable text work best.
 
 For both PDFs and DOCX files, embedded images are retained as separate diagram records rather than discarded. They are converted to PNG when needed and inserted into the imported note as `![Diagram](/diagram_image/<id>.png)`. Once imported, the images behave like other note diagrams: they can be reopened in Draw.io, edited, and used as visual context for AI note actions.
+
+## AI Note Formatting for Uploads
+
+Raw OCR output is often a single wall of text with no headings, collapsed lists, and diagrams dumped at the end. After extraction, NVLearn runs a single Gemini formatting pass (`format_note_content` in `app/services/note_service.py`) that produces a clean Markdown note before saving.
+
+### What the pass does
+
+1. **Prepares the input** — each diagram URL (`![Diagram](/diagram_image/N.png)`) is replaced with a machine-parseable placeholder `%%__DIAGRAM_N__%%`, and the underlying diagram bytes are attached as Gemini vision parts.
+2. **Calls Gemini** with the placeholder text plus images, using `NOTE_FORMATTING_PROMPT` (`prompts.py`) and the `format_note` action in `ask_gemini`.
+3. **Validates the output** — the returned markdown must:
+   - Preserve every original placeholder (missing ones are appended at the end)
+   - Not introduce new placeholder IDs (invented ones are dropped on rehydration)
+   - Keep word count within **5%** of the original (larger drift → discard AI output)
+4. **Rehydrates** — each `%%__DIAGRAM_N__%%` becomes `![Diagram](/diagram_image/N.png)` again, then `associate_diagrams_with_note` links the diagrams to the note.
+5. **Falls back safely** — any AI error, empty response, or failed validation causes the original OCR text to be used as-is. Uploads never fail because formatting failed.
+
+### When it runs
+
+The pass is **gated** to keep AI cost and latency reasonable:
+
+| Condition | Behavior |
+| --- | --- |
+| No diagrams **and** note is under 800 characters | Skipped — no layout win |
+| Note exceeds 40,000 characters | Skipped — chunked formatting is future work |
+| Everything else | Runs the Gemini pass |
+
+Mermaid conversions (`/save_mermaid_notes`) are **not** reformatted — Mermaid content was already generated by the AI in the correct place, so a second pass would add cost with no benefit.
+
+### Why the output is safe
+
+The word-drift tolerance catches every common AI failure: paraphrase, summary, hallucination, and silent data loss all shift word count well past 5%. Formatting legitimately shifts a few words (list reconstruction removes gluing "and"s, table rebuilding duplicates headers), which is why the tolerance isn't zero. When drift exceeds the threshold, the AI output is discarded and the user gets the unformatted OCR note — ugly but complete, never lossy.
 
 ## Diagram Restoration
 
@@ -699,6 +724,28 @@ Check:
 - The distance threshold in `vector_store.py` is not too strict for your note content.
 - The note is not in the bin, because binned notes are removed from vector search.
 
+### Uploaded PDF or DOCX came back unformatted
+
+The AI formatting pass is best-effort. If Gemini errors, drops placeholders, invents placeholder IDs, or drifts word count by more than 5%, the original OCR text is used instead. Check the terminal for a log line beginning with `[format_note_content]`:
+
+- `Skipping — no diagrams and note is short` — expected for small, diagram-free uploads.
+- `Skipping — note is N chars (max 40000)` — the note exceeds the formatting cap; chunked formatting is not yet implemented.
+- `Word drift X% (before → after); returning original` — Gemini paraphrased too much. Retry the upload or tighten the prompt in `prompts.py`.
+- `AI error type=...; returning original` — Gemini or network failure. Retry.
+- `AI dropped placeholders [...]` — Gemini lost a diagram marker. The missing diagrams were re-appended at the end; the note is intact but layout may be imperfect.
+
+### Uploads are slow
+
+Each PDF/DOCX upload with diagrams makes one Gemini vision call after extraction. Latency scales with note size and diagram count — typically 3–25 seconds. Uploads without diagrams that are under 800 characters skip the pass entirely and return immediately. If latency becomes a problem, the formatting pass can be moved to a background job later (see the `TODO` in `app/uploads/routes.py`); today it runs synchronously.
+
+### `database is locked` errors under load
+
+WAL mode with a 10-second `busy_timeout` is enabled by default. If you still see `database is locked`, check:
+
+- Multiple processes are writing to the same `notes.db` (for example, two dev servers running). Stop the extra instance.
+- A long-running transaction is holding the write lock. Check `app/jobs.py` for any job that runs longer than 10 seconds.
+- The filesystem does not support WAL (some network filesystems). Move `notes.db` to a local disk.
+
 ### CSS or JavaScript changes do not appear
 
 The app sets:
@@ -724,7 +771,7 @@ That helps reduce caching, but the browser may still cache files. Try a hard ref
   - `auth_service.py` — 2FA session helpers
   - `diagram_service.py` — diagram linking, multimodal preparation
   - `metadata_service.py` — AI metadata generation and normalization
-  - `note_service.py` — vector search, chunking, batch summaries
+  - `note_service.py` — vector search, chunking, batch summaries, AI note formatting
 - **`app/<blueprint>/`** — routes grouped by feature:
   - `main/` — home, about, 404
   - `auth/` — register, login, logout
