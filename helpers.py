@@ -459,12 +459,18 @@ def ask_gemini(question, action):
                     )
                 return parsed
 
+            elif action == "format_note":
+                        response = gemini_client.models.generate_content(
+                            model=model,
+                            contents=build_contents(NOTE_FORMATTING_PROMPT, question),
+                        )
+                        return response.text
+
             elif action == "edit_note":
                 response = gemini_client.models.generate_content(
                     model=model,
                     contents=build_contents(NOTE_EDITING_PROMPT, question),
                     config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
                     ),
                 )
                 return response.text
