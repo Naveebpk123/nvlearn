@@ -1474,6 +1474,144 @@ body.editor-lock-scroll {
     color: var(--primary-blue);
 }
 
+/* Multi-photo camera modal */
+.camera-modal-bg {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 9999;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+}
+
+.camera-modal {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+}
+
+.camera-preview-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #000;
+}
+
+.camera-preview {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.camera-shutter-row {
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+}
+
+.camera-shutter-btn {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: #fff;
+    border: 4px solid #888;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.camera-shutter-btn:active {
+    transform: scale(0.92);
+}
+
+.camera-shutter-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.camera-thumbstrip {
+    height: 100px;
+    padding: 8px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: #111;
+    scroll-snap-type: x mandatory;
+}
+
+.camera-thumbstrip:empty {
+    display: none;
+}
+
+.camera-thumb {
+    position: relative;
+    flex: 0 0 80px;
+    height: 80px;
+    border-radius: 6px;
+    overflow: hidden;
+    scroll-snap-align: start;
+    background: #222;
+}
+
+.camera-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.camera-thumb-num {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.camera-thumb-delete {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    border: none;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.camera-thumb-delete:hover {
+    background: #e53e3e;
+}
+
+.camera-footer {
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    gap: 12px;
+    background: #000;
+    border-top: 1px solid #222;
+}
+
 /* ==========================================================================
    Diagram Modal & Draw.io Overlay Styles
    ========================================================================== */
