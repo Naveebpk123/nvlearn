@@ -39,11 +39,124 @@ def _to_data_url(b_data, m_type):
 @bp.route("/upload_note_file", methods=["POST"])
 @login_required
 def upload_note_file():
-    if "file" not in request.files:
+    # Support both single-file (image, PDF, DOCX, text) and multi-file (camera) uploads.
+    files = [f for f in request.files.getlist("files") if f and f.filename]
+    if not files:
+        single = request.files.get("file")
+        if single and single.filename:
+            files = [single]
+
+    if not files:
         return jsonify({"status": "error", "message": "No file provided."}), 400
-    file = request.files["file"]
-    if not file.filename:
-        return jsonify({"status": "error", "message": "No selected file."}), 400
+
+    if len(files) > 8:
+        return jsonify(
+            {"status": "error", "message": "Maximum 8 photos per note."}
+        ), 400
+
+    # ----- Multi-photo camera path -----
+    if len(files) > 1:
+        image_exts = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
+        all_images = all(
+            (f.mimetype or "").startswith("image/")
+            or Path(f.filename).suffix.lower() in image_exts
+            for f in files
+        )
+        if not all_images:
+            return jsonify(
+                {"status": "error", "message": "Multi-file upload only supports images."}
+            ), 400
+
+        try:
+            # Read each file's original bytes once; This will be used for both
+            # OCR (via merged PDF) and diagram storage.
+            raw_images = []
+            for f in files:
+                f.stream.seek(0)
+                raw_images.append((f.filename, f.read()))
+
+            # Merge into a single in-memory PDF for OCR
+            pdf_buffer = BytesIO()
+            pil_pages = []
+            for _, b in raw_images:
+                img = Image.open(BytesIO(b))
+                if img.mode not in ("RGB", "L"):
+                    img = img.convert("RGB")
+                pil_pages.append(img)
+            pil_pages[0].save(
+                pdf_buffer, format="PDF", save_all=True, append_images=pil_pages[1:]
+            )
+            pdf_buffer.seek(0)
+            pdf_bytes = pdf_buffer.read()
+
+            # Create the note
+            title = (raw_images[0][0] or "Camera note")[:20]
+            note = Note(
+                title=title,
+                md_content="[Placeholder]",
+                html_content="<p>[Placeholder]</p>",
+                in_bin=False,
+                user_id=current_user.id,
+                meta_data={},
+            )
+            db.session.add(note)
+            db.session.flush()
+
+            # OCR text per page (PDF text layer first, Tesseract fallback)
+            extracted_text_parts = []
+            doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                page_text = page.get_text().strip()
+                if not page_text:
+                    pix = page.get_pixmap(dpi=150)
+                    ocr_img = Image.open(BytesIO(pix.tobytes("png")))
+                    page_text = pytesseract.image_to_string(ocr_img).strip()
+                if page_text:
+                    extracted_text_parts.append(page_text)
+            doc.close()
+
+            # Save each original photo as a diagram
+            diagram_markdowns = []
+            for _, b in raw_images:
+                normalized = _normalize_image_to_png(b)
+                img_data_url = _to_data_url(normalized, "image/png")
+                diagram = Diagram(
+                    diagram_data=img_data_url,
+                    user_id=current_user.id,
+                    note_id=note.id,
+                )
+                db.session.add(diagram)
+                db.session.flush()
+                diagram_markdowns.append(f"![Diagram](/diagram_image/{diagram.id}.png)")
+
+            text_content = "\n\n".join(extracted_text_parts)
+            raw_md = "\n\n".join([text_content, *diagram_markdowns]) if text_content or diagram_markdowns else "Camera upload"
+
+            # AI formatting
+            final_md = format_note_content(raw_md, current_user.id)
+
+            note.md_content = final_md
+            note.html_content = md_to_html(final_md)
+            metadata = get_meta_data(note.md_content, user_id=current_user.id)
+            note.meta_data = normalize_metadata(metadata, note.id)
+            db.session.commit()
+            upsert_note_vector(note)
+
+            return jsonify({
+                "status": "success",
+                "note_id": note.id,
+                "md_content": note.md_content,
+            })
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"[upload_note_file/multi] Error: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    # ── Single-file path (unchanged from here on) ────────────────────────
+    file = files[0]
+    filename = file.filename
 
     filename = file.filename
     title = filename[:20]
