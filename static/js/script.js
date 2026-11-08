@@ -876,12 +876,212 @@ if (diagJson.status === 'success' && diagJson.diagram_data) {
         });
     }
 
-    // Option 3: Camera (Placeholder)
-    if (optionCamera) {
-        optionCamera.addEventListener('click', () => {
-            alert('Camera clicked (Frontend ready!)');
+// Option 3: Camera (multi-photo)
+(function initCameraModal() {
+    const modal = document.getElementById('cameraModal');
+    if (!modal) return;
+
+    const video = document.getElementById('cameraPreview');
+    const shutterBtn = document.getElementById('cameraShutterBtn');
+    const thumbstrip = document.getElementById('cameraThumbstrip');
+    const cancelBtn = document.getElementById('cameraCancelBtn');
+    const doneBtn = document.getElementById('cameraDoneBtn');
+    const optionCamera = document.getElementById('optionCamera');
+
+    const MAX_PHOTOS = 8;
+    const MAX_WIDTH = 2000;
+
+    let stream = null;
+    let capturedPhotos = [];
+
+    function renderThumbs() {
+        thumbstrip.innerHTML = '';
+        capturedPhotos.forEach((photo, idx) => {
+            const thumb = document.createElement('div');
+            thumb.className = 'camera-thumb';
+
+            const img = document.createElement('img');
+            img.src = photo.url;
+            img.alt = `Photo ${idx + 1}`;
+
+            const num = document.createElement('span');
+            num.className = 'camera-thumb-num';
+            num.textContent = idx + 1;
+
+            const del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'camera-thumb-delete';
+            del.setAttribute('aria-label', `Delete photo ${idx + 1}`);
+            del.textContent = '✕';
+            del.addEventListener('click', () => {
+                URL.revokeObjectURL(capturedPhotos[idx].url);
+                capturedPhotos.splice(idx, 1);
+                renderThumbs();
+                updateDoneBtn();
+            });
+
+            thumb.appendChild(img);
+            thumb.appendChild(num);
+            thumb.appendChild(del);
+            thumbstrip.appendChild(thumb);
         });
     }
+
+    function updateDoneBtn() {
+        doneBtn.textContent = `Done (${capturedPhotos.length})`;
+        doneBtn.disabled = capturedPhotos.length === 0;
+        shutterBtn.disabled = capturedPhotos.length >= MAX_PHOTOS;
+    }
+
+    function resetState() {
+        capturedPhotos.forEach(p => URL.revokeObjectURL(p.url));
+        capturedPhotos = [];
+        renderThumbs();
+        updateDoneBtn();
+    }
+
+    function stopStream() {
+        if (stream) {
+            stream.getTracks().forEach(t => t.stop());
+            stream = null;
+        }
+        video.srcObject = null;
+    }
+
+    function closeModal() {
+        stopStream();
+        resetState();
+        modal.classList.add('hidden');
+    }
+
+    async function openCameraCapture() {
+        stream = null;
+        for (const mode of ['environment', 'user']) {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: mode },
+                    audio: false
+                });
+                break;
+            } catch (err) {
+                console.warn(`Camera mode "${mode}" failed:`, err);
+            }
+        }
+
+        if (!stream) {
+            flash(
+                'Camera not detected. Please check that a camera exists and permission is granted.',
+                'error'
+            );
+            return;
+        }
+
+        resetState();
+        video.srcObject = stream;
+        modal.classList.remove('hidden');
+    }
+
+    shutterBtn.addEventListener('click', async () => {
+        if (capturedPhotos.length >= MAX_PHOTOS) {
+            flash(`Maximum ${MAX_PHOTOS} photos per note.`, 'info');
+            return;
+        }
+
+        let canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+
+        if (canvas.width > MAX_WIDTH) {
+            const scale = MAX_WIDTH / canvas.width;
+            const small = document.createElement('canvas');
+            small.width = MAX_WIDTH;
+            small.height = Math.round(canvas.height * scale);
+            small.getContext('2d').drawImage(canvas, 0, 0, small.width, small.height);
+            canvas = small;
+        }
+
+        const blob = await new Promise(res =>
+            canvas.toBlob(res, 'image/jpeg', 0.92)
+        );
+        if (!blob) return;
+
+        capturedPhotos.push({
+            blob,
+            url: URL.createObjectURL(blob)
+        });
+        renderThumbs();
+        updateDoneBtn();
+    });
+
+    cancelBtn.addEventListener('click', closeModal);
+
+    doneBtn.addEventListener('click', async () => {
+        if (capturedPhotos.length === 0) return;
+
+        const photos = capturedPhotos.slice();
+        closeModal();
+
+        flash(
+            `Uploading ${photos.length} photo(s) — please wait, don't close the page.`,
+            'info'
+        );
+
+        const formData = new FormData();
+        photos.forEach((p, i) => {
+            formData.append(
+                'files',
+                new File([p.blob], `camera-${Date.now()}-${i}.jpg`,
+                         { type: 'image/jpeg' })
+            );
+        });
+
+                const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 90000);
+
+        try {
+            const response = await fetch('/upload_note_file', {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                flash('Note created. Redirecting…', 'success');
+                setTimeout(() => {
+                    window.location.href = `/edit/${data.note_id}`;
+                }, 1500);
+            } else {
+                flash(data.message || 'Failed to create note.', 'error');
+            }
+        } catch (err) {
+            clearTimeout(timeoutId);
+            if (err.name === 'AbortError') {
+                flash(
+                    'Upload is taking too long (over 90 seconds). The note may still be created — check your notes page in a minute.',
+                    'error'
+                );
+            } else {
+                console.error('Camera upload failed:', err);
+                flash('An error occurred while uploading the photos.', 'error');
+            }
+        } finally {
+            photos.forEach(p => URL.revokeObjectURL(p.url));
+        }
+    });
+
+    if (optionCamera) {
+        optionCamera.addEventListener('click', openCameraCapture);
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+            closeModal();
+        }
+    });
+})();
 
 
 if (restoreBtns) {
@@ -956,6 +1156,9 @@ chatInput?.addEventListener('keydown', async function(e) {
             userInputContainer.insertAdjacentElement('beforebegin', chatLoading);
         }
 
+                const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 35000);
+
         try {
             const response = await fetch('/ai-response', {
                 method: 'POST',
@@ -964,8 +1167,10 @@ chatInput?.addEventListener('keydown', async function(e) {
                 },
                 body: JSON.stringify({
                     contents: messageHistory
-                })
+                }),
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
             if (!response.ok) {
                 throw new Error(`AI request failed with status ${response.status}`);
             }
@@ -1090,12 +1295,34 @@ chatInput?.addEventListener('keydown', async function(e) {
                 MathJax.typesetPromise([aiBubble]).catch(() => {});
             }
 
-        } catch (error) {
-            console.error('AI chat request failed:', error);
+                } catch (error) {
+            clearTimeout(timeoutId);
+
             const errorBubble = document.createElement('div');
             errorBubble.classList.add('ai-bubble');
-            errorBubble.textContent = 'Sorry, I could not complete that request. Please try again.';
-            userInputContainer.insertAdjacentElement('beforebegin', errorBubble);
+
+            if (error.name === 'AbortError') {
+                errorBubble.innerHTML = `
+                    <p>AI is taking too long (over 35 seconds). Please try again.</p>
+                    <button type="button" class="button" id="retryAiBtn">Retry</button>
+                `;
+                userInputContainer.insertAdjacentElement('beforebegin', errorBubble);
+
+                const retryBtn = errorBubble.querySelector('#retryAiBtn');
+                retryBtn.addEventListener('click', () => {
+                    errorBubble.remove();
+                    // Re-fill the input and re-trigger the same request
+                    chatInput.value = inputText;
+                    chatInput.dispatchEvent(new KeyboardEvent('keydown', {
+                        key: 'Enter',
+                        bubbles: true
+                    }));
+                });
+            } else {
+                console.error('AI chat request failed:', error);
+                errorBubble.textContent = 'Sorry, I could not complete that request. Please try again.';
+                userInputContainer.insertAdjacentElement('beforebegin', errorBubble);
+            }
         } finally {
             chatLoading?.classList.add('hidden');
             chatInput.disabled = false;

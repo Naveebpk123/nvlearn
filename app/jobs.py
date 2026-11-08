@@ -10,33 +10,21 @@ from .services.metadata_service import (
 
 
 def generate_meta_data(app):
-    try:
-        with app.app_context():
-            notes = db.session.scalars(db.select(Note).order_by(Note.id.desc())).all()
-            for note in notes:
-                if (
-                    isinstance(note.meta_data, dict)
-                    and note.meta_data.get("id") != note.id
-                ):
-                    note.meta_data = normalize_metadata(note.meta_data, note.id)
-            db.session.commit()
+    with app.app_context():
+        note = db.session.get(Note, note_id)
+        if not note:
+            return
+        content = note.md_content
+        user_id = note.user_id
+        note_id_for_update = note.id
+        db.session.close()   
+        metadata = get_meta_data(content, user_id=user_id)
 
-            note = next((n for n in notes if metadata_needs_ai(n.meta_data)), None)
-            if not note:
-                return
-
-            metadata = get_meta_data(note.md_content, user_id=note.user_id)
-            if metadata == "error":
-                app.logger.warning(
-                    "Metadata generation returned 'error' for note_id=%s. Skipping.",
-                    note.id,
-                )
-                return
-            note.meta_data = normalize_metadata(metadata, note.id)
-            db.session.commit()
-            app.logger.info("Successfully generated metadata for note_id=%s.", note.id)
-    except Exception:
-        app.logger.exception("Unhandled exception in generate_meta_data background job.")
+        note = db.session.get(Note, note_id_for_update)  
+        if not note:
+            return
+        note.meta_data = normalize_metadata(metadata, note.id)
+        db.session.commit()
 
 
 def rollback_stale_diagrams(app):

@@ -13,14 +13,19 @@ quota proportional to your note count. Only run it when you need to.
 """
 
 import sys
-from server import app, db, Note
+
+from app import create_app
+from app.extensions import db
+from app.models import Note
 from vector_store import sync_notes_to_chroma
 
 
 def main():
+    app = create_app()
+
     with app.app_context():
         active = db.session.scalars(
-            db.select(Note).where(Note.in_bin != True)
+            db.select(Note).where(Note.in_bin != True)  # noqa: E712
         ).all()
 
         if not active:

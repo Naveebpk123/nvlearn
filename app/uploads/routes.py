@@ -100,47 +100,28 @@ def upload_note_file():
                 meta_data={},
             )
             db.session.add(note)
-            db.session.flush()
+            db.session.commit()   
 
-            # OCR text per page (PDF text layer first, Tesseract fallback)
-            extracted_text_parts = []
-            doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
-            for page_num in range(len(doc)):
-                page = doc[page_num]
-                page_text = page.get_text().strip()
-                if not page_text:
-                    pix = page.get_pixmap(dpi=150)
-                    ocr_img = Image.open(BytesIO(pix.tobytes("png")))
-                    page_text = pytesseract.image_to_string(ocr_img).strip()
-                if page_text:
-                    extracted_text_parts.append(page_text)
-            doc.close()
-
-            # Save each original photo as a diagram
-            diagram_markdowns = []
-            for _, b in raw_images:
-                normalized = _normalize_image_to_png(b)
-                img_data_url = _to_data_url(normalized, "image/png")
-                diagram = Diagram(
-                    diagram_data=img_data_url,
-                    user_id=current_user.id,
-                    note_id=note.id,
-                )
-                db.session.add(diagram)
-                db.session.flush()
-                diagram_markdowns.append(f"![Diagram](/diagram_image/{diagram.id}.png)")
 
             text_content = "\n\n".join(extracted_text_parts)
-            raw_md = "\n\n".join([text_content, *diagram_markdowns]) if text_content or diagram_markdowns else "Camera upload"
+            diagram_markdowns = []
+            for _, raw_bytes in raw_images:
+                pass
 
-            # AI formatting
-            final_md = format_note_content(raw_md, current_user.id)
+            raw_md = "\n\n".join([text_content, *diagram_markdowns])
 
-            note.md_content = final_md
-            note.html_content = md_to_html(final_md)
+            formatted_md = format_note_content(raw_md, current_user.id)
+
+            note = db.session.get(Note, note.id)  
+            note.md_content = formatted_md
+            note.html_content = md_to_html(formatted_md)
+            db.session.commit()  
+
             metadata = get_meta_data(note.md_content, user_id=current_user.id)
+            note = db.session.get(Note, note.id)
             note.meta_data = normalize_metadata(metadata, note.id)
             db.session.commit()
+
             upsert_note_vector(note)
 
             return jsonify({
@@ -154,7 +135,6 @@ def upload_note_file():
             current_app.logger.error(f"[upload_note_file/multi] Error: {e}")
             return jsonify({"status": "error", "message": str(e)}), 500
 
-    # ── Single-file path (unchanged from here on) ────────────────────────
     file = files[0]
     filename = file.filename
 

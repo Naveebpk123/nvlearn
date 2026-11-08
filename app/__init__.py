@@ -6,17 +6,30 @@ from flask import Flask
 from .config import Config
 from .extensions import db, login_manager, migrate
 
+
+import sqlite3
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
-import sqlite3
-
 
 @event.listens_for(Engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, connection_record):
-    if isinstance(dbapi_connection, sqlite3.Connection):
-        cursor = dbapi_connection.cursor()
+    print(f"[sqlite] connect fired for {type(dbapi_connection).__module__}.{type(dbapi_connection).__name__}")
+    if not isinstance(dbapi_connection, sqlite3.Connection):
+        print(f"[sqlite] NOT a sqlite3.Connection — skipping")
+        return
+
+    cursor = dbapi_connection.cursor()
+    try:
         cursor.execute("PRAGMA journal_mode=WAL;")
-        cursor.execute("PRAGMA busy_timeout=10000;")  # wait up to 10s on lock
+        journal = cursor.execute("PRAGMA journal_mode;").fetchone()
+        print(f"[sqlite] journal_mode after set: {journal}")
+
+        cursor.execute("PRAGMA busy_timeout=30000;")
+        timeout = cursor.execute("PRAGMA busy_timeout;").fetchone()
+        print(f"[sqlite] busy_timeout after set: {timeout}")
+    except Exception as e:
+        print(f"[sqlite] PRAGMA failed: {type(e).__name__}: {e}")
+    finally:
         cursor.close()
 
 def create_app(config_class=Config):
