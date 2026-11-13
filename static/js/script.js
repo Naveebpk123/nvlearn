@@ -296,28 +296,28 @@ if (flashcards && flashcards.length > 0) {
         currentCardIndex = initialCurrentIndex;
     }
 
-if(needsReviewBtn){
-    needsReviewBtn.addEventListener('click', () => {
-        for(const card of flashcards){
-            if (card.classList.contains('current')) {
-                let cardIndex = Array.from(flashcards).findIndex(card => card.classList.contains('current'));
-                flashcardsIndices.push(cardIndex);
-                incorrectAttempts++;
-                needsReviewBtn?.classList.add('hidden');
-                gotItBtn?.classList.add('hidden');
+    if (needsReviewBtn) {
+        needsReviewBtn.addEventListener('click', () => {
+            for (const card of flashcards) {
+                if (card.classList.contains('current')) {
+                    let cardIndex = Array.from(flashcards).findIndex(card => card.classList.contains('current'));
+                    flashcardsIndices.push(cardIndex);
+                    incorrectAttempts++;
+                    needsReviewBtn?.classList.add('hidden');
+                    gotItBtn?.classList.add('hidden');
+                }
             }
-        }
-    })
-}
+        })
+    }
 
-if(gotItBtn){
-    gotItBtn.addEventListener('click', () => {
-        gotItBtn?.classList.add('hidden');
-        needsReviewBtn?.classList.add('hidden');
-        let cardIndex = Array.from(flashcards).findIndex(card => card.classList.contains('current'));
-        flashcardsIndices.push(cardIndex);
-    })
-};
+    if (gotItBtn) {
+        gotItBtn.addEventListener('click', () => {
+            gotItBtn?.classList.add('hidden');
+            needsReviewBtn?.classList.add('hidden');
+            let cardIndex = Array.from(flashcards).findIndex(card => card.classList.contains('current'));
+            flashcardsIndices.push(cardIndex);
+        })
+    };
 
     function updateFlashcardPosition() {
         gotItBtn?.classList.add('hidden');
@@ -347,13 +347,13 @@ if(gotItBtn){
         }
         if (currentCardIndex === flashcards.length - 1) {
             saveFlashcardsAttemptsBtn?.classList.remove('hidden');
-            saveFlashcardsAttemptsBtn?.addEventListener('click', async function() {
+            saveFlashcardsAttemptsBtn?.addEventListener('click', async function () {
                 const response = await fetch(`/save-flashcards/${saveFlashcardsAttemptsBtn.dataset.id}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({'incorrect_attempts': incorrectAttempts })
+                    body: JSON.stringify({ 'incorrect_attempts': incorrectAttempts })
                 })
                 if (response.status === 'saved') {
                     flash('Saved flashcard attempts', 'success');
@@ -369,7 +369,7 @@ if(gotItBtn){
         flashcard.addEventListener('click', () => {
             flashcard.classList.toggle('flipped');
             let cardIndex = Array.from(flashcards).findIndex(card => card.classList.contains('current'));
-            if( flashcard.classList.contains('flipped') && !(cardIndex in flashcardsIndices) ) {
+            if (flashcard.classList.contains('flipped') && !(cardIndex in flashcardsIndices)) {
                 needsReviewBtn?.classList.remove('hidden');
                 gotItBtn?.classList.remove('hidden');
             };
@@ -433,32 +433,32 @@ function renderModalAttempts(mode) {
     if (avgUnansweredElement) avgUnansweredElement.textContent = (sumUnanswered / count).toFixed(2);
 
     const fields = [
-        { 
-          type: 'correct', 
-          label: 'Correct', 
-          value: (a) => {
-            const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
-            const pct = total > 0 ? Math.round((a.correct_answers * 100) / total) : 0;
-            return `${a.correct_answers}/${total} (${pct}%)`;
-          } 
+        {
+            type: 'correct',
+            label: 'Correct',
+            value: (a) => {
+                const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
+                const pct = total > 0 ? Math.round((a.correct_answers * 100) / total) : 0;
+                return `${a.correct_answers}/${total} (${pct}%)`;
+            }
         },
-        { 
-          type: 'incorrect', 
-          label: 'Wrong', 
-          value: (a) => {
-            const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
-            const pct = total > 0 ? Math.round((a.incorrect_answers * 100) / total) : 0;
-            return `${a.incorrect_answers}/${total} (${pct}%)`;
-          } 
+        {
+            type: 'incorrect',
+            label: 'Wrong',
+            value: (a) => {
+                const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
+                const pct = total > 0 ? Math.round((a.incorrect_answers * 100) / total) : 0;
+                return `${a.incorrect_answers}/${total} (${pct}%)`;
+            }
         },
-        { 
-          type: 'unanswered', 
-          label: 'Unanswered', 
-          value: (a) => {
-            const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
-            const pct = total > 0 ? Math.round((a.unanswered * 100) / total) : 0;
-            return `${a.unanswered}/${total} (${pct}%)`;
-          } 
+        {
+            type: 'unanswered',
+            label: 'Unanswered',
+            value: (a) => {
+                const total = a.total_questions || (a.correct_answers + a.incorrect_answers + a.unanswered);
+                const pct = total > 0 ? Math.round((a.unanswered * 100) / total) : 0;
+                return `${a.unanswered}/${total} (${pct}%)`;
+            }
         }
     ];
 
@@ -490,41 +490,42 @@ if (modalSegmentedToggle) {
 }
 
 if (quizPreviousAttemptsBtns && quizPreviousAttemptsBtns.length > 0) {
-  Array.from(quizPreviousAttemptsBtns).forEach(btn => {
-    btn.addEventListener('click', async () => {
-      previousAttemptsModalBackground.style.display = 'flex';
-      
-      // Reset toggle to all-time
-      if (modalSegmentedToggle) {
-          const btns = modalSegmentedToggle.querySelectorAll('.segmented-btn');
-          btns.forEach(b => b.classList.remove('active'));
-          if (btns[0]) btns[0].classList.add('active');
-      }
+    Array.from(quizPreviousAttemptsBtns).forEach(btn => {
+        btn.addEventListener('click', async () => {
+            previousAttemptsModalBackground.style.display = 'flex';
 
-      const quizId = btn.dataset.quizId;
-      const response = await fetch(`/quiz-attempts/${quizId}`);
-      const response_json = await response.json();
+            // Reset toggle to all-time
+            if (modalSegmentedToggle) {
+                const btns = modalSegmentedToggle.querySelectorAll('.segmented-btn');
+                btns.forEach(b => b.classList.remove('active'));
+                if (btns[0]) btns[0].classList.add('active');
+            }
 
-      if (response_json.attempts) {
-          currentModalAttempts = response_json.attempts;
-          renderModalAttempts('all');
-      } else if (response_json.error) {
-          flash(response_json.error, 'error');
-          currentModalAttempts = [];
-          renderModalAttempts('all');
-      } else {
-          currentModalAttempts = [];
-          renderModalAttempts('all');
-      }
+            const quizId = btn.dataset.quizId;
+            const response = await fetch(`/quiz-attempts/${quizId}`);
+            const response_json = await response.json();
+
+            if (response_json.attempts) {
+                currentModalAttempts = response_json.attempts;
+                renderModalAttempts('all');
+            } else if (response_json.error) {
+                flash(response_json.error, 'error');
+                currentModalAttempts = [];
+                renderModalAttempts('all');
+            } else {
+                currentModalAttempts = [];
+                renderModalAttempts('all');
+            }
+        });
     });
-  });
 }
 
 
 if (modalClosePreviousAttemptsBtn) {
     modalClosePreviousAttemptsBtn.addEventListener('click', () => {
         previousAttemptsModalBackground.style.display = 'none';
-    });}
+    });
+}
 
 logoutBtn?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -595,14 +596,15 @@ if (quizzesTab) {
 }
 
 if (saveFlashcardsBtn) {
-    saveFlashcardsBtn.addEventListener('click', async function() {
+    saveFlashcardsBtn.addEventListener('click', async function () {
         const response = await fetch(`/save-flashcards/${saveFlashcardsBtn.dataset.id}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                incorrect_attempts: incorrectAttempts,})
+                incorrect_attempts: incorrectAttempts,
+            })
         });
         const responseJSON = await response.json();
         if (responseJSON.status == 'saved') {
@@ -616,7 +618,7 @@ if (saveFlashcardsBtn) {
 
 if (moveToBinBtns) {
     for (const btn of moveToBinBtns) {
-        btn?.addEventListener('click', async function(e) {
+        btn?.addEventListener('click', async function (e) {
             e.preventDefault();
             const response = await fetch(`/move_to_bin/${btn.dataset.noteId}`, {
                 method: 'POST'
@@ -634,8 +636,8 @@ if (noteViewOptionsBtn) {
     });
 }
 
-if(sortBtn){
-    sortBtn.addEventListener('click',()=>{
+if (sortBtn) {
+    sortBtn.addEventListener('click', () => {
         noteViewOptions.classList.toggle('hidden')
         sortMenu.classList.toggle('hidden')
     })
@@ -681,7 +683,7 @@ moreFilterTags?.addEventListener('click', () => {
  */
 if (sortOptions) {
     for (const option of sortOptions) {
-        option.addEventListener('click', async function() {
+        option.addEventListener('click', async function () {
             const sortType = option.dataset.sort;
             if (sortType === 'az') {
                 const sortedNotes = Array.from(notes).sort((a, b) => a.querySelector(".note-title").textContent.localeCompare(b.querySelector(".note-title").textContent));
@@ -726,155 +728,155 @@ document.addEventListener('click', (e) => {
 });
 
 if (addNoteDropdownBtn && addNoteDropdownMenu) {
-        // Toggle dropdown on button click
-        addNoteDropdownBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            addNoteDropdownMenu.classList.toggle('hidden');
-        });
+    // Toggle dropdown on button click
+    addNoteDropdownBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        addNoteDropdownMenu.classList.toggle('hidden');
+    });
 
-        // Close dropdown when clicking anywhere else on the page
-        document.addEventListener('click', () => {
-            addNoteDropdownMenu.classList.add('hidden');
-        });
-    }
+    // Close dropdown when clicking anywhere else on the page
+    document.addEventListener('click', () => {
+        addNoteDropdownMenu.classList.add('hidden');
+    });
+}
 
-    // Option 1: Use Editor
-    if (optionEditor) {
-        optionEditor.addEventListener('click', () => {
-            window.location.href = "/add_note"; 
-        });
-    }
+// Option 1: Use Editor
+if (optionEditor) {
+    optionEditor.addEventListener('click', () => {
+        window.location.href = "/add_note";
+    });
+}
 // Option 2: Upload File 
-    if (optionUpload && noteFileInput) {
-        optionUpload.addEventListener('click', () => {
-            noteFileInput.click();
-        });
-
-        noteFileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const formData = new FormData();
-            formData.append('file', file);
-
-            // Display formatted upload and processing notification
-            if (typeof flash === 'function') {
-                flash('File uploaded successfully. Please wait while your note is being created and do not close the page.', 'info');
-            }
-
-            try {
-                const response = await fetch('/upload_note_file', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-
-                if (data.status === 'success') {
-                    const mdContent = data.md_content || '';
-                    const diagramRegex = /\/diagram_image\/(\d+)\.png/g;
-                    const matches = Array.from(mdContent.matchAll(diagramRegex));
-
-                    // Check if diagram URLs exist and extract unique IDs
-                    if (matches.length > 0) {
-                        const diagramIds = [...new Set(matches.map(m => m[1]))];
-
-                        // Loop through each extracted diagram ID
-for (const diagramId of diagramIds) {
-    try {
-        // Fetch raw base64 diagram data
-        const diagRes = await fetch(`/diagram_data/${diagramId}`);
-        const diagJson = await diagRes.json();
-
-        // Inside your file upload loop in script.js:
-if (diagJson.status === 'success' && diagJson.diagram_data) {
-    const rawData = diagJson.diagram_data.replace(/\s+/g, '').trim();
-
-    // Replace the semicolon in the data URI header with %3B so mxGraph style parser doesn't split it
-    const safeDataUri = rawData.replace(';base64', '%3Bbase64');
-
-    // Wrap into a proper Draw.io XML structure with the safe image URI
-    const drawIoXml = `<mxfile host="app.diagrams.net"><diagram name="Page-1"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/><mxCell id="2" value="" style="shape=image;image=${safeDataUri};verticalLabelPosition=bottom;verticalAlign=top;aspect=fixed;" vertex="1" parent="1"><mxGeometry x="0" y="0" width="800" height="500" as="geometry"/></mxCell></root></mxGraphModel></diagram></mxfile>`;
-
-    const convertedData = await new Promise((resolve, reject) => {
-        const iframe = document.getElementById('drawioFrame');
-        if (!iframe) {
-            reject(new Error('Draw.io iframe not found'));
-            return;
-        }
-
-        const timeoutId = setTimeout(() => {
-            window.removeEventListener('message', handleMessage);
-            reject(new Error('Timeout'));
-        }, 15000);
-
-        function handleMessage(event) {
-            if (event.origin !== 'https://embed.diagrams.net') return;
-            try {
-                const msg = JSON.parse(event.data);
-                if (msg.event === 'init') {
-                    iframe.contentWindow.postMessage(JSON.stringify({
-                        action: 'load',
-                        xml: drawIoXml
-                    }), '*');
-                    
-                    iframe.contentWindow.postMessage(JSON.stringify({
-                        action: 'export',
-                        format: 'xmlpng'
-                    }), '*');
-                } else if (msg.event === 'export') {
-                    clearTimeout(timeoutId);
-                    window.removeEventListener('message', handleMessage);
-                    const resData = msg.data || ('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(msg.xml));
-                    resolve(resData);
-                }
-            } catch (err) {
-                clearTimeout(timeoutId);
-                window.removeEventListener('message', handleMessage);
-                reject(err);
-            }
-        }
-
-        window.addEventListener('message', handleMessage);
-        iframe.src = 'https://embed.diagrams.net/?embed=1&spin=1&proto=json';
+if (optionUpload && noteFileInput) {
+    optionUpload.addEventListener('click', () => {
+        noteFileInput.click();
     });
 
-    // Save the converted xmlpng diagram back to the backend
-    await fetch('/save_diagram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: diagramId, img_data: convertedData })
-    });
-}
-    } catch (convErr) {
-        console.error(`Error converting diagram ${diagramId}:`, convErr);
-    }
-}
-                    }
+    noteFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-                    // Flash success message and redirect user to edit page after conversion
-                    if (typeof flash === 'function') {
-                        flash('Note created successfully. You will be redirected in a few seconds.', 'success');
-                    }
+        const formData = new FormData();
+        formData.append('file', file);
 
-                    setTimeout(() => {
-                        window.location.href = `/edit/${data.note_id}`;
-                    }, 2000);
-                } else {
-                    if (typeof flash === 'function') {
-                        flash(data.message || 'Failed to create note.', 'error');
+        // Display formatted upload and processing notification
+        if (typeof flash === 'function') {
+            flash('File uploaded successfully. Please wait while your note is being created and do not close the page.', 'info');
+        }
+
+        try {
+            const response = await fetch('/upload_note_file', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                const mdContent = data.md_content || '';
+                const diagramRegex = /\/diagram_image\/(\d+)\.png/g;
+                const matches = Array.from(mdContent.matchAll(diagramRegex));
+
+                // Check if diagram URLs exist and extract unique IDs
+                if (matches.length > 0) {
+                    const diagramIds = [...new Set(matches.map(m => m[1]))];
+
+                    // Loop through each extracted diagram ID
+                    for (const diagramId of diagramIds) {
+                        try {
+                            // Fetch raw base64 diagram data
+                            const diagRes = await fetch(`/diagram_data/${diagramId}`);
+                            const diagJson = await diagRes.json();
+
+                            // Inside your file upload loop in script.js:
+                            if (diagJson.status === 'success' && diagJson.diagram_data) {
+                                const rawData = diagJson.diagram_data.replace(/\s+/g, '').trim();
+
+                                // Replace the semicolon in the data URI header with %3B so mxGraph style parser doesn't split it
+                                const safeDataUri = rawData.replace(';base64', '%3Bbase64');
+
+                                // Wrap into a proper Draw.io XML structure with the safe image URI
+                                const drawIoXml = `<mxfile host="app.diagrams.net"><diagram name="Page-1"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/><mxCell id="2" value="" style="shape=image;image=${safeDataUri};verticalLabelPosition=bottom;verticalAlign=top;aspect=fixed;" vertex="1" parent="1"><mxGeometry x="0" y="0" width="800" height="500" as="geometry"/></mxCell></root></mxGraphModel></diagram></mxfile>`;
+
+                                const convertedData = await new Promise((resolve, reject) => {
+                                    const iframe = document.getElementById('drawioFrame');
+                                    if (!iframe) {
+                                        reject(new Error('Draw.io iframe not found'));
+                                        return;
+                                    }
+
+                                    const timeoutId = setTimeout(() => {
+                                        window.removeEventListener('message', handleMessage);
+                                        reject(new Error('Timeout'));
+                                    }, 15000);
+
+                                    function handleMessage(event) {
+                                        if (event.origin !== 'https://embed.diagrams.net') return;
+                                        try {
+                                            const msg = JSON.parse(event.data);
+                                            if (msg.event === 'init') {
+                                                iframe.contentWindow.postMessage(JSON.stringify({
+                                                    action: 'load',
+                                                    xml: drawIoXml
+                                                }), '*');
+
+                                                iframe.contentWindow.postMessage(JSON.stringify({
+                                                    action: 'export',
+                                                    format: 'xmlpng'
+                                                }), '*');
+                                            } else if (msg.event === 'export') {
+                                                clearTimeout(timeoutId);
+                                                window.removeEventListener('message', handleMessage);
+                                                const resData = msg.data || ('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(msg.xml));
+                                                resolve(resData);
+                                            }
+                                        } catch (err) {
+                                            clearTimeout(timeoutId);
+                                            window.removeEventListener('message', handleMessage);
+                                            reject(err);
+                                        }
+                                    }
+
+                                    window.addEventListener('message', handleMessage);
+                                    iframe.src = 'https://embed.diagrams.net/?embed=1&spin=1&proto=json';
+                                });
+
+                                // Save the converted xmlpng diagram back to the backend
+                                await fetch('/save_diagram', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ id: diagramId, img_data: convertedData })
+                                });
+                            }
+                        } catch (convErr) {
+                            console.error(`Error converting diagram ${diagramId}:`, convErr);
+                        }
                     }
                 }
-            } catch (err) {
-                console.error('File upload error:', err);
+
+                // Flash success message and redirect user to edit page after conversion
                 if (typeof flash === 'function') {
-                    flash('An error occurred while uploading the file.', 'error');
+                    flash('Note created successfully. You will be redirected in a few seconds.', 'success');
                 }
-            } finally {
-                noteFileInput.value = '';
+
+                setTimeout(() => {
+                    window.location.href = `/edit/${data.note_id}`;
+                }, 2000);
+            } else {
+                if (typeof flash === 'function') {
+                    flash(data.message || 'Failed to create note.', 'error');
+                }
             }
-        });
-    }
+        } catch (err) {
+            console.error('File upload error:', err);
+            if (typeof flash === 'function') {
+                flash('An error occurred while uploading the file.', 'error');
+            }
+        } finally {
+            noteFileInput.value = '';
+        }
+    });
+}
 
 // Option 3: Camera (multi-photo)
 (function initCameraModal() {
@@ -1032,12 +1034,12 @@ if (diagJson.status === 'success' && diagJson.diagram_data) {
             formData.append(
                 'files',
                 new File([p.blob], `camera-${Date.now()}-${i}.jpg`,
-                         { type: 'image/jpeg' })
+                    { type: 'image/jpeg' })
             );
         });
 
-                const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000);
 
         try {
             const response = await fetch('/upload_note_file', {
@@ -1060,7 +1062,7 @@ if (diagJson.status === 'success' && diagJson.diagram_data) {
             clearTimeout(timeoutId);
             if (err.name === 'AbortError') {
                 flash(
-                    'Upload is taking too long (over 90 seconds). The note may still be created — check your notes page in a minute.',
+                    'Upload is taking too long (over 2 minutes). The note may still be created — check your notes page in a minute.',
                     'error'
                 );
             } else {
@@ -1086,7 +1088,7 @@ if (diagJson.status === 'success' && diagJson.diagram_data) {
 
 if (restoreBtns) {
     for (const btn of restoreBtns) {
-        btn?.addEventListener('click', async function() {
+        btn?.addEventListener('click', async function () {
             const response = await fetch(`/restore/${btn.dataset.noteId}`, {
                 method: 'POST'
             });
@@ -1108,7 +1110,7 @@ modalSearchBar?.addEventListener('keydown', (e) => {
     }
 });
 
-chatInput?.addEventListener('input', function() {
+chatInput?.addEventListener('input', function () {
     this.style.height = 'auto';
     this.style.height = (this.scrollHeight) + 'px';
 });
@@ -1117,7 +1119,7 @@ chatInput?.addEventListener('input', function() {
  * AI Chat Submission Handler:
  * Extracts last 8 conversation turns, sends message payload to /ai-response, appends AI response bubble, and triggers MathJax LaTeX typesetting.
  */
-chatInput?.addEventListener('keydown', async function(e) {
+chatInput?.addEventListener('keydown', async function (e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         const inputText = chatInput.value.trim();
@@ -1156,8 +1158,8 @@ chatInput?.addEventListener('keydown', async function(e) {
             userInputContainer.insertAdjacentElement('beforebegin', chatLoading);
         }
 
-                const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 35000);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000);
 
         try {
             const response = await fetch('/ai-response', {
@@ -1241,11 +1243,11 @@ chatInput?.addEventListener('keydown', async function(e) {
                             },
                             body: JSON.stringify({ diagram_data: imgData })
                         });
-                        
-                        const diagramJson = await diagramSaved.json(); 
+
+                        const diagramJson = await diagramSaved.json();
 
                         if (diagramJson.status === "success") {
-                            updatedMd = updatedMd.replace(fullMatch, `![Diagram](${diagramJson.img_url})`); 
+                            updatedMd = updatedMd.replace(fullMatch, `![Diagram](${diagramJson.img_url})`);
                         }
                     }
 
@@ -1254,14 +1256,15 @@ chatInput?.addEventListener('keydown', async function(e) {
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ 
-                            'note_id': note.note_id, 
-                            'replaced_md_content': updatedMd 
+                        body: JSON.stringify({
+                            'note_id': note.note_id,
+                            'replaced_md_content': updatedMd
                         })
                     });
                     const responseJSON = await response.json();
-                    if (responseJSON.status === "success"){
-                    window.mermaid_pending_set.delete(note.note_id);                    }
+                    if (responseJSON.status === "success") {
+                        window.mermaid_pending_set.delete(note.note_id);
+                    }
 
                 }
             }
@@ -1270,7 +1273,7 @@ chatInput?.addEventListener('keydown', async function(e) {
             const aiBubble = document.createElement('div');
             aiBubble.classList.add('ai-bubble');
             aiBubble.innerHTML = `${aiResponse.chat || ''}<br>${aiResponse.note_action || ''}<br>${aiResponse.notes || ''}`;
-            
+
             if (aiResponse.flashcard_id) {
                 const flashcardLink = document.createElement('a');
                 flashcardLink.className = 'button';
@@ -1287,15 +1290,15 @@ chatInput?.addEventListener('keydown', async function(e) {
                 quizLink.target = '_blank';
                 aiBubble.appendChild(quizLink);
             }
-            
+
             userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
-            
+
             // Trigger MathJax LaTeX typesetting for generated AI mathematical equations
             if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-                MathJax.typesetPromise([aiBubble]).catch(() => {});
+                MathJax.typesetPromise([aiBubble]).catch(() => { });
             }
 
-                } catch (error) {
+        } catch (error) {
             clearTimeout(timeoutId);
 
             const errorBubble = document.createElement('div');
@@ -1303,9 +1306,9 @@ chatInput?.addEventListener('keydown', async function(e) {
 
             if (error.name === 'AbortError') {
                 errorBubble.innerHTML = `
-                    <p>AI is taking too long (over 35 seconds). Please try again.</p>
-                    <button type="button" class="button" id="retryAiBtn">Retry</button>
-                `;
+        <p>AI is taking too long (over 2 minutes). Please try again.</p>
+        <button type="button" class="button" id="retryAiBtn">Retry</button>
+    `;
                 userInputContainer.insertAdjacentElement('beforebegin', errorBubble);
 
                 const retryBtn = errorBubble.querySelector('#retryAiBtn');
@@ -1435,6 +1438,6 @@ function initTheme() {
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     if (readNoteContent && window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-        MathJax.typesetPromise([readNoteContent]).catch(() => {});
+        MathJax.typesetPromise([readNoteContent]).catch(() => { });
     }
 });
