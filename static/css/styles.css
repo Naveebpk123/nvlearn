@@ -46,10 +46,12 @@ nav {
     padding: 15px 20px;
     gap: 40px;
     align-items: center;
-    position: fixed; /* Keep locked at top of viewport */
+    position: fixed;
+    /* Keep locked at top of viewport */
     top: 0;
     left: 0;
-    z-index: 1000; /* Priority layering above content and sidebar */
+    z-index: 1000;
+    /* Priority layering above content and sidebar */
     min-height: 71px;
     justify-content: flex-start;
     border-bottom: 1px solid var(--border-color);
@@ -85,7 +87,8 @@ nav {
 .sidebar {
     display: flex;
     flex-direction: column;
-    margin-top: 71px; /* Offset below 71px fixed navbar */
+    margin-top: 71px;
+    /* Offset below 71px fixed navbar */
     background-color: var(--bg-nav);
     padding: 15px 12px;
     position: fixed;
@@ -97,7 +100,8 @@ nav {
     width: 170px;
     z-index: 999;
     border-right: 1px solid var(--border-color);
-    transition: transform 0.3s ease-in-out; /* Smooth slide transition */
+    transition: transform 0.3s ease-in-out;
+    /* Smooth slide transition */
 }
 
 /* Closed state - uses translateX to slide offscreen */
@@ -151,7 +155,12 @@ header {
     text-align: center;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
     color: var(--text-main);
 }
 
@@ -296,8 +305,10 @@ a {
     left: 0;
     width: 100%;
     height: 40px;
-    background: linear-gradient(transparent, var(--bg-card)); /* Fade from transparent to card background color */
-    pointer-events: none; /* Allows clicks to pass through to underlying note element */
+    background: linear-gradient(transparent, var(--bg-card));
+    /* Fade from transparent to card background color */
+    pointer-events: none;
+    /* Allows clicks to pass through to underlying note element */
 }
 
 .form {
@@ -687,7 +698,8 @@ body.editor-lock-scroll {
     position: fixed;
     bottom: 0;
     left: 50%;
-    transform: translateX(-50%); /* Center horizontally using negative 50% X translation */
+    transform: translateX(-50%);
+    /* Center horizontally using negative 50% X translation */
     background-color: var(--bg-main);
     padding: 15px 20px 25px 20px;
     z-index: 10;
@@ -730,7 +742,8 @@ body.editor-lock-scroll {
     min-width: 280px;
     height: 50vh;
     overflow: hidden;
-    perspective: 1000px; /* Gives 3D depth perception to child 3D transforms */
+    perspective: 1000px;
+    /* Gives 3D depth perception to child 3D transforms */
     flex-shrink: 0;
     user-select: none;
     touch-action: pan-y;
@@ -741,7 +754,8 @@ body.editor-lock-scroll {
     display: flex;
     width: 100%;
     height: 12rem;
-    transition: transform 0.4s ease-in-out; /* Smooth sliding transition */
+    transition: transform 0.4s ease-in-out;
+    /* Smooth sliding transition */
 }
 
 /* Single Flashcard wrapper - maintains 3D spatial context for front and back faces */
@@ -749,8 +763,10 @@ body.editor-lock-scroll {
     min-width: 100%;
     height: 100%;
     position: relative;
-    transform-style: preserve-3d; /* Retains 3D positioning of child front/back faces */
-    transition: transform 0.6s; /* Smooth 0.6s flip animation */
+    transform-style: preserve-3d;
+    /* Retains 3D positioning of child front/back faces */
+    transition: transform 0.6s;
+    /* Smooth 0.6s flip animation */
 }
 
 .flashcard:hover {
@@ -768,7 +784,8 @@ body.editor-lock-scroll {
     margin: 20px;
     position: absolute;
     inset: 0;
-    backface-visibility: hidden; /* Hides rear face from rendering when facing away from camera */
+    backface-visibility: hidden;
+    /* Hides rear face from rendering when facing away from camera */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -994,7 +1011,7 @@ body.editor-lock-scroll {
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 20px;
-    max-width: 380px;
+    max-width: 400px;
     box-shadow: 0 4px 12px var(--shadow-color);
     display: flex;
     flex-direction: column;
@@ -1029,9 +1046,10 @@ body.editor-lock-scroll {
     font-weight: 600;
 }
 
+/* Three equal columns for the three stats (Correct / Wrong / Unanswered) */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
     background-color: #f8fafc;
     border: 1px solid #e2e8f0;
@@ -1040,19 +1058,24 @@ body.editor-lock-scroll {
     text-align: center;
 }
 
+/* Stat item — vertical stack, centered so value and label share an axis */
 .stat-item {
     display: flex;
     flex-direction: column;
+    align-items: center;
 }
 
+/* Value text — single definition */
 .stat-value {
     font-size: 1.1rem;
     font-weight: 700;
 }
 
+/* Base stat label — no letter-spacing to avoid visual drift */
 .stat-label {
     font-size: 0.7rem;
-    color: var(--text-muted);
+    font-weight: 600;
+    color: var(--text-muted, #64748b);
     text-transform: uppercase;
     margin-top: 2px;
 }
@@ -1119,34 +1142,34 @@ body.editor-lock-scroll {
     padding: 14px 20px;
     background-color: var(--bg-accent, #f8fafc);
     border-bottom: 1px solid var(--border-color);
-    align-items: flex-start; /* Align top edges of numbers */
+    align-items: flex-start;
 }
 
-.chart-container{
+.chart-container {
     width: 100%;
     max-width: 600px;
     margin: 15px;
 }
 
+/* Modal stat box — equal-width, centered */
 .stat-box {
     display: flex;
     flex-direction: column;
     align-items: center;
-    flex: 1; /* Forces each stat box to occupy equal width */
+    flex: 1;
     gap: 2px;
 }
 
-.stat-value {
+/* Modal values are slightly larger than quiz card values */
+.stat-box .stat-value {
     font-size: 1.25rem;
-    font-weight: 700;    
+    font-weight: 700;
 }
 
-.stat-label {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: var(--text-muted, #64748b);
-    letter-spacing: 0.5px;
-    white-space: nowrap; /* Prevents long text like "AVG INCORRECT %" from wrapping */
+/* Modal-only: prevent "AVG CORRECT %" from wrapping */
+#previousAttemptsModal .stat-label,
+.attempts-summary-container .stat-label {
+    white-space: nowrap;
 }
 
 /* Segmented Control / Toggle Switch */
@@ -1183,10 +1206,21 @@ body.editor-lock-scroll {
 }
 
 /* Color Palette Utilities */
-.text-purple { color: #8b5cf6; }
-.text-green  { color: #22c55e; }
-.text-red    { color: #ef4444; }
-.text-amber  { color: #f59e0b; }
+.text-purple {
+    color: #8b5cf6;
+}
+
+.text-green {
+    color: #22c55e;
+}
+
+.text-red {
+    color: #ef4444;
+}
+
+.text-amber {
+    color: #f59e0b;
+}
 
 #previousAttemptsList {
     display: flex;
@@ -1203,7 +1237,7 @@ body.editor-lock-scroll {
     justify-content: space-between;
     align-items: center;
     padding: 10px 14px;
-    width:100%;
+    width: 100%;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     background-color: var(--bg-card);
@@ -1449,7 +1483,8 @@ body.editor-lock-scroll {
 .add-note-dropdown-menu {
     position: absolute;
     top: 100%;
-    left: 0; /* Opens directly under the button */
+    left: 0;
+    /* Opens directly under the button */
     background-color: var(--bg-card);
     list-style: none;
     padding: 6px 0;
@@ -2321,11 +2356,11 @@ html.dark {
 }
 
 html.dark .ql-snow .ql-stroke {
-    stroke: #f1f5f9 !important; 
+    stroke: #f1f5f9 !important;
 }
 
 html.dark .ql-snow button {
-    color: #f1f5f9 !important; 
+    color: #f1f5f9 !important;
 }
 
 html.dark .ql-snow button:hover .ql-stroke,
@@ -2360,7 +2395,7 @@ html.dark .ql-snow button:hover {
     color: var(--text-light);
 }
 
-.dark .diagram-img{
+.dark .diagram-img {
     background-color: var(--bg-card);
 }
 
@@ -2384,12 +2419,23 @@ html.dark .ql-snow button:hover {
     border-color: var(--border-color);
 }
 
-.dark .text-purple { color: #8b5cf6 !important; }
-.dark .text-green  { color: #22c55e !important; }
-.dark .text-red    { color: #ef4444 !important; }
-.dark .text-amber  { color: #f59e0b !important; }
+.dark .text-purple {
+    color: #8b5cf6 !important;
+}
 
-.dark .chart-container{
+.dark .text-green {
+    color: #22c55e !important;
+}
+
+.dark .text-red {
+    color: #ef4444 !important;
+}
+
+.dark .text-amber {
+    color: #f59e0b !important;
+}
+
+.dark .chart-container {
     background-color: var(--bg-card);
     border: 1px solid var(--border-color);
 }
