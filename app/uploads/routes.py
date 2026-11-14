@@ -15,7 +15,7 @@ from ..extensions import db
 from ..models import Diagram, Note
 from ..services.metadata_service import get_meta_data, normalize_metadata
 from ..services.note_service import format_note_content 
-from helpers import md_to_html
+from utils import md_to_html
 from vector_store import upsert_note_vector
 
 

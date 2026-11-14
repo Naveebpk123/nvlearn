@@ -14,7 +14,8 @@ from ..extensions import db
 from ..models import User
 from ..services.auth_service import _clear_pending_auth, _verification_is_valid
 from forms import LoginForm, RegisterForm, VerificationForm
-from helpers import create_code, send_email_threaded
+from utils import create_code
+from email_service import send_email_threaded
 
 
 @bp.route("/register", methods=["GET", "POST"])

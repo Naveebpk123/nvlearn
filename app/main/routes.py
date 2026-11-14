@@ -4,7 +4,7 @@ from flask_login import current_user
 from . import bp
 from ..extensions import db
 from ..models import Flashcard, Note
-from helpers import get_welcome_message
+from utils import get_welcome_message
 
 
 @bp.route("/")

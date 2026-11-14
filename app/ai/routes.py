@@ -19,11 +19,13 @@ from ..services.note_service import (
     get_vector_matched_notes,
     summarize_notes_in_batches,
 )
-from helpers import (
+from ai_service import (
     ask_gemini,
     build_ai_instructions,
-    get_welcome_message,
     is_ai_error,
+)
+from utils import( 
+    get_welcome_message,
     md_to_html,
 )
 from vector_store import upsert_note_vector

@@ -1,4 +1,4 @@
-from helpers import build_ai_instructions
+from ai_service import build_ai_instructions
 
 from .diagram_service import prepare_note_and_diagrams
 

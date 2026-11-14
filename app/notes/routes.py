@@ -17,7 +17,7 @@ from ..services.note_service import (
     get_keyword_and_vector_matched_notes,
 )
 from forms import AddNoteForm, EditNoteForm
-from helpers import md_to_html
+from utils import md_to_html
 from vector_store import delete_note_vector, upsert_note_vector
 
 

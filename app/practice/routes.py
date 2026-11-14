@@ -253,7 +253,7 @@ def practice_hub():
             clean_tag = tag.strip()
             tag_counts[clean_tag] = tag_counts.get(clean_tag, 0) + 1
 
-        capitalised_default_tags = [tag.title() for tag in DEFAULT_TAGS]
+        capitalised_default_tags = [tag.title() for tag in Config.DEFAULT_TAGS]
         main_tags = list(set([tag.title() for tag, count in tag_counts.items() if count > 2 or tag.title() in capitalised_default_tags]))
 
         if main_tags:

@@ -2,7 +2,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 from flask import current_app
-from helpers import ask_gemini, is_ai_error
+from ai_service import ask_gemini, is_ai_error
 from vector_store import search_notes_vector
 
 from ..extensions import db
