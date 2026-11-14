@@ -10,21 +10,56 @@ from .services.metadata_service import (
 
 
 def generate_meta_data(app):
-    with app.app_context():
-        note = db.session.get(Note, note_id)
-        if not note:
-            return
-        content = note.md_content
-        user_id = note.user_id
-        note_id_for_update = note.id
-        db.session.close()   
-        metadata = get_meta_data(content, user_id=user_id)
+    """Generate metadata for one note that needs it. Runs every 10 minutes."""
+    try:
+        with app.app_context():
+            # First pass: backfill missing metadata IDs
+            notes = db.session.scalars(
+                db.select(Note).order_by(Note.id.desc())
+            ).all()
+            for note in notes:
+                if (
+                    isinstance(note.meta_data, dict)
+                    and note.meta_data.get("id") != note.id
+                ):
+                    note.meta_data = normalize_metadata(note.meta_data, note.id)
+            db.session.commit()
 
-        note = db.session.get(Note, note_id_for_update)  
-        if not note:
-            return
-        note.meta_data = normalize_metadata(metadata, note.id)
-        db.session.commit()
+            # Find one note that needs metadata generation
+            target = next((n for n in notes if metadata_needs_ai(n.meta_data)), None)
+            if not target:
+                return
+
+            # Capture what we need, then close the session so the DB
+            # lock is released during the (slow) AI call
+            note_id = target.id
+            content = target.md_content
+            user_id = target.user_id
+            db.session.close()
+
+            # AI call runs outside any transaction
+            metadata = get_meta_data(content, user_id=user_id)
+            if metadata == "error":
+                app.logger.warning(
+                    "Metadata generation returned 'error' for note_id=%s. Skipping.",
+                    note_id,
+                )
+                return
+
+            # Re-fetch in a fresh short transaction to save the result
+            note = db.session.get(Note, note_id)
+            if not note:
+                return
+            note.meta_data = normalize_metadata(metadata, note.id)
+            db.session.commit()
+            app.logger.info(
+                "Successfully generated metadata for note_id=%s.", note_id
+            )
+    except Exception:
+        app.logger.exception(
+            "Unhandled exception in generate_meta_data background job."
+        )
+        db.session.rollback()
 
 
 def rollback_stale_diagrams(app):
