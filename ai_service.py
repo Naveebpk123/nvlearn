@@ -18,19 +18,11 @@ import requests
 from google import genai
 from google.genai import types
 
-from prompts import (
-    ACTION_SUMMARIZE_PROMPT,
-    BATCH_SUMMARY_PROMPT,
-    CHAT_ONLY_PROMPT,
-    FLASHCARD_CREATION_PROMPT,
-    NOTE_ACTION_PROMPT,
-    NOTE_CREATION_PROMPT,
-    NOTE_EDITING_PROMPT,
-    NOTE_FORMATTING_PROMPT,
-    QUIZ_CREATION_PROMPT,
-    SYSTEM_PROMPT,
-)
+from prompts import *
 from utils import md_to_html
+
+import dotenv
+dotenv.load_dotenv()
 
 logger = logging.getLogger(__name__)
 
