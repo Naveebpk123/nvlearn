@@ -3,20 +3,12 @@ from app.models import Flashcard, Quiz, QuizAttempt, User
 from werkzeug.security import generate_password_hash
 
 
-def _create_other_user_and_flashcard(db, is_saved=False):
-    """Helper: create a second user + flashcard set owned by them."""
-    other = User(
-        email="other@example.com",
-        name="Other",
-        password=generate_password_hash("x", method="pbkdf2:sha256", salt_length=16),
-    )
-    db.session.add(other)
-    db.session.commit()
-
+def _create_other_user_and_flashcard(db, other_user, is_saved=False):
+    """Helper: create a flashcard set owned by other_user."""
     other_flashcard = Flashcard(
         card_data=["Secret Topic", {"front": "Secret Q1", "back": "Secret A1"}],
         is_saved=is_saved,
-        user_id=other.id,
+        user_id=other_user.id,
         incorrect_ratio=0.0,
     )
     db.session.add(other_flashcard)
@@ -24,16 +16,8 @@ def _create_other_user_and_flashcard(db, is_saved=False):
     return other_flashcard
 
 
-def _create_other_user_and_quiz(db, is_saved=False):
-    """Helper: create a second user + quiz owned by them."""
-    other = User(
-        email="other@example.com",
-        name="Other",
-        password=generate_password_hash("x", method="pbkdf2:sha256", salt_length=16),
-    )
-    db.session.add(other)
-    db.session.commit()
-
+def _create_other_user_and_quiz(db, other_user, is_saved=False):
+    """Helper: create a quiz owned by other_user."""
     other_quiz = Quiz(
         quiz_data=[
             {
@@ -43,7 +27,7 @@ def _create_other_user_and_quiz(db, is_saved=False):
             }
         ],
         is_saved=is_saved,
-        user_id=other.id,
+        user_id=other_user.id,
         tags=["secret"],
     )
     db.session.add(other_quiz)
@@ -69,8 +53,8 @@ def test_practice_hub_loads_for_logged_in_user(logged_in_client):
 # ── Ownership — flashcards ────────────────────────────────────────────────────
 
 
-def test_user_cannot_view_other_users_flashcards(logged_in_client, db):
-    other_flashcard = _create_other_user_and_flashcard(db)
+def test_user_cannot_view_other_users_flashcards(logged_in_client, db, other_user):
+    other_flashcard = _create_other_user_and_flashcard(db, other_user)
     response = logged_in_client.get(f"/flashcards/{other_flashcard.id}")
     assert response.status_code == 404
 
@@ -78,8 +62,8 @@ def test_user_cannot_view_other_users_flashcards(logged_in_client, db):
     assert still_there is not None
 
 
-def test_user_cannot_delete_other_users_flashcards(logged_in_client, db):
-    other_flashcard = _create_other_user_and_flashcard(db)
+def test_user_cannot_delete_other_users_flashcards(logged_in_client, db, other_user):
+    other_flashcard = _create_other_user_and_flashcard(db, other_user)
     flashcard_id = other_flashcard.id
 
     response = logged_in_client.post(f"/delete-flashcards/{flashcard_id}")
@@ -89,8 +73,8 @@ def test_user_cannot_delete_other_users_flashcards(logged_in_client, db):
     assert still_there is not None
 
 
-def test_user_cannot_save_attempts_to_other_users_flashcards(logged_in_client, db):
-    other_flashcard = _create_other_user_and_flashcard(db, is_saved=False)
+def test_user_cannot_save_attempts_to_other_users_flashcards(logged_in_client, db, other_user):
+    other_flashcard = _create_other_user_and_flashcard(db, other_user, is_saved=False)
 
     response = logged_in_client.post(
         f"/save-flashcards/{other_flashcard.id}",
@@ -106,8 +90,8 @@ def test_user_cannot_save_attempts_to_other_users_flashcards(logged_in_client, d
 # ── Ownership — quizzes ───────────────────────────────────────────────────────
 
 
-def test_user_cannot_view_other_users_quiz(logged_in_client, db):
-    other_quiz = _create_other_user_and_quiz(db)
+def test_user_cannot_view_other_users_quiz(logged_in_client, db, other_user):
+    other_quiz = _create_other_user_and_quiz(db, other_user)
     response = logged_in_client.get(f"/quiz/{other_quiz.id}")
     assert response.status_code == 200
     assert b"const isError = true;" in response.data
@@ -117,8 +101,8 @@ def test_user_cannot_view_other_users_quiz(logged_in_client, db):
     assert still_there is not None
 
 
-def test_user_cannot_delete_other_users_quiz(logged_in_client, db):
-    other_quiz = _create_other_user_and_quiz(db)
+def test_user_cannot_delete_other_users_quiz(logged_in_client, db, other_user):
+    other_quiz = _create_other_user_and_quiz(db, other_user)
     quiz_id = other_quiz.id
 
     response = logged_in_client.post(f"/delete-quiz/{quiz_id}")
@@ -128,8 +112,8 @@ def test_user_cannot_delete_other_users_quiz(logged_in_client, db):
     assert still_there is not None
 
 
-def test_user_cannot_save_other_users_quiz(logged_in_client, db):
-    other_quiz = _create_other_user_and_quiz(db, is_saved=False)
+def test_user_cannot_save_other_users_quiz(logged_in_client, db, other_user):
+    other_quiz = _create_other_user_and_quiz(db, other_user, is_saved=False)
 
     response = logged_in_client.post(
         f"/save-quiz/{other_quiz.id}",
@@ -145,8 +129,8 @@ def test_user_cannot_save_other_users_quiz(logged_in_client, db):
     assert len(attempts) == 0
 
 
-def test_user_cannot_get_other_users_quiz_data(logged_in_client, db):
-    other_quiz = _create_other_user_and_quiz(db)
+def test_user_cannot_get_other_users_quiz_data(logged_in_client, db, other_user):
+    other_quiz = _create_other_user_and_quiz(db, other_user)
     response = logged_in_client.post(f"/get-quiz-data/{other_quiz.id}")
     assert response.status_code == 404
     assert response.get_json() == {"error": "Quiz not found"}
@@ -155,8 +139,8 @@ def test_user_cannot_get_other_users_quiz_data(logged_in_client, db):
     assert still_there is not None
 
 
-def test_user_cannot_view_other_users_quiz_attempts(logged_in_client, db):
-    other_quiz = _create_other_user_and_quiz(db)
+def test_user_cannot_view_other_users_quiz_attempts(logged_in_client, db, other_user):
+    other_quiz = _create_other_user_and_quiz(db, other_user)
     response = logged_in_client.get(f"/quiz-attempts/{other_quiz.id}")
     assert response.status_code == 404
     assert response.get_json() == {"error": "Quiz not found"}

@@ -52,3 +52,15 @@ def logged_in_client(client, user):
         sess["_user_id"] = str(user.id)
         sess["_fresh"] = True
     return client
+
+
+@pytest.fixture
+def other_user(app, db):
+    other = User(
+        email="other@example.com",
+        name="Other",
+        password=generate_password_hash("x", method="pbkdf2:sha256", salt_length=16),
+    )
+    db.session.add(other)
+    db.session.commit()
+    return other

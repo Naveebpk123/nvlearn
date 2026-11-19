@@ -2,6 +2,9 @@ from app.models import Note, User
 from werkzeug.security import generate_password_hash
 
 
+# ── Auth guard ────────────────────────────────────────────────────────────────
+
+
 def test_notes_requires_login(client):
     response = client.get("/notes")
     assert response.status_code == 302
@@ -14,30 +17,25 @@ def test_notes_page_loads_for_logged_in_users(logged_in_client):
     assert b"My Notes" in response.data
 
 
-def _create_other_user_and_note(db, in_bin=False):
-    """Helper: create a second user + note owned by them."""
-    other = User(
-        email="other@example.com",
-        name="Other",
-        password=generate_password_hash("x", method="pbkdf2:sha256", salt_length=16),
-    )
-    db.session.add(other)
-    db.session.commit()
+# ── Ownership ─────────────────────────────────────────────────────────────────
 
+
+def _create_other_user_and_note(db, other_user, in_bin=False):
+    """Helper: create a note owned by other_user."""
     other_note = Note(
         title="Secret note",
         md_content="secret",
         html_content="<p>secret</p>",
         in_bin=in_bin,
-        user_id=other.id,
+        user_id=other_user.id,
         meta_data={},
     )
     db.session.add(other_note)
     db.session.commit()
     return other_note
 
-def test_notes_page_only_shows_current_users_notes(logged_in_client, db):
-    _create_other_user_and_note(db, in_bin=False)
+def test_notes_page_only_shows_current_users_notes(logged_in_client, db, other_user):
+    _create_other_user_and_note(db, other_user, in_bin=False)
     my_note = Note(
         title="My visible note",
         md_content="# Mine",
@@ -55,8 +53,8 @@ def test_notes_page_only_shows_current_users_notes(logged_in_client, db):
     assert b"My visible note" in response.data
     assert b"Secret note" not in response.data
 
-def test_user_cannot_edit_other_users_note(logged_in_client, db):
-    other_note = _create_other_user_and_note(db, in_bin=False)
+def test_user_cannot_edit_other_users_note(logged_in_client, db, other_user):
+    other_note = _create_other_user_and_note(db, other_user, in_bin=False)
     note_id = other_note.id
 
     response = logged_in_client.get(f"/edit/{note_id}")
@@ -69,8 +67,8 @@ def test_user_cannot_edit_other_users_note(logged_in_client, db):
     assert other_note.in_bin is False
 
 
-def test_user_cannot_move_other_users_note_to_bin(logged_in_client, db):
-    other_note = _create_other_user_and_note(db, in_bin=False)
+def test_user_cannot_move_other_users_note_to_bin(logged_in_client, db, other_user):
+    other_note = _create_other_user_and_note(db, other_user, in_bin=False)
     note_id = other_note.id
 
     response = logged_in_client.post(f"/move_to_bin/{note_id}")
@@ -81,8 +79,8 @@ def test_user_cannot_move_other_users_note_to_bin(logged_in_client, db):
     assert other_note.in_bin is False
 
 
-def test_user_cannot_delete_other_users_note(logged_in_client, db):
-    other_note = _create_other_user_and_note(db, in_bin=False)
+def test_user_cannot_delete_other_users_note(logged_in_client, db, other_user):
+    other_note = _create_other_user_and_note(db, other_user, in_bin=False)
     note_id = other_note.id
 
     response = logged_in_client.post(f"/delete/{note_id}")
@@ -93,9 +91,9 @@ def test_user_cannot_delete_other_users_note(logged_in_client, db):
     assert still_there is not None
 
 
-def test_user_cannot_restore_other_users_note(logged_in_client, db):
+def test_user_cannot_restore_other_users_note(logged_in_client, db, other_user):
     # Note must be in bin for restore to be meaningful
-    other_note = _create_other_user_and_note(db, in_bin=True)
+    other_note = _create_other_user_and_note(db, other_user, in_bin=True)
     note_id = other_note.id
 
     response = logged_in_client.post(f"/restore/{note_id}")
@@ -106,8 +104,8 @@ def test_user_cannot_restore_other_users_note(logged_in_client, db):
     assert other_note.in_bin is True
 
 
-def test_notes_page_only_shows_current_users_notes(logged_in_client, db):
-    _create_other_user_and_note(db, in_bin=False)
+def test_notes_page_only_shows_current_users_notes(logged_in_client, db, other_user):
+    _create_other_user_and_note(db, other_user, in_bin=False)
 
     response = logged_in_client.get("/notes")
     assert response.status_code == 200
