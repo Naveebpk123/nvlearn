@@ -30,8 +30,7 @@ WORD_DRIFT_TOLERANCE = 0.05  # 5%
 def extract_topic_for_search(instruction: str) -> str:
     text = (instruction or "").strip()
     cleaned = re.sub(
-        r"^(summarize|explain|extract key points from|extract formulas from|rewrite|simplify|notes? on|notes? about)\s*(the\s*)?(notes?\s*)?(on|about|for|from)?\s*",
-        "",
+        r"^(summarize|explain|extract key points from|extract formulas from|rewrite|simplify|notes? on|notes? about)\s*(?:the\s+)?(?:notes?\s+)?(?:on|about|for|from)?\s*", "",
         text,
         flags=re.IGNORECASE,
     ).strip()
