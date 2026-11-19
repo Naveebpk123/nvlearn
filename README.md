@@ -163,6 +163,7 @@ study-project/
 |   +-- css/styles.css     # App styles
 |   +-- js/script.js       # Client-side interactions
 +-- templates/             # Jinja templates
++-- tests/                 # Pytest suite (unit, route, ownership, AI, auth)
 ```
 
 ## Requirements
@@ -211,6 +212,9 @@ Install the project dependencies from `requirements.txt`:
 
 ```powershell
 pip install -r requirements.txt
+```
+```powershell
+pip install -r requirements-dev.txt  # for running tests
 ```
 
 Optional but recommended:
@@ -398,6 +402,7 @@ Flask stores this database under the app instance folder:
 
 ```text
 instance/notes.db
+```
 
 ### Managing Schema Changes with Flask-Migrate
 
@@ -786,6 +791,7 @@ That helps reduce caching, but the browser may still cache files. Try a hard ref
 - **`forms.py`** — WTForms definitions
 - **`templates/base.html`** — shared layout and navigation
 - **`static/js/script.js`** — main client behavior
+- **`tests/`** — pytest suite, fixtures (`conftest.py`), and coverage tests
 
 ### Adding a new endpoint
 
@@ -833,7 +839,7 @@ def my_endpoint():
 
 ### Writing tests
 
-Use the factory with a test config:
+The test suite lives in `tests/` and uses an in-memory SQLite database (`sqlite:///:memory:`) with `WTF_CSRF_ENABLED = False`, so tests never touch `instance/notes.db` or send real emails. The actual `TestConfig` and shared fixtures (`app`, `client`, `db`, `user`, `other_user`, `logged_in_client`) live in `tests/conftest.py`, where `logged_in_client` injects `_user_id` into the session to bypass 2FA email verification. `pytest.ini` sets `pythonpath = .` so root-level modules (`utils`, `ai_service`) are importable from tests.
 
 ```python
 # tests/conftest.py
@@ -860,7 +866,26 @@ def client(app):
     return app.test_client()
 ```
 
-Because `create_app()` accepts a config class, tests never touch `instance/notes.db` or start the real scheduler endpoints.
+#### Running tests
+
+```powershell
+pip install pytest pytest-cov
+pytest
+pytest tests/test_notes.py -v
+pytest --cov=app --cov=utils --cov=ai_service --cov-report=term-missing
+```
+
+#### What's covered
+
+- `test_utils.py` — pure functions (`md_to_html`, `create_code`, `get_welcome_message`)
+- `test_ai_service.py` — AI validation helpers (`is_ai_error`, `parse_json_object`, `is_rate_limit_error`, `validate_router_response`)
+- `test_services.py` — chunking, `extract_topic_for_search`
+- `test_notes.py` — notes CRUD + cross-user ownership enforcement
+- `test_practice.py` — flashcard/quiz ownership + happy paths
+- `test_auth.py` — register/login/logout with mocked email
+- `test_ai.py` — AI orchestrator with monkeypatched Gemini/Cloudflare calls
+
+Pure functions are tested directly. Route ownership tests assert both the response and that the DB state is unchanged (to catch mutate-before-check bugs), and external AI/SMTP calls are always monkeypatched.
 
 ## Production Notes
 
