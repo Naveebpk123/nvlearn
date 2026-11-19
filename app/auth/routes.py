@@ -193,3 +193,13 @@ def login():
             flash("Internal database communication mismatch.", "error")
     return render_template("login.html", form=form, show_code=False)
 
+@bp.route("/logout", methods=["POST"])
+@login_required
+def logout():
+    try:
+        logout_user()
+        current_app.logger.info("[logout] User logged out successfully.")
+        return jsonify(["Logged out successfully", "success"])
+    except Exception as e:
+        current_app.logger.error("[logout] Logout failed: %s", e)
+        return jsonify(["Logout failed", "error"])
