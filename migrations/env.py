@@ -46,10 +46,9 @@ target_db = current_app.extensions['migrate'].db
 
 
 def get_metadata():
-    if hasattr(target_db, 'metadatas'):
-        return target_db.metadatas[None]
+    from app import models  # noqa: F401
+    print(f"[env.py] metadata id: {id(target_db.metadata)}, tables: {sorted(target_db.metadata.tables.keys())}")
     return target_db.metadata
-
 
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
