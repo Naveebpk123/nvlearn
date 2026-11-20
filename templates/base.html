@@ -683,6 +683,8 @@
                 navigator.sendBeacon('/cleanup_draft_diagrams', blob);
             });
         </script>
+
+        {% if current_user.is_authenticated %}
         <script>
 window.addEventListener('pagehide', () => {
     if (window.mermaid_pending_set.size === 0) return;
@@ -794,6 +796,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 });
 </script>
+{% endif %}
+
 
 <script>
 window.addEventListener('pagehide', (e) => {
