@@ -406,6 +406,30 @@ if (backBtn) {
     });
 }
 
+function togglePassword(btn) {
+    const input = btn.previousElementSibling;
+    const eye = btn.querySelector('.icon-eye');
+    const eyeOff = btn.querySelector('.icon-eye-off');
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        eye.style.display = 'none';
+        eyeOff.style.display = 'block';
+        btn.setAttribute('aria-label', 'Hide password');
+    } else {
+        input.type = 'password';
+        eye.style.display = 'block';
+        eyeOff.style.display = 'none';
+        btn.setAttribute('aria-label', 'Show password');
+    }
+}
+
+document.querySelectorAll('.password-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+        togglePassword(this);
+    });
+});
+
 let currentModalAttempts = [];
 
 function renderModalAttempts(mode) {
