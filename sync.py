@@ -21,6 +21,7 @@ from vector_store import sync_notes_to_chroma
 
 
 def main():
+    """Rebuild ChromaDB vector embeddings for all non-binned notes in SQLite."""
     app = create_app()
 
     with app.app_context():

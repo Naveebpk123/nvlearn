@@ -126,6 +126,7 @@ def validate_router_response(response_json):
 # ── Intent router (Cloudflare Workers AI) ────────────────────────────
 
 def ask_intent_router(contents, username="", chat_only=False):
+    """Route chat history through Cloudflare Workers AI and return parsed intent JSON or an error dict."""
     system_prompt = CHAT_ONLY_PROMPT if chat_only else SYSTEM_PROMPT
 
     messages = [
@@ -206,6 +207,7 @@ def ask_intent_router(contents, username="", chat_only=False):
 # ── Instruction builder ──────────────────────────────────────────────
 
 def build_ai_instructions(contents, username, metadata=False, chat_only=False):
+    """Convert raw user input or router output into a list of executable action dicts."""
     instructions = []
 
     if metadata:
@@ -302,6 +304,7 @@ def build_ai_instructions(contents, username, metadata=False, chat_only=False):
 # ── Gemini caller ────────────────────────────────────────────────────
 
 def ask_gemini(question, action):
+    """Call Gemini with model fallback for the given action and return parsed output or an error dict."""
     lite_models = [
         "gemini-3.5-flash-lite",
         "gemini-3.1-flash-lite",
@@ -324,6 +327,7 @@ def ask_gemini(question, action):
     models_to_try = lite_models if action in lite_only_actions else all_models
 
     def build_contents(prompt_prefix, payload):
+        """Format a text or multimodal [text, *images] payload into a Gemini contents list."""
         if isinstance(payload, list):
             text_prompt = prompt_prefix + f"prompt: {payload[0]}"
             return [text_prompt, *payload[1:]]

@@ -33,6 +33,7 @@ from vector_store import upsert_note_vector
 @bp.route("/ai-chat")
 @login_required
 def ai_chat():
+    """Render the AI chat interface with a personalized welcome message."""
     welcome_message = get_welcome_message(current_user.name)
     return render_template("ai-chat.html", welcome_message=welcome_message)
 
@@ -40,6 +41,7 @@ def ai_chat():
 @bp.route("/ai-response", methods=["POST"])
 @login_required
 def ai_response():
+    """Orchestrate AI intent routing, note/flashcard/quiz actions, and return JSON for chat bubbles."""
     username = current_user.name
     data = request.get_json()
     incoming_session_id = data.get("session_id")

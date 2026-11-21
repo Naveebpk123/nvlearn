@@ -4,6 +4,7 @@ from .diagram_service import prepare_note_and_diagrams
 
 
 def get_meta_data(content, user_id=None):
+    """Generate AI metadata (tags, summary) for note content, including diagram images if user_id is given."""
     if user_id:
         content, images = prepare_note_and_diagrams(content, user_id)
         if images:
@@ -12,6 +13,7 @@ def get_meta_data(content, user_id=None):
 
 
 def normalize_metadata(metadata, note_id=None):
+    """Ensure metadata dict has valid tag/summary defaults and an optional note_id."""
     if isinstance(metadata, dict):
         normalized = dict(metadata)
     else:
@@ -31,6 +33,7 @@ def normalize_metadata(metadata, note_id=None):
 
 
 def metadata_needs_ai(metadata):
+    """Return True if metadata is missing or lacks non-empty tags or summary."""
     if not isinstance(metadata, dict):
         return True
     tags = metadata.get("tags", [])

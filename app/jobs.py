@@ -63,6 +63,7 @@ def generate_meta_data(app):
 
 
 def rollback_stale_diagrams(app):
+    """Restore diagrams whose soft-delete grace period expired without confirmation."""
     try:
         with app.app_context():
             cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
@@ -88,6 +89,7 @@ def rollback_stale_diagrams(app):
 
 
 def delete_flashcards(app):
+    """Delete the oldest unsaved flashcard set so temporary sets do not accumulate."""
     try:
         with app.app_context():
             oldest = db.session.scalars(
@@ -107,6 +109,7 @@ def delete_flashcards(app):
 
 
 def delete_expired_quizzes(app):
+    """Delete unsaved quizzes older than 5 hours."""
     try:
         with app.app_context():
             cutoff = datetime.now(timezone.utc) - timedelta(hours=5)
@@ -127,6 +130,7 @@ def delete_expired_quizzes(app):
 
 
 def start_scheduler(app):
+    """Register background maintenance jobs and start APScheduler if not already running."""
     if scheduler.running:
         return
     scheduler.add_job(

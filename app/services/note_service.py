@@ -28,6 +28,7 @@ WORD_DRIFT_TOLERANCE = 0.05  # 5%
 
 
 def extract_topic_for_search(instruction: str) -> str:
+    """Strip leading operation phrases ('summarize the note on X') to isolate the search topic."""
     text = (instruction or "").strip()
     cleaned = re.sub(
         r"^(summarize|explain|extract key points from|extract formulas from|rewrite|simplify|notes? on|notes? about)\s*(?:the\s+)?(?:notes?\s+)?(?:on|about|for|from)?\s*", "",
@@ -40,6 +41,7 @@ def extract_topic_for_search(instruction: str) -> str:
 def get_vector_matched_notes(
     topic: str, user_id: int, edit_mode: bool = False, for_search: bool = False
 ):
+    """Query ChromaDB for notes matching topic and return (notes, message, is_error)."""
     if edit_mode:
         vector_res = search_notes_vector(topic=topic, user_id=user_id, n_results=1)
     elif for_search:
@@ -61,6 +63,7 @@ def get_vector_matched_notes(
 
 
 def get_keyword_and_vector_matched_notes(query: str, user_id: int):
+    """Combine SQL title-substring matches with ChromaDB semantic matches, deduplicated by note ID."""
     title_notes = db.session.scalars(
         db.select(Note)
         .where(Note.user_id == user_id)
@@ -77,6 +80,7 @@ def get_keyword_and_vector_matched_notes(query: str, user_id: int):
 
 
 def get_notes_for_action(topic: str, user_id: int, edit_mode: bool = False):
+    """Resolve notes for an AI action, supporting 'all_notes' or semantic topic search."""
     clean_topic = (topic or "").strip().lower()
     if clean_topic in ("all_notes", "all notes") and not edit_mode:
         all_notes = db.session.scalars(
@@ -91,6 +95,7 @@ def get_notes_for_action(topic: str, user_id: int, edit_mode: bool = False):
 def chunk_notes_content(
     notes: list, char_limit: int = MAX_CONTENT_CHAR_LIMIT, user_id: int = None
 ):
+    """Split notes into char-limited batches, preserving associated diagram images when user_id is set."""
     batches = []
     current_text = ""
     current_images = []
@@ -144,6 +149,7 @@ def chunk_notes_content(
 
 
 def summarize_notes_in_batches(batches: list):
+    """Summarize each batch sequentially via Gemini; return (markdown_summary, hit_rate_limit, error_dict)."""
     accumulated_summary = ""
     for i, batch in enumerate(batches):
         if isinstance(batch, list):
@@ -171,6 +177,7 @@ def summarize_notes_in_batches(batches: list):
 
 
 def check_mermaid(md_content):
+    """Return True if the markdown contains a fenced mermaid diagram block."""
     if not md_content:
         return False
     MERMAID_REGEX = re.compile(r"\[\[MERMAID_START\]\]([\s\S]*?)\[\[MERMAID_END\]\]")

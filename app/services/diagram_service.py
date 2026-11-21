@@ -9,6 +9,7 @@ from ..models import Diagram
 
 
 def associate_diagrams_with_note(note, draft_diagram_ids=None):
+    """Link referenced and draft Diagram rows to a saved note, and clean up unreferenced ones."""
     combined_content = f"{note.md_content or ''} {note.html_content or ''}"
 
     patterns = [
@@ -61,6 +62,7 @@ def associate_diagrams_with_note(note, draft_diagram_ids=None):
 
 
 def prepare_note_and_diagrams(md_content, user_id):
+    """Strip diagram image links into text placeholders and return (cleaned_md, diagram_images)."""
     if not md_content:
         return md_content, []
 

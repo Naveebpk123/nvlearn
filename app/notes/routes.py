@@ -24,6 +24,7 @@ from vector_store import delete_note_vector, upsert_note_vector
 @bp.route("/notes")
 @login_required
 def notes():
+    """Render the current user's active (non-binned) notes, optionally filtered by tag."""
     try:
         notes = db.session.execute(
             db.select(Note)
@@ -63,6 +64,7 @@ def notes():
 @bp.route("/add_note", methods=["GET", "POST"])
 @login_required
 def add_note():
+    """Create a new note for the current user, link draft diagrams, and index it in ChromaDB."""
     form = AddNoteForm()
     if form.validate_on_submit():
         try:
@@ -97,6 +99,7 @@ def add_note():
 @bp.route("/edit/<int:note_id>", methods=["GET", "POST"])
 @login_required
 def edit_note(note_id):
+    """Edit an owned note's title and content, sync diagrams, and re-index in ChromaDB."""
     try:
         note = db.session.get(Note, note_id)
         if not note or note.user_id != current_user.id:
@@ -146,6 +149,7 @@ def edit_note(note_id):
 @bp.route("/move_to_bin/<int:note_id>", methods=["POST"])
 @login_required
 def move_to_bin(note_id):
+    """Soft-delete an owned note by moving it to the bin and removing its vector index."""
     try:
         note = db.session.get(Note, note_id)
         if note and note.user_id == current_user.id:
@@ -163,6 +167,7 @@ def move_to_bin(note_id):
 @bp.route("/note-bin")
 @login_required
 def note_bin():
+    """Render the current user's binned notes."""
     try:
         notes = db.session.execute(
             db.select(Note)
@@ -179,6 +184,7 @@ def note_bin():
 @bp.route("/delete/<int:note_id>", methods=["POST"])
 @login_required
 def delete(note_id):
+    """Permanently delete an owned note (and its vector entry) from the database."""
     try:
         note = db.session.get(Note, note_id)
         if note and note.user_id == current_user.id:
@@ -202,6 +208,7 @@ def delete(note_id):
 @bp.route("/restore/<int:note_id>", methods=["POST"])
 @login_required
 def restore(note_id):
+    """Restore an owned note from the bin and re-index it in ChromaDB."""
     try:
         note = db.session.get(Note, note_id)
         if note and note.user_id == current_user.id:
@@ -219,6 +226,7 @@ def restore(note_id):
 @bp.route("/search/<path:query>")
 @login_required
 def search(query):
+    """Return JSON note matches for the live search bar using keyword + vector search."""
     query = query.strip()
     if not query:
         return {"results": []}
@@ -235,6 +243,7 @@ def search(query):
 @bp.route("/search-results/<path:query>")
 @login_required
 def search_results(query):
+    """Render the full search results page for a query."""
     query = query.strip()
     if not query:
         return render_template("search-results.html", query=query, notes=[])
@@ -249,6 +258,7 @@ def search_results(query):
 @bp.route("/save_mermaid_notes", methods=["POST"])
 @login_required
 def save_mermaid_notes():
+    """Persist client-rendered Mermaid SVG HTML into an owned note."""
     try:
         data = request.get_json()
 
@@ -298,6 +308,7 @@ def save_mermaid_notes():
 @bp.route("/mark_mermaid_pending", methods=["POST"])
 @login_required
 def mark_mermaid_pending():
+    """Flag an owned note as needing client-side Mermaid rendering."""
     try:
         data = request.get_json(silent=True) or {}
         for note_id in data.get("note_ids", []):
@@ -315,6 +326,7 @@ def mark_mermaid_pending():
 @bp.route("/get_pending_mermaid_notes", methods=["GET"])
 @login_required
 def pending_mermaid_notes():
+    """Return JSON list of owned notes whose Mermaid blocks still need client rendering."""
     try:
         notes = db.session.scalars(
             db.select(Note).where(

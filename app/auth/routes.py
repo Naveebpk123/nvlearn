@@ -20,6 +20,7 @@ from email_service import send_email_threaded
 
 @bp.route("/register", methods=["GET", "POST"])
 def register():
+    """Two-phase registration: collect credentials and email 2FA code, then create and log in user."""
     if session.get("pending_register"):
         form = VerificationForm()
         if form.validate_on_submit():
@@ -118,6 +119,7 @@ def register():
 
 @bp.route("/login", methods=["GET", "POST"])
 def login():
+    """Two-phase login: verify credentials and email 2FA code, then authenticate session."""
     if session.get("pending_login"):
         form = VerificationForm()
         if form.validate_on_submit():

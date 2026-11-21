@@ -13,6 +13,7 @@ from ..models import Flashcard, Quiz, QuizAttempt
 @bp.route("/flashcards/<int:flashcard_id>")
 @login_required
 def view_flashcards(flashcard_id):
+    """Render the flashcard study view for an owned set, or abort 404."""
     flashcard_obj = db.session.get(Flashcard, flashcard_id)
     if not flashcard_obj or flashcard_obj.user_id != current_user.id:
         current_app.logger.warning(
@@ -32,6 +33,7 @@ def view_flashcards(flashcard_id):
 @bp.route("/save-flashcards/<int:flashcard_id>", methods=["POST"])
 @login_required
 def save_flashcard(flashcard_id):
+    """Mark an owned flashcard set as saved and update its incorrect_ratio; return JSON status."""
     flashcard_obj = db.session.get(Flashcard, flashcard_id)
     if flashcard_obj and flashcard_obj.user_id == current_user.id:
         if flashcard_obj.is_saved:
@@ -52,6 +54,7 @@ def save_flashcard(flashcard_id):
 @bp.route("/delete-flashcards/<int:flashcard_id>", methods=["POST"])
 @login_required
 def delete_flashcard(flashcard_id):
+    """Delete an owned flashcard set and return a [message, level] JSON list."""
     flashcard_obj = db.session.get(Flashcard, flashcard_id)
     if flashcard_obj and flashcard_obj.user_id == current_user.id:
         db.session.delete(flashcard_obj)
@@ -63,6 +66,7 @@ def delete_flashcard(flashcard_id):
 @bp.route("/quiz/<int:quiz_id>")
 @login_required
 def take_quiz(quiz_id):
+    """Render the quiz-taking page for an owned quiz, or render with error=True if unauthorized."""
     quiz_obj = db.session.get(Quiz, quiz_id)
     if not quiz_obj or quiz_obj.user_id != current_user.id:
         current_app.logger.warning(
@@ -97,6 +101,7 @@ def take_quiz(quiz_id):
 @bp.route("/get-quiz-data/<int:quiz_id>", methods=["POST"])
 @login_required
 def get_quiz_data(quiz_id):
+    """Return the raw JSON questions payload for an owned quiz, or 404."""
     quiz_obj = db.session.get(Quiz, quiz_id)
     if not quiz_obj or quiz_obj.user_id != current_user.id:
         current_app.logger.warning(
@@ -111,6 +116,7 @@ def get_quiz_data(quiz_id):
 @bp.route("/save-quiz/<int:quiz_id>", methods=["POST"])
 @login_required
 def save_quiz(quiz_id):
+    """Mark an owned quiz as saved and record a QuizAttempt row; return JSON status."""
     quiz_obj = db.session.get(Quiz, quiz_id)
     if not quiz_obj or quiz_obj.user_id != current_user.id:
         current_app.logger.warning(
@@ -137,6 +143,7 @@ def save_quiz(quiz_id):
 @bp.route("/delete-quiz/<int:quiz_id>", methods=["POST"])
 @login_required
 def delete_quiz(quiz_id):
+    """Delete an owned quiz (cascading to attempts) and return a [message, level] JSON list."""
     quiz_obj = db.session.get(Quiz, quiz_id)
     if quiz_obj and quiz_obj.user_id == current_user.id:
         db.session.delete(quiz_obj)
@@ -147,6 +154,7 @@ def delete_quiz(quiz_id):
 @bp.route('/quiz-attempts/<int:quiz_id>')
 @login_required
 def quiz_attempts(quiz_id):
+    """Return attempt history (most recent first) and average scores for an owned quiz, or 404."""
     quiz_obj = db.session.get(Quiz, quiz_id)
     if not quiz_obj or quiz_obj.user_id != current_user.id:
         current_app.logger.warning(
@@ -176,6 +184,7 @@ def quiz_attempts(quiz_id):
 @bp.route("/practice-hub")
 @login_required
 def practice_hub():
+    """Render the Practice Hub with saved flashcards, quizzes, and aggregated performance charts."""
     all_flashcards = db.session.scalars(
         db.select(Flashcard)
         .where(Flashcard.user_id == current_user.id)

@@ -20,6 +20,7 @@ from vector_store import upsert_note_vector
 
 
 def _normalize_image_to_png(img_bytes):
+    """Convert uploaded image bytes to RGB PNG so Gemini vision receives a consistent format."""
     try:
         img = Image.open(BytesIO(img_bytes))
         if img.mode in ("CMYK", "P"):
@@ -32,6 +33,7 @@ def _normalize_image_to_png(img_bytes):
 
 
 def _to_data_url(b_data, m_type):
+    """Encode raw bytes and MIME type into a base64 data URL."""
     encoded = base64.b64encode(b_data).decode("ascii")
     return f"data:{m_type or 'image/png'};base64,{encoded}"
 
@@ -39,6 +41,7 @@ def _to_data_url(b_data, m_type):
 @bp.route("/upload_note_file", methods=["POST"])
 @login_required
 def upload_note_file():
+    """Extract markdown/text from uploaded files (PDF, DOCX, images, text) via Gemini OCR or parsers and return JSON."""
     # Support both single-file (image, PDF, DOCX, text) and multi-file (camera) uploads.
     files = [f for f in request.files.getlist("files") if f and f.filename]
     if not files:

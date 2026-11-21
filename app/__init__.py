@@ -13,6 +13,7 @@ from sqlalchemy.engine import Engine
 
 @event.listens_for(Engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, connection_record):
+    """Enable WAL mode and a 30s busy timeout on SQLite connections to reduce lock errors."""
     print(f"[sqlite] connect fired for {type(dbapi_connection).__module__}.{type(dbapi_connection).__name__}")
     if not isinstance(dbapi_connection, sqlite3.Connection):
         print(f"[sqlite] NOT a sqlite3.Connection — skipping")
@@ -33,6 +34,7 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
         cursor.close()
 
 def create_app(config_class=Config):
+    """Application factory: configure Flask, register blueprints, initialize DB, and start scheduler."""
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     app = Flask(
@@ -85,6 +87,7 @@ def create_app(config_class=Config):
 
 @login_manager.user_loader
 def load_user(user_id):
+    """Reload a User instance from the session user ID for Flask-Login."""
     from .extensions import db
     from .models import User
 

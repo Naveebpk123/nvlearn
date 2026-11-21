@@ -9,6 +9,7 @@ from utils import get_welcome_message
 
 @bp.route("/")
 def home():
+    """Render the home dashboard with recent notes and flashcards due for review."""
     welcome_msg = None
     recent_notes = []
     cards_to_review = []
@@ -46,4 +47,5 @@ def home():
 
 @bp.route("/about")
 def about():
+    """Render the static about page."""
     return render_template("about.html")

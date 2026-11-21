@@ -4,6 +4,7 @@ from flask import session
 
 
 def _clear_pending_auth():
+    """Remove all pending 2FA registration/login keys from the Flask session."""
     session.pop("pending_register", None)
     session.pop("pending_login", None)
     session.pop("pending_auth_code", None)
@@ -12,6 +13,7 @@ def _clear_pending_auth():
 
 
 def _verification_is_valid(submitted_code):
+    """Validate the submitted 6-digit 2FA code against session state and TTL; return (ok, error_msg)."""
     expected_code = session.get("pending_auth_code")
     expires_at = session.get("pending_auth_expires_at")
     if not expected_code or not expires_at:

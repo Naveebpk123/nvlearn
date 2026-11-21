@@ -16,6 +16,7 @@ class TestConfig(Config):
 
 @pytest.fixture
 def app():
+    """Create an isolated Flask app with an in-memory SQLite database."""
     app = create_app(TestConfig)
     with app.app_context():
         _db.create_all()
@@ -26,16 +27,19 @@ def app():
 
 @pytest.fixture
 def client(app):
+    """Return a Flask test client for unauthenticated requests."""
     return app.test_client()
 
 
 @pytest.fixture
 def db(app):
+    """Return the SQLAlchemy database instance bound to the test app."""
     return _db
 
 
 @pytest.fixture
 def user(app, db):
+    """Create and commit a primary test user."""
     user = User(
         email="test@example.com",
         name="Test User",
@@ -48,6 +52,7 @@ def user(app, db):
 
 @pytest.fixture
 def logged_in_client(client, user):
+    """Return a test client with the primary user's session pre-authenticated."""
     with client.session_transaction() as sess:
         sess["_user_id"] = str(user.id)
         sess["_fresh"] = True
@@ -56,6 +61,7 @@ def logged_in_client(client, user):
 
 @pytest.fixture
 def other_user(app, db):
+    """Create and commit a secondary user for cross-user ownership tests."""
     other = User(
         email="other@example.com",
         name="Other",

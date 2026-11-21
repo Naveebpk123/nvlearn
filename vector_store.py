@@ -16,6 +16,7 @@ _client: Optional[chromadb.PersistentClient] = None
 
 
 def get_chroma_client() -> chromadb.PersistentClient:
+    """Return a lazily initialized persistent ChromaDB client."""
     global _client
     if _client is None:
         os.makedirs(CHROMA_DATA_PATH, exist_ok=True)
@@ -24,6 +25,7 @@ def get_chroma_client() -> chromadb.PersistentClient:
 
 
 def get_user_collection(user_id: int):
+    """Return (or create) the per-user ChromaDB collection for note embeddings."""
     client = get_chroma_client()
     collection_name = f"user_{user_id}_notes"
     return client.get_or_create_collection(

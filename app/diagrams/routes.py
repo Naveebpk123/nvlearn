@@ -12,6 +12,7 @@ from ..models import Diagram
 @bp.route("/save_diagram", methods=["POST"])
 @login_required
 def save_diagram():
+    """Create or update a Diagram row (backing up original data on first edit) and return JSON with its ID and URL."""
     try:
         data = request.get_json() or {}
         diagram_id = data.get("id")
@@ -65,6 +66,7 @@ def save_diagram():
 @bp.route("/restore_diagrams", methods=["POST"])
 @login_required
 def restore_diagrams():
+    """Restore diagrams from their pre-edit backup when a note edit is discarded."""
     ids = (request.get_json(silent=True) or {}).get("diagram_ids", [])
     for d_id in ids:
         d = db.session.get(Diagram, int(d_id))
@@ -82,6 +84,7 @@ def restore_diagrams():
 
 @bp.route("/diagram_image/<int:diagram_id>.png", methods=["GET"])
 def get_diagram_image(diagram_id):
+    """Serve the PNG image for an owned diagram, or 404 if missing or unauthorized."""
     try:
         diagram = db.session.get(Diagram, diagram_id)
         if not diagram or not diagram.diagram_data:
@@ -109,6 +112,7 @@ def get_diagram_image(diagram_id):
 @bp.route("/diagram_data/<int:diagram_id>", methods=["GET"])
 @login_required
 def get_diagram_data(diagram_id):
+    """Return the Excalidraw/Draw.io JSON scene for an owned diagram."""
     try:
         diagram = db.session.get(Diagram, diagram_id)
         if not diagram or diagram.user_id != current_user.id:
@@ -130,6 +134,7 @@ def get_diagram_data(diagram_id):
 @bp.route("/cleanup_draft_diagrams", methods=["POST"])
 @login_required
 def cleanup_draft_diagrams():
+    """Delete unattached draft diagrams owned by the current user."""
     try:
         ids = (request.get_json(silent=True) or {}).get("diagram_ids", [])
         for diagram_id in ids:
