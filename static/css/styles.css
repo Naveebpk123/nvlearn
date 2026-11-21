@@ -767,6 +767,128 @@ body.editor-lock-scroll {
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
+.chat-messages {
+    flex: 1;
+    width: 100%;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+    padding-bottom: 120px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    scroll-behavior: smooth;
+}
+
+.welcome-msg {
+    text-align: center;
+    color: var(--text-main);
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin: 60px auto;
+    max-width: 600px;
+    line-height: 1.3;
+}
+
+/* ── Chat history modal ────────────────────────────────────── */
+
+.chat-history-modal {
+    display: flex;
+    flex-direction: column;
+    width: 85%;
+    max-width: 600px;
+    max-height: 80vh;
+    background-color: var(--bg-card);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.chat-history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chat-history-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.chat-history-actions {
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chat-history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.chat-history-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    gap: 8px;
+}
+
+.chat-history-card:hover {
+    background-color: var(--bg-main);
+    border-color: var(--primary-blue);
+}
+
+.chat-history-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.chat-history-title {
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-history-meta {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.chat-history-delete {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px 8px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.chat-history-card:hover .chat-history-delete {
+    opacity: 1;
+}
+
+.chat-history-delete:hover {
+    color: var(--color-danger);
+    background-color: rgba(220, 38, 38, 0.1);
+}
+
 /* ==========================================================================
    3D Interactive Flashcard Rotation & Carousel Layout
    ========================================================================== */
@@ -2236,6 +2358,14 @@ html.dark {
 
 .dark #user-input:focus {
     border-color: var(--primary-blue);
+}
+
+.dark .chat-history-modal {
+    background-color: var(--bg-card);
+}
+
+.dark .chat-history-card:hover {
+    background-color: var(--bg-dark);
 }
 
 /* Flashcard 3D Components */

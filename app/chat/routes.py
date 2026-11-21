@@ -8,9 +8,9 @@ from ..models import ChatMessage, ChatSession
 
 
 @bp.route("/api/chat/sessions", methods=["GET"])
-"""List all sessions for the current user."""
 @login_required
 def list_sessions():
+    """List all sessions for the current user."""
     try:
         sessions = db.session.scalars(
             db.select(ChatSession)

@@ -1,16 +1,32 @@
 {% extends "base.html" %}
 {% block title %}AI Chat{% endblock %}
 {% block content %}
-    <header>
-        <h1>{{welcome_message}}</h1>
-    </header>
-    <div class="user-input-box" id="userInputContainer">
-        <textarea id="user-input" placeholder="Ask anything..."></textarea>
+    <div id="chatMessages" class="chat-messages">
+        <h1 class="welcome-msg">{{ welcome_message }}</h1>
     </div>
+
     <div class="chat-loading hidden" id="chatLoading" role="status" aria-live="polite" aria-label="Working">
         <span class="chat-loading-spinner" aria-hidden="true"></span>
         <span>Working</span>
     </div>
+
+    <div class="user-input-box" id="userInputContainer">
+        <textarea id="user-input" placeholder="Ask anything..."></textarea>
+    </div>
+
+    <div class="modal-bg" id="chatHistoryModal" style="display:none;">
+        <div class="chat-history-modal">
+            <div class="chat-history-header">
+                <h2>Your Chats</h2>
+                <button type="button" class="modalCloseBtn" id="closeChatHistoryBtn">X</button>
+            </div>
+            <div class="chat-history-actions">
+                <button type="button" class="button" id="newChatBtn">+ New Chat</button>
+            </div>
+            <div class="chat-history-list" id="chatHistoryList"></div>
+        </div>
+    </div>
+
     <script>
         window.MathJax = {
             tex: {
@@ -18,11 +34,8 @@
                 displayMath: [['$$', '$$'], ['\\[', '\\]']],
                 processEscapes: true
             },
-            options: {
-                processHtmlClass: 'math|arithmatex'
-            }
+            options: { processHtmlClass: 'math|arithmatex' }
         };
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 {% endblock %}
-

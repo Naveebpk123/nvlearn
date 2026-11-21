@@ -23,6 +23,15 @@ const userInputContainer = document.getElementById('userInputContainer');
 const chatLoading = document.getElementById('chatLoading');
 const readNoteContent = document.getElementById('read-note-content');
 
+let currentSessionId = null;
+
+const sidebarChatHistory = document.getElementById('sidebarChatHistory');
+const chatHistoryModal = document.getElementById('chatHistoryModal');
+const chatHistoryList = document.getElementById('chatHistoryList');
+const closeChatHistoryBtn = document.getElementById('closeChatHistoryBtn');
+const newChatBtn = document.getElementById('newChatBtn');
+const chatMessagesEl = document.getElementById('chatMessages');
+
 const notes = document.getElementsByClassName('note');
 const noteContainer = document.getElementsByClassName('note-container')[0];
 
@@ -94,6 +103,140 @@ async function flash(text = '', category = 'success') {
     flashAlert.appendChild(flashMsg);
     flashAlert.appendChild(flashCloseBtn);
     setTimeout(() => flashAlert.remove(), 3000);
+}
+
+// ── Chat session management ───────────────────────────────────
+
+async function loadSessionList() {
+    try {
+        const res = await fetch('/api/chat/sessions');
+        if (!res.ok) {
+            flash('Could not load chat history.', 'error');
+            return;
+        }
+        const sessions = await res.json();
+        renderSessionList(sessions);
+    } catch (err) {
+        console.error('[chat] loadSessionList error:', err);
+        flash('Could not load chat history.', 'error');
+    }
+}
+
+function renderSessionList(sessions) {
+    if (!chatHistoryList) return;
+    chatHistoryList.innerHTML = '';
+
+    if (!sessions || sessions.length === 0) {
+        chatHistoryList.innerHTML = '<p class="empty-msg">No saved chats yet.</p>';
+        return;
+    }
+
+    sessions.forEach(session => {
+        const card = document.createElement('div');
+        card.className = 'chat-history-card';
+
+        const body = document.createElement('div');
+        body.className = 'chat-history-card-body';
+
+        const title = document.createElement('div');
+        title.className = 'chat-history-title';
+        title.textContent = session.title || 'Untitled';
+
+        const meta = document.createElement('div');
+        meta.className = 'chat-history-meta';
+        const count = session.message_count;
+        meta.textContent = `${count} message${count === 1 ? '' : 's'} · ${formatRelativeDate(session.updated_at)}`;
+
+        body.appendChild(title);
+        body.appendChild(meta);
+
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'chat-history-delete';
+        del.setAttribute('aria-label', 'Delete chat');
+        del.textContent = '✕';
+        del.addEventListener('click', (e) => {
+            e.stopPropagation();
+            confirmDeleteSession(session.id);
+        });
+
+        card.appendChild(body);
+        card.appendChild(del);
+
+        card.addEventListener('click', () => {
+            loadSession(session.id);
+        });
+
+        chatHistoryList.appendChild(card);
+    });
+}
+
+function formatRelativeDate(isoString) {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+
+    return date.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric'
+    });
+}
+
+async function loadSession(sessionId) {
+    try {
+        const res = await fetch(`/api/chat/sessions/${sessionId}`);
+        if (!res.ok) {
+            flash('Could not load this chat.', 'error');
+            return;
+        }
+        const data = await res.json();
+
+        currentSessionId = sessionId;
+
+        if (chatMessagesEl) {
+            chatMessagesEl.innerHTML = '';
+            data.messages.forEach(msg => {
+                const bubble = document.createElement('div');
+                bubble.className = msg.role === 'user' ? 'user-bubble' : 'ai-bubble';
+                bubble.textContent = msg.content;
+                chatMessagesEl.appendChild(bubble);
+            });
+
+            if (window.MathJax?.typesetPromise) {
+                MathJax.typesetPromise([chatMessagesEl]).catch(() => {});
+            }
+
+            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+        }
+
+        chatHistoryModal.style.display = 'none';
+    } catch (err) {
+        console.error('[chat] loadSession error:', err);
+        flash('Could not load this chat.', 'error');
+    }
+}
+
+function startNewChat() {
+    currentSessionId = null;
+    if (chatMessagesEl) {
+        chatMessagesEl.innerHTML = '<p class="welcome-msg">What would you like to study?</p>';
+    }
+    chatHistoryModal.style.display = 'none';
+}
+
+function confirmDeleteSession(sessionId) {
+    openModal(
+        'Delete this chat? This cannot be undone.',
+        document.getElementById('modalBackground'),
+        'delete-chat-session',
+        sessionId,
+        null
+    );
 }
 
 /**
@@ -227,6 +370,21 @@ function openModal(text, modal, action = null, id = null, triggerBtn = null) {
                 targetModal.style.display = 'none';
                 flash(response_json[0], response_json[1]);
             }
+            else if (action === 'delete-chat-session') {
+    const response = await fetch(`/api/chat/sessions/${id}`, {
+        method: 'DELETE'
+    });
+    targetModal.style.display = 'none';
+    if (response.ok) {
+        flash('Chat deleted.', 'success');
+        if (currentSessionId === id) {
+            startNewChat();
+        }
+        loadSessionList();
+    } else {
+        flash('Could not delete chat.', 'error');
+    }
+}
         }, { once: true }); // self-destroys after one click, no stacking
     }
 };
@@ -555,6 +713,24 @@ logoutBtn?.addEventListener('click', (e) => {
     e.preventDefault();
     openModal('Are you sure you want to logout?', modalBackground, 'logout');
 });
+
+sidebarChatHistory?.addEventListener('click', (e) => {
+    e.preventDefault();
+    loadSessionList();
+    chatHistoryModal.style.display = 'flex';
+});
+
+closeChatHistoryBtn?.addEventListener('click', () => {
+    chatHistoryModal.style.display = 'none';
+});
+
+chatHistoryModal?.addEventListener('click', (e) => {
+    if (e.target === chatHistoryModal) {
+        chatHistoryModal.style.display = 'none';
+    }
+});
+
+newChatBtn?.addEventListener('click', startNewChat);
 
 if (deleteQuizBtns !== null) {
     for (const btn of deleteQuizBtns) {
@@ -1149,16 +1325,22 @@ chatInput?.addEventListener('keydown', async function (e) {
         const inputText = chatInput.value.trim();
         if (inputText.length === 0) return;
 
+        const welcomeMsgTag = document.getElementsByClassName('welcome-msg');
+        if (welcomeMsgTag[0]) {
+            welcomeMsgTag[0].remove();
+        }
+
         const userBubble = document.createElement('div');
         const userBubbleText = document.createElement('p');
         userBubble.classList.add('user-bubble');
         userBubbleText.textContent = inputText;
         userBubble.appendChild(userBubbleText);
-        userInputContainer.insertAdjacentElement('beforebegin', userBubble);
+        chatMessagesEl.appendChild(userBubble);
+
         const pastBubbles = Array.from(document.querySelectorAll('.user-bubble, .ai-bubble'));
         let messageHistory = [];
         if (pastBubbles.length > 0) {
-            const past8Bubbles = pastBubbles.slice(-8); // Collect last 8 turns for AI context window
+            const past8Bubbles = pastBubbles.slice(-8);
             for (const bubble of past8Bubbles) {
                 if (bubble.classList.contains('user-bubble')) {
                     messageHistory.push({
@@ -1172,15 +1354,16 @@ chatInput?.addEventListener('keydown', async function (e) {
                     });
                 }
             }
-        };
+        }
         chatInput.value = '';
         chatInput.style.height = 'auto';
         chatInput.disabled = true;
         chatInput.setAttribute('aria-busy', 'true');
         chatLoading?.classList.remove('hidden');
         if (chatLoading) {
-            userInputContainer.insertAdjacentElement('beforebegin', chatLoading);
+            chatMessagesEl.appendChild(chatLoading);
         }
+        chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 120000);
@@ -1192,6 +1375,7 @@ chatInput?.addEventListener('keydown', async function (e) {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
+                    session_id: currentSessionId,
                     contents: messageHistory
                 }),
                 signal: controller.signal
@@ -1203,7 +1387,11 @@ chatInput?.addEventListener('keydown', async function (e) {
 
             const aiResponse = await response.json();
 
-            // PROCESS MERMAID CONVERSIONS FIRST (Before rendering UI)
+            if (aiResponse.session_id !== undefined && aiResponse.session_id !== null) {
+                currentSessionId = aiResponse.session_id;
+            }
+
+            // Mermaid conversion (unchanged from your current code)
             if (aiResponse.mermaid_notes) {
                 window.mermaid_pending_set = new Set(aiResponse.mermaid_notes.map(x => x.note_id));
                 const mermaidRegex = /\[\[MERMAID_START\]\]([\s\S]*?)\[\[MERMAID_END\]\]/g;
@@ -1214,10 +1402,9 @@ chatInput?.addEventListener('keydown', async function (e) {
                     let updatedMd = text;
 
                     for (const match of matches) {
-                        const fullMatch = match[0]; // e.g. "[[MERMAID_START]]...[[MERMAID_END]]"
-                        const rawMermaid = match[1].trim(); // The raw mermaid code inside
+                        const fullMatch = match[0];
+                        const rawMermaid = match[1].trim();
 
-                        // Self-contained conversion logic using a local Promise & listener
                         const imgData = await new Promise((resolve, reject) => {
                             const iframe = document.getElementById('drawioFrame');
                             if (!iframe) {
@@ -1289,11 +1476,9 @@ chatInput?.addEventListener('keydown', async function (e) {
                     if (responseJSON.status === "success") {
                         window.mermaid_pending_set.delete(note.note_id);
                     }
-
                 }
             }
 
-            // RENDER THE CHAT BUBBLE & LINKS AFTER CONVERSION FINISHES
             const aiBubble = document.createElement('div');
             aiBubble.classList.add('ai-bubble');
             aiBubble.innerHTML = `${aiResponse.chat || ''}<br>${aiResponse.note_action || ''}<br>${aiResponse.notes || ''}`;
@@ -1315,12 +1500,13 @@ chatInput?.addEventListener('keydown', async function (e) {
                 aiBubble.appendChild(quizLink);
             }
 
-            userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
+            chatMessagesEl.appendChild(aiBubble);
 
-            // Trigger MathJax LaTeX typesetting for generated AI mathematical equations
             if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
                 MathJax.typesetPromise([aiBubble]).catch(() => { });
             }
+
+            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
 
         } catch (error) {
             clearTimeout(timeoutId);
@@ -1330,15 +1516,14 @@ chatInput?.addEventListener('keydown', async function (e) {
 
             if (error.name === 'AbortError') {
                 errorBubble.innerHTML = `
-        <p>AI is taking too long (over 2 minutes). Please try again.</p>
-        <button type="button" class="button" id="retryAiBtn">Retry</button>
-    `;
-                userInputContainer.insertAdjacentElement('beforebegin', errorBubble);
+                    <p>AI is taking too long (over 2 minutes). Please try again.</p>
+                    <button type="button" class="button" id="retryAiBtn">Retry</button>
+                `;
+                chatMessagesEl.appendChild(errorBubble);
 
                 const retryBtn = errorBubble.querySelector('#retryAiBtn');
                 retryBtn.addEventListener('click', () => {
                     errorBubble.remove();
-                    // Re-fill the input and re-trigger the same request
                     chatInput.value = inputText;
                     chatInput.dispatchEvent(new KeyboardEvent('keydown', {
                         key: 'Enter',
@@ -1348,8 +1533,9 @@ chatInput?.addEventListener('keydown', async function (e) {
             } else {
                 console.error('AI chat request failed:', error);
                 errorBubble.textContent = 'Sorry, I could not complete that request. Please try again.';
-                userInputContainer.insertAdjacentElement('beforebegin', errorBubble);
+                chatMessagesEl.appendChild(errorBubble);
             }
+            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
         } finally {
             chatLoading?.classList.add('hidden');
             chatInput.disabled = false;
