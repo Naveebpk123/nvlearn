@@ -30,7 +30,6 @@ const chatHistoryModal = document.getElementById('chatHistoryModal');
 const chatHistoryList = document.getElementById('chatHistoryList');
 const closeChatHistoryBtn = document.getElementById('closeChatHistoryBtn');
 const newChatBtn = document.getElementById('newChatBtn');
-const chatMessagesEl = document.getElementById('chatMessages');
 
 const notes = document.getElementsByClassName('note');
 const noteContainer = document.getElementsByClassName('note-container')[0];
@@ -198,20 +197,26 @@ async function loadSession(sessionId) {
 
         currentSessionId = sessionId;
 
-        if (chatMessagesEl) {
-            chatMessagesEl.innerHTML = '';
-            data.messages.forEach(msg => {
-                const bubble = document.createElement('div');
-                bubble.className = msg.role === 'user' ? 'user-bubble' : 'ai-bubble';
-                bubble.textContent = msg.content;
-                chatMessagesEl.appendChild(bubble);
-            });
+        document.querySelectorAll('.welcome-msg, .user-bubble, .ai-bubble').forEach(el => el.remove());
 
-            if (window.MathJax?.typesetPromise) {
-                MathJax.typesetPromise([chatMessagesEl]).catch(() => {});
-            }
+        // Render messages inline, before the input container
+        data.messages.forEach(msg => {
+    const bubble = document.createElement('div');
+    bubble.className = msg.role === 'user' ? 'user-bubble' : 'ai-bubble';
 
-            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+    if (msg.role === 'user') {
+        // User messages are plain text — use textContent to avoid XSS
+        bubble.textContent = msg.content;
+    } else {
+        // Assistant messages are pre-rendered HTML from md_to_html
+        bubble.innerHTML = msg.content;
+    }
+
+    userInputContainer.insertAdjacentElement('beforebegin', bubble);
+});
+
+        if (window.MathJax?.typesetPromise) {
+            MathJax.typesetPromise([document.body]).catch(() => {});
         }
 
         chatHistoryModal.style.display = 'none';
@@ -223,11 +228,14 @@ async function loadSession(sessionId) {
 
 function startNewChat() {
     currentSessionId = null;
-    if (chatMessagesEl) {
-        chatMessagesEl.innerHTML = '<p class="welcome-msg">What would you like to study?</p>';
-    }
+    document.querySelectorAll('.welcome-msg, .user-bubble, .ai-bubble').forEach(el => el.remove());
+    const h1 = document.createElement('h1');
+    h1.className = 'welcome-msg';
+    h1.textContent = WELCOME_MESSAGE;
+    userInputContainer.insertAdjacentElement('beforebegin', h1);
     chatHistoryModal.style.display = 'none';
 }
+
 
 function confirmDeleteSession(sessionId) {
     openModal(
@@ -1335,7 +1343,7 @@ chatInput?.addEventListener('keydown', async function (e) {
         userBubble.classList.add('user-bubble');
         userBubbleText.textContent = inputText;
         userBubble.appendChild(userBubbleText);
-        chatMessagesEl.appendChild(userBubble);
+        userInputContainer.insertAdjacentElement('beforebegin', userBubble);
 
         const pastBubbles = Array.from(document.querySelectorAll('.user-bubble, .ai-bubble'));
         let messageHistory = [];
@@ -1343,15 +1351,9 @@ chatInput?.addEventListener('keydown', async function (e) {
             const past8Bubbles = pastBubbles.slice(-8);
             for (const bubble of past8Bubbles) {
                 if (bubble.classList.contains('user-bubble')) {
-                    messageHistory.push({
-                        role: 'user',
-                        contents: bubble.textContent
-                    });
+                    messageHistory.push({ role: 'user', contents: bubble.textContent });
                 } else {
-                    messageHistory.push({
-                        role: 'assistant',
-                        contents: bubble.textContent
-                    });
+                    messageHistory.push({ role: 'assistant', contents: bubble.textContent });
                 }
             }
         }
@@ -1361,9 +1363,8 @@ chatInput?.addEventListener('keydown', async function (e) {
         chatInput.setAttribute('aria-busy', 'true');
         chatLoading?.classList.remove('hidden');
         if (chatLoading) {
-            chatMessagesEl.appendChild(chatLoading);
+            userInputContainer.insertAdjacentElement('beforebegin', chatLoading);
         }
-        chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 120000);
@@ -1371,9 +1372,7 @@ chatInput?.addEventListener('keydown', async function (e) {
         try {
             const response = await fetch('/ai-response', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     session_id: currentSessionId,
                     contents: messageHistory
@@ -1381,9 +1380,7 @@ chatInput?.addEventListener('keydown', async function (e) {
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
-            if (!response.ok) {
-                throw new Error(`AI request failed with status ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`AI request failed with status ${response.status}`);
 
             const aiResponse = await response.json();
 
@@ -1391,93 +1388,6 @@ chatInput?.addEventListener('keydown', async function (e) {
                 currentSessionId = aiResponse.session_id;
             }
 
-            // Mermaid conversion (unchanged from your current code)
-            if (aiResponse.mermaid_notes) {
-                window.mermaid_pending_set = new Set(aiResponse.mermaid_notes.map(x => x.note_id));
-                const mermaidRegex = /\[\[MERMAID_START\]\]([\s\S]*?)\[\[MERMAID_END\]\]/g;
-
-                for (const note of aiResponse.mermaid_notes) {
-                    const text = note.md_content || '';
-                    const matches = Array.from(text.matchAll(mermaidRegex));
-                    let updatedMd = text;
-
-                    for (const match of matches) {
-                        const fullMatch = match[0];
-                        const rawMermaid = match[1].trim();
-
-                        const imgData = await new Promise((resolve, reject) => {
-                            const iframe = document.getElementById('drawioFrame');
-                            if (!iframe) {
-                                reject(new Error('Draw.io iframe not found'));
-                                return;
-                            }
-
-                            const timeoutId = setTimeout(() => {
-                                window.removeEventListener('message', handleMessage);
-                                reject(new Error('Timeout'));
-                            }, 15000);
-
-                            function handleMessage(event) {
-                                if (event.origin !== 'https://embed.diagrams.net') return;
-                                try {
-                                    const msg = JSON.parse(event.data);
-                                    if (msg.event === 'init') {
-                                        iframe.contentWindow.postMessage(JSON.stringify({
-                                            action: 'load',
-                                            descriptor: { format: 'mermaid', data: rawMermaid }
-                                        }), '*');
-                                        iframe.contentWindow.postMessage(JSON.stringify({
-                                            action: 'export',
-                                            format: 'xmlpng'
-                                        }), '*');
-                                    } else if (msg.event === 'export') {
-                                        clearTimeout(timeoutId);
-                                        window.removeEventListener('message', handleMessage);
-                                        const data = msg.data || ('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(msg.xml));
-                                        resolve(data);
-                                    }
-                                } catch (err) {
-                                    clearTimeout(timeoutId);
-                                    window.removeEventListener('message', handleMessage);
-                                    reject(err);
-                                }
-                            }
-
-                            window.addEventListener('message', handleMessage);
-                            iframe.src = 'https://embed.diagrams.net/?embed=1&spin=1&proto=json';
-                        });
-
-                        const diagramSaved = await fetch('/save_diagram', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ diagram_data: imgData })
-                        });
-
-                        const diagramJson = await diagramSaved.json();
-
-                        if (diagramJson.status === "success") {
-                            updatedMd = updatedMd.replace(fullMatch, `![Diagram](${diagramJson.img_url})`);
-                        }
-                    }
-
-                    const response = await fetch('/save_mermaid_notes', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            'note_id': note.note_id,
-                            'replaced_md_content': updatedMd
-                        })
-                    });
-                    const responseJSON = await response.json();
-                    if (responseJSON.status === "success") {
-                        window.mermaid_pending_set.delete(note.note_id);
-                    }
-                }
-            }
 
             const aiBubble = document.createElement('div');
             aiBubble.classList.add('ai-bubble');
@@ -1500,17 +1410,14 @@ chatInput?.addEventListener('keydown', async function (e) {
                 aiBubble.appendChild(quizLink);
             }
 
-            chatMessagesEl.appendChild(aiBubble);
+            userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
 
             if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-                MathJax.typesetPromise([aiBubble]).catch(() => { });
+                MathJax.typesetPromise([aiBubble]).catch(() => {});
             }
-
-            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
 
         } catch (error) {
             clearTimeout(timeoutId);
-
             const errorBubble = document.createElement('div');
             errorBubble.classList.add('ai-bubble');
 
@@ -1519,23 +1426,19 @@ chatInput?.addEventListener('keydown', async function (e) {
                     <p>AI is taking too long (over 2 minutes). Please try again.</p>
                     <button type="button" class="button" id="retryAiBtn">Retry</button>
                 `;
-                chatMessagesEl.appendChild(errorBubble);
+                userInputContainer.insertAdjacentElement('beforebegin', errorBubble);
 
                 const retryBtn = errorBubble.querySelector('#retryAiBtn');
                 retryBtn.addEventListener('click', () => {
                     errorBubble.remove();
                     chatInput.value = inputText;
-                    chatInput.dispatchEvent(new KeyboardEvent('keydown', {
-                        key: 'Enter',
-                        bubbles: true
-                    }));
+                    chatInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
                 });
             } else {
                 console.error('AI chat request failed:', error);
                 errorBubble.textContent = 'Sorry, I could not complete that request. Please try again.';
-                chatMessagesEl.appendChild(errorBubble);
+                userInputContainer.insertAdjacentElement('beforebegin', errorBubble);
             }
-            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
         } finally {
             chatLoading?.classList.add('hidden');
             chatInput.disabled = false;
@@ -1544,7 +1447,6 @@ chatInput?.addEventListener('keydown', async function (e) {
         }
     }
 });
-
 /**
  * Dark Mode & Theme Switcher Controller
  * Supports 'light', 'dark', and 'system' options with localStorage persistence and OS media query listener.

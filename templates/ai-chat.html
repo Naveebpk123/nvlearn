@@ -1,17 +1,15 @@
 {% extends "base.html" %}
 {% block title %}AI Chat{% endblock %}
 {% block content %}
-    <div id="chatMessages" class="chat-messages">
-        <h1 class="welcome-msg">{{ welcome_message }}</h1>
+    <h1 class="welcome-msg">{{ welcome_message }}</h1>
+
+    <div class="user-input-box" id="userInputContainer">
+        <textarea id="user-input" placeholder="Ask anything..."></textarea>
     </div>
 
     <div class="chat-loading hidden" id="chatLoading" role="status" aria-live="polite" aria-label="Working">
         <span class="chat-loading-spinner" aria-hidden="true"></span>
         <span>Working</span>
-    </div>
-
-    <div class="user-input-box" id="userInputContainer">
-        <textarea id="user-input" placeholder="Ask anything..."></textarea>
     </div>
 
     <div class="modal-bg" id="chatHistoryModal" style="display:none;">
