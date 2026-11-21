@@ -63,6 +63,7 @@ def create_app(config_class=Config):
     from .diagrams import bp as diagrams_bp
     from .ai import bp as ai_bp
     from .practice import bp as practice_bp
+    from .chat import bp as chat_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
@@ -71,6 +72,7 @@ def create_app(config_class=Config):
     app.register_blueprint(diagrams_bp)
     app.register_blueprint(ai_bp)
     app.register_blueprint(practice_bp)
+    app.register_blueprint(chat_bp)
 
     with app.app_context():
         db.create_all()

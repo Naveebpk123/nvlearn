@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from . import bp
 from ..config import Config
 from ..extensions import db
-from ..models import Flashcard, Note, Quiz
+from ..models import Flashcard, Note, Quiz, ChatSession, ChatMessage
 from ..services.diagram_service import prepare_note_and_diagrams
 from ..services.metadata_service import normalize_metadata
 from ..services.note_service import (
@@ -37,17 +37,12 @@ def ai_chat():
     return render_template("ai-chat.html", welcome_message=welcome_message)
 
 
-"""
-Route: /ai-response [POST]
-Description: Multi-step AI orchestrator endpoint. Accepts message history context, enforces action cooldowns,
-invokes Gemini AI with instructions, executes actions (create_note, get_note, note_action, flashcards/quizzes),
-performs vector search retrieval on ChromaDB, and returns structured JSON responses for frontend bubbles.
-"""
 @bp.route("/ai-response", methods=["POST"])
 @login_required
 def ai_response():
     username = current_user.name
     data = request.get_json()
+    incoming_session_id = data.get("session_id")
     message = data.get("contents")
 
     cooldown_until = session.get("note_action_cooldown_until")
@@ -68,7 +63,7 @@ def ai_response():
     chat = None
     all_errors = []
     hit_rate_limit = False
-    mermaid_notes = [] #List to store notes with mermaid diagrams
+    mermaid_notes = []
 
     for instruction in all_instructions:
         action = instruction["action"]
@@ -244,11 +239,10 @@ def ai_response():
                     note_action_html_content += response_html + "\n"
 
         elif action == 'edit_note':
-            
             search_topic = extract_topic_for_search(str(ai_reply))
             matched_notes, vector_msg, vector_error = get_notes_for_action(
                 search_topic, current_user.id, edit_mode=True
-            )            
+            )
             matched_note = matched_notes[0] if matched_notes else None
 
             if vector_error:
@@ -296,7 +290,7 @@ def ai_response():
                         matched_note.html_content = md_to_html(edited_note)
                         db.session.commit()
                         upsert_note_vector(matched_note)
-                        has_mermaid = check_mermaid(matched_note.md_content) 
+                        has_mermaid = check_mermaid(matched_note.md_content)
                         if has_mermaid:
                             mermaid_notes.append({"note_id": matched_note.id, "md_content": matched_note.md_content})
                     except SQLAlchemyError as e:
@@ -450,6 +444,50 @@ def ai_response():
     errors = len(all_errors)
     results = len(all_results)
 
+    # ── Persist to chat session (before all early returns) ────────
+    persisted_session_id = incoming_session_id
+    try:
+        user_message_text = None
+        if isinstance(message, list) and message:
+            last_msg = message[-1]
+            if isinstance(last_msg, dict) and last_msg.get("role") == "user":
+                user_message_text = last_msg.get("contents")
+
+        assistant_text = (
+            chat
+            or note_action_html_content
+            or all_get_notes
+            or (all_results[0] if all_results else None)
+            or (all_errors[0] if all_errors else None)
+        )
+
+        if user_message_text and assistant_text:
+            chat_session = None
+            if incoming_session_id:
+                chat_session = db.session.get(ChatSession, incoming_session_id)
+                if chat_session and chat_session.user_id != current_user.id:
+                    chat_session = None
+
+            if not chat_session:
+                title = user_message_text[:50].strip() or "New chat"
+                chat_session = ChatSession(user_id=current_user.id, title=title)
+                db.session.add(chat_session)
+                db.session.flush()
+
+            db.session.add(ChatMessage(
+                session_id=chat_session.id, role="user", content=user_message_text,
+            ))
+            db.session.add(ChatMessage(
+                session_id=chat_session.id, role="assistant", content=assistant_text,
+            ))
+            chat_session.updated_at = datetime.now(timezone.utc)
+            db.session.commit()
+            persisted_session_id = chat_session.id
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error("[ai_response] Failed to persist chat: %s", e)
+
+    # ── Early returns (all include session_id now) ────────────────
     if (
         results == 0
         and errors == 0
@@ -457,46 +495,49 @@ def ai_response():
         and note_action_html_content
         and all_get_notes == ""
     ):
-        return jsonify(
-            {
-                "note_action": note_action_html_content,
-                "flashcard_id": flashcard_id,
-                "quiz_id": quiz_id,
-                "mermaid_notes": mermaid_notes,
-            }
-        )
+        return jsonify({
+            "note_action": note_action_html_content,
+            "flashcard_id": flashcard_id,
+            "quiz_id": quiz_id,
+            "mermaid_notes": mermaid_notes,
+            "session_id": persisted_session_id,
+        })
 
     if results <= 1 and errors <= 1 and not chat and not note_action_html_content:
         if results == 1 and errors == 0 and all_get_notes == "":
-            return jsonify(
-                {
-                    "chat": all_results[0],
-                    "flashcard_id": flashcard_id,
-                    "quiz_id": quiz_id,
-                    "mermaid_notes": mermaid_notes,
-                }
-            )
+            return jsonify({
+                "chat": all_results[0],
+                "flashcard_id": flashcard_id,
+                "quiz_id": quiz_id,
+                "mermaid_notes": mermaid_notes,
+                "session_id": persisted_session_id,
+            })
         elif results == 0 and errors == 1 and all_get_notes == "":
-            return jsonify(
-                {
-                    "chat": all_errors[0],
-                    "flashcard_id": flashcard_id,
-                    "quiz_id": quiz_id,
-                    "mermaid_notes": mermaid_notes,
-                }
-            )
+            return jsonify({
+                "chat": all_errors[0],
+                "flashcard_id": flashcard_id,
+                "quiz_id": quiz_id,
+                "mermaid_notes": mermaid_notes,
+                "session_id": persisted_session_id,
+            })
         elif results == 0 and errors == 0 and all_get_notes != "":
-            return jsonify(
-                {
-                    "chat": all_get_notes,
-                    "flashcard_id": flashcard_id,
-                    "quiz_id": quiz_id,
-                    "mermaid_notes": mermaid_notes,
-                }
-            )
+            return jsonify({
+                "chat": all_get_notes,
+                "flashcard_id": flashcard_id,
+                "quiz_id": quiz_id,
+                "mermaid_notes": mermaid_notes,
+                "session_id": persisted_session_id,
+            })
     if results == 0 and errors == 0 and chat:
-        return jsonify({"chat": chat, "flashcard_id": flashcard_id, "quiz_id": quiz_id, "mermaid_notes": mermaid_notes})
+        return jsonify({
+            "chat": chat,
+            "flashcard_id": flashcard_id,
+            "quiz_id": quiz_id,
+            "mermaid_notes": mermaid_notes,
+            "session_id": persisted_session_id,
+        })
 
+    # ── Final summary path ────────────────────────────────────────
     final_summary = ask_gemini(question=final_result, action="summarize")
     if is_ai_error(final_summary):
         current_app.logger.error(
@@ -514,5 +555,6 @@ def ai_response():
         "flashcard_id": flashcard_id,
         "quiz_id": quiz_id,
         "mermaid_notes": mermaid_notes,
+        "session_id": persisted_session_id,
     }
     return jsonify(output)
