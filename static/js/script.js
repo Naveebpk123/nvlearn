@@ -30,6 +30,7 @@ const chatHistoryModal = document.getElementById('chatHistoryModal');
 const chatHistoryList = document.getElementById('chatHistoryList');
 const closeChatHistoryBtn = document.getElementById('closeChatHistoryBtn');
 const newChatBtn = document.getElementById('newChatBtn');
+const WELCOME_MESSAGE = document.querySelector('.welcome-msg')?.textContent || 'What would you like to study?';
 
 const notes = document.getElementsByClassName('note');
 const noteContainer = document.getElementsByClassName('note-container')[0];
@@ -227,12 +228,22 @@ async function loadSession(sessionId) {
 }
 
 function startNewChat() {
+    // Guard: only run on the /ai-chat page
+    const contentWrapper = document.getElementById('contentWrapper');
+    const userInputContainer = document.getElementById('userInputContainer');
+    if (!contentWrapper || !userInputContainer) return;
+
     currentSessionId = null;
     document.querySelectorAll('.welcome-msg, .user-bubble, .ai-bubble').forEach(el => el.remove());
+
     const h1 = document.createElement('h1');
     h1.className = 'welcome-msg';
     h1.textContent = WELCOME_MESSAGE;
-    userInputContainer.insertAdjacentElement('beforebegin', h1);
+
+    // Insert at the TOP of the content area, matching the initial
+    // server-rendered position — not beforebegin the input container
+    contentWrapper.insertBefore(h1, contentWrapper.firstChild);
+
     chatHistoryModal.style.display = 'none';
 }
 
