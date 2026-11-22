@@ -63,13 +63,13 @@ def ai_error(error_type, msg):
 
 
 def parse_json_object(raw, msg, allow_list=False):
-    """Parse JSON from an AI response, returning a structured error on failure."""
     if isinstance(raw, (dict, list)):
         return raw
     if not isinstance(raw, str) or not raw.strip():
         return ai_error("invalid_json", msg)
     try:
-        parsed = json.loads(raw)
+        decoder = json.JSONDecoder()
+        parsed, _ = decoder.raw_decode(raw.strip())
     except json.JSONDecodeError as e:
         logger.error(
             "[parse_json_object] JSON decode error: %s | raw=%s", e, raw[:200]
@@ -153,13 +153,27 @@ def ask_intent_router(contents, username="", chat_only=False, new_session=False)
 
     url = (
     f"https://api.cloudflare.com/client/v4/accounts/"
-    f"{CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.1-8b-instruct-fast"
-    )   
+    f"{CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+)  
     headers = {
         "Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}",
         "Content-Type": "application/json",
     }
-    payload = {"messages": messages}
+    payload = {
+    "messages": messages,
+    "max_tokens": 1024,
+    "response_format": {
+        "type": "json_schema",
+        "json_schema": {
+            "type": "object",
+            "properties": {
+                "action": {"type": "array", "items": {"type": "string"}},
+                "content": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["action", "content"],
+        },
+    },
+}
 
     try:
         response = requests.post(url, headers=headers, json=payload)
@@ -193,7 +207,10 @@ def ask_intent_router(contents, username="", chat_only=False, new_session=False)
         validation_error = validate_router_response(response_json)
         if validation_error:
             return validation_error
-
+        prompt_used = None
+        if system_prompt == SYSTEM_PROMPT:
+            prompt_used = 'wrong' 
+        print(response_json, prompt_used)
         return response_json
 
     except Exception as e:
