@@ -110,6 +110,7 @@ def validate_router_response(response_json):
         "note_action",
         "create_flashcards",
         "create_quiz",
+        "rename_chat"
     }
     if any(action not in valid_actions for action in actions):
         invalid = [a for a in actions if a not in valid_actions]
@@ -125,9 +126,14 @@ def validate_router_response(response_json):
 
 # ── Intent router (Cloudflare Workers AI) ────────────────────────────
 
-def ask_intent_router(contents, username="", chat_only=False):
+def ask_intent_router(contents, username="", chat_only=False, new_session=False):
     """Route chat history through Cloudflare Workers AI and return parsed intent JSON or an error dict."""
-    system_prompt = CHAT_ONLY_PROMPT if chat_only else SYSTEM_PROMPT
+    if chat_only:
+        system_prompt = CHAT_ONLY_PROMPT
+    elif new_session:
+        system_prompt = SYSTEM_PROMPT_WITH_RENAME
+    else:
+        system_prompt = SYSTEM_PROMPT
 
     messages = [
         {
@@ -146,9 +152,9 @@ def ask_intent_router(contents, username="", chat_only=False):
             messages.append({"role": "assistant", "content": msg_content})
 
     url = (
-        f"https://api.cloudflare.com/client/v4/accounts/"
-        f"{CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.1-8b-instruct"
-    )
+    f"https://api.cloudflare.com/client/v4/accounts/"
+    f"{CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.1-8b-instruct-fast"
+    )   
     headers = {
         "Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}",
         "Content-Type": "application/json",
@@ -206,7 +212,7 @@ def ask_intent_router(contents, username="", chat_only=False):
 
 # ── Instruction builder ──────────────────────────────────────────────
 
-def build_ai_instructions(contents, username, metadata=False, chat_only=False):
+def build_ai_instructions(contents, username, metadata=False, chat_only=False, new_session=False):
     """Convert raw user input or router output into a list of executable action dicts."""
     instructions = []
 
@@ -231,7 +237,7 @@ def build_ai_instructions(contents, username, metadata=False, chat_only=False):
             )
             return "error"
 
-    response_json = ask_intent_router(contents, username, chat_only=chat_only)
+    response_json = ask_intent_router(contents, username, chat_only=chat_only, new_session=new_session)
     if is_ai_error(response_json):
         return [{"action": "error", "content": response_json}]
 
@@ -297,6 +303,10 @@ def build_ai_instructions(contents, username, metadata=False, chat_only=False):
         elif action == "create_quiz":
             instructions.append(
                 {"action": "create_quiz", "content": response_json["content"][i]}
+            )
+        elif action == "rename_chat":
+            instructions.append(
+                {"action": "rename_chat", "content": response_json["content"][i]}
             )
     return instructions
 

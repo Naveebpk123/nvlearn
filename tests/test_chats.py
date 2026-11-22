@@ -4,6 +4,8 @@ from werkzeug.security import generate_password_hash
 
 from app.models import ChatMessage, ChatSession, User
 
+from ai_service import validate_router_response, build_ai_instructions, is_ai_error
+
 
 def _create_other_user_and_session(db, with_messages=0):
     """Create another user, a ChatSession owned by them, and optional messages."""
@@ -352,3 +354,19 @@ def test_ai_response_updates_session_updated_at(
     assert response.get_json()["session_id"] == session.id
     db.session.refresh(session)
     assert session.updated_at > before
+
+def test_new_session_uses_router_generated_title(logged_in_client, db, user, monkeypatch):
+    from app.ai import routes as ai_routes
+    monkeypatch.setattr(
+        ai_routes, "build_ai_instructions",
+        lambda **kw: [
+            {"action": "chat", "content": "<p>hi</p>"},
+            {"action": "rename_chat", "content": "Router Title"},
+        ],
+    )
+    logged_in_client.post("/ai-response", json={
+        "session_id": None,
+        "contents": [{"role": "user", "contents": "explain thermodynamics"}],
+    })
+    session = db.session.scalars(db.select(ChatSession)).first()
+    assert session.title == "Router Title"

@@ -53,7 +53,10 @@ def ai_response():
     )
 
     all_instructions = build_ai_instructions(
-        contents=message, username=username, chat_only=is_on_cooldown
+        contents=message,
+        username=username,
+        chat_only=is_on_cooldown,
+        new_session=(incoming_session_id is None),
     )
     current_app.logger.info(
         "[ai_response] Instructions built for user_id=%s: %s", current_user.id, all_instructions)
@@ -63,6 +66,7 @@ def ai_response():
     flashcard_id = None
     quiz_id = None
     chat = None
+    generated_title = None
     all_errors = []
     hit_rate_limit = False
     mermaid_notes = []
@@ -96,6 +100,9 @@ def ai_response():
         elif action == "chat":
             chat = ai_reply
 
+        elif action == 'rename_chat':
+            generated_title = instruction["content"]
+            
         elif action == "create_note":
             try:
                 new_note = Note(
@@ -471,7 +478,7 @@ def ai_response():
                     chat_session = None
 
             if not chat_session:
-                title = user_message_text[:50].strip() or "New chat"
+                title = generated_title or user_message_text[:50].strip() or "New chat"
                 chat_session = ChatSession(user_id=current_user.id, title=title)
                 db.session.add(chat_session)
                 db.session.flush()

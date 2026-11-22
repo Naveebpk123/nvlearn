@@ -67,3 +67,28 @@ def test_validate_router_response_rejects_unknown_action():
     response = {"action": ["nonexistent_action"], "content": ["x"]}
     result = validate_router_response(response)
     assert is_ai_error(result) is True
+
+
+def test_validate_router_response_accepts_rename_chat():
+    response = {
+        "action": ["chat", "rename_chat"],
+        "content": ["<p>hi</p>", "Test Title"],
+    }
+    assert validate_router_response(response) is None
+
+
+def test_build_ai_instructions_handles_rename_chat(monkeypatch):
+    import ai_service
+    monkeypatch.setattr(ai_service, "ask_intent_router", lambda *a, **kw: {
+        "action": ["chat", "rename_chat"],
+        "content": ["<p>hello</p>", "Hello Chat"],
+    })
+    instructions = ai_service.build_ai_instructions(
+        contents=[{"role": "user", "contents": "hi"}],
+        username="test",
+        new_session=True,
+    )
+    actions = [i["action"] for i in instructions]
+    assert "rename_chat" in actions
+    rename_instruction = next(i for i in instructions if i["action"] == "rename_chat")
+    assert rename_instruction["content"] == "Hello Chat"
