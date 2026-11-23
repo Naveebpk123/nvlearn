@@ -251,7 +251,8 @@
             let activeDiagramData = null;
             let activeDiagramId = null;
             const sessionCreatedDiagramIds = new Set();
-            window.dirty_diagrams = window.dirty_diagrams || new Set(); 
+            window.dirty_diagrams = window.dirty_diagrams || new Set();
+            window.mermaid_pending_set = window.mermaid_pending_set || new Set();
             let isFormSubmitting = false;
 
             /**
@@ -475,10 +476,10 @@
                     });
                 }
 
-                // Global event delegation for clicking diagram images to re-edit
+                // Event delegation for clicking diagram images inside the note editor to re-edit
                 document.addEventListener('click', function(e) {
                     const targetImg = e.target.closest('img');
-                    if (!targetImg) return;
+                    if (!targetImg || !targetImg.closest('.ql-editor')) return;
 
                     const src = targetImg.getAttribute('src') || '';
                     const isDiagram = targetImg.classList.contains('diagram-image') ||
@@ -699,7 +700,7 @@
         {% if current_user.is_authenticated %}
         <script>
 window.addEventListener('pagehide', () => {
-    if (window.mermaid_pending_set.size === 0) return;
+    if (!window.mermaid_pending_set || window.mermaid_pending_set.size === 0) return;
 
     // Convert Set to an array using Array.from()
     const remainingIds = Array.from(window.mermaid_pending_set);
@@ -709,99 +710,111 @@ window.addEventListener('pagehide', () => {
     navigator.sendBeacon('/mark_mermaid_pending', blob);
 });
 
+window.convertPendingMermaidNotes = async function(notes) {
+    if (!Array.isArray(notes) || notes.length === 0) return;
+
+    let iframe = document.getElementById('backgroundDrawioFrame');
+    if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'backgroundDrawioFrame';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+    }
+
+    const mermaidRegex = /\[\[MERMAID_START\]\]([\s\S]*?)\[\[MERMAID_END\]\]/g;
+    notes.forEach(n => window.mermaid_pending_set.add(n.note_id));
+
+    for (const note of notes) {
+        const text = note.md_content || '';
+        const matches = Array.from(text.matchAll(mermaidRegex));
+        let updatedMd = text;
+
+        for (const match of matches) {
+            const fullMatch = match[0];
+            const rawMermaid = match[1]
+                .trim()
+                .replace(/^```(?:mermaid)?\s*\n?/i, '')
+                .replace(/\n?```\s*$/, '')
+                .trim();
+
+            const imgData = await new Promise((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    window.removeEventListener('message', handleMessage);
+                    reject(new Error('Background conversion timeout'));
+                }, 15000);
+
+                function handleMessage(event) {
+                    if (event.origin !== 'https://embed.diagrams.net') return;
+                    try {
+                        const msg = JSON.parse(event.data);
+                        if (msg.event === 'init') {
+                            iframe.contentWindow.postMessage(JSON.stringify({
+                                action: 'load',
+                                descriptor: { format: 'mermaid', data: rawMermaid }
+                            }), '*');
+                        } else if (msg.event === 'load') {
+                            iframe.contentWindow.postMessage(JSON.stringify({
+                                action: 'export',
+                                format: 'xmlpng'
+                            }), '*');
+                        } else if (msg.event === 'export') {
+                            clearTimeout(timeoutId);
+                            window.removeEventListener('message', handleMessage);
+                            const imgResult = msg.data || ('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(msg.xml));
+                            resolve(imgResult);
+                        }
+                    } catch (err) {
+                        clearTimeout(timeoutId);
+                        window.removeEventListener('message', handleMessage);
+                        reject(err);
+                    }
+                }
+
+                window.addEventListener('message', handleMessage);
+                iframe.src = 'about:blank';
+                setTimeout(() => {
+                    iframe.src = 'https://embed.diagrams.net/?embed=1&spin=1&proto=json';
+                }, 0);
+            });
+
+            const diagramSaved = await fetch('/save_diagram', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ img_data: imgData })
+            });
+
+            const diagramJson = await diagramSaved.json();
+
+            if (diagramJson.status === 'success') {
+                updatedMd = updatedMd.replace(fullMatch, `![Diagram](${diagramJson.img_url})`);
+            }
+        }
+
+        const savedRes = await fetch('/save_mermaid_notes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                note_id: note.note_id,
+                replaced_md_content: updatedMd
+            })
+        });
+        if (savedRes.ok) {
+            window.mermaid_pending_set.delete(note.note_id);
+        }
+    }
+    iframe.src = 'about:blank';
+    console.log("Background Worker: All pending Mermaid diagrams successfully converted!");
+};
+
 document.addEventListener('DOMContentLoaded', async function() {
     try {
         // Check backend for any notes flagged with mermaid_needs_conversion
         const res = await fetch('/get_pending_mermaid_notes');
         const data = await res.json();
-        
+
         if (data.status === 'success' && data.pending_notes && data.pending_notes.length > 0) {
             console.log("Background Worker: Found pending Mermaid notes to convert...");
-            
-            // Create a hidden iframe for background rendering if it doesn't exist yet
-            let iframe = document.getElementById('backgroundDrawioFrame');
-            if (!iframe) {
-                iframe = document.createElement('iframe');
-                iframe.id = 'backgroundDrawioFrame';
-                iframe.style.display = 'none';
-                document.body.appendChild(iframe);
-            }
-
-            const mermaidRegex = /\[\[MERMAID_START\]\]([\s\S]*?)\[\[MERMAID_END\]\]/g;
-
-            // Process each pending note 
-            for (const note of data.pending_notes) {
-                const text = note.md_content || '';
-                const matches = Array.from(text.matchAll(mermaidRegex));
-                let updatedMd = text;
-
-                for (const match of matches) {
-                    const fullMatch = match[0];
-                    const rawMermaid = match[1].trim();
-
-                    // Convert raw Mermaid code to image via Draw.io postMessage protocol
-                    const imgData = await new Promise((resolve, reject) => {
-                        const timeoutId = setTimeout(() => {
-                            window.removeEventListener('message', handleMessage);
-                            reject(new Error('Background conversion timeout'));
-                        }, 15000);
-
-                        function handleMessage(event) {
-                            if (event.origin !== 'https://embed.diagrams.net') return;
-                            try {
-                                const msg = JSON.parse(event.data);
-                                if (msg.event === 'init') {
-                                    iframe.contentWindow.postMessage(JSON.stringify({
-                                        action: 'load',
-                                        descriptor: { format: 'mermaid', data: rawMermaid }
-                                    }), '*');
-                                    iframe.contentWindow.postMessage(JSON.stringify({
-                                        action: 'export',
-                                        format: 'xmlpng'
-                                    }), '*');
-                                } else if (msg.event === 'export') {
-                                    clearTimeout(timeoutId);
-                                    window.removeEventListener('message', handleMessage);
-                                    const imgResult = msg.data || ('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(msg.xml));
-                                    resolve(imgResult);
-                                }
-                            } catch (err) {
-                                clearTimeout(timeoutId);
-                                window.removeEventListener('message', handleMessage);
-                                reject(err);
-                            }
-                        }
-
-                        window.addEventListener('message', handleMessage);
-                        iframe.src = 'https://embed.diagrams.net/?embed=1&spin=1&proto=json';
-                    });
-
-                    // Save the generated diagram image to the database
-                    const diagramSaved = await fetch('/save_diagram', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ diagram_data: imgData })
-                    });
-                    
-                    const diagramJson = await diagramSaved.json(); 
-
-                    if (diagramJson.status === "success") {
-                        // Replace the [[MERMAID_START]] block with the clean image markdown link
-                        updatedMd = updatedMd.replace(fullMatch, `![Diagram](${diagramJson.img_url})`); 
-                    }
-                }
-
-                // Send updated markdown back to server (which also resets mermaid_needs_conversion to False)
-                await fetch('/save_mermaid_notes', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        'note_id': note.note_id, 
-                        'replaced_md_content': updatedMd 
-                    })
-                });
-            }
-            console.log("Background Worker: All pending Mermaid diagrams successfully converted!");
+            await window.convertPendingMermaidNotes(data.pending_notes);
         }
     } catch (err) {
         console.error("Background Mermaid worker error:", err);

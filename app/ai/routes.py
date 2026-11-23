@@ -127,11 +127,13 @@ def ai_response():
             
         elif action == "create_note":
             try:
+                has_mermaid = check_mermaid(ai_reply["content"])
                 new_note = Note(
                     title=ai_reply["title"],
                     md_content=ai_reply["content"],
                     html_content=ai_reply["html_content"],
                     in_bin=False,
+                    mermaid_needs_conversion=has_mermaid,
                     user_id=current_user.id,
                     meta_data=normalize_metadata(ai_reply.get("meta_data")),
                 )
@@ -140,7 +142,6 @@ def ai_response():
                 new_note.meta_data = normalize_metadata(new_note.meta_data, new_note.id)
                 db.session.commit()
                 upsert_note_vector(new_note)
-                has_mermaid = check_mermaid(new_note.md_content)
                 if has_mermaid:
                     mermaid_notes.append({"note_id": new_note.id, "md_content": new_note.md_content})
                 all_results.append(f"Made new note '{ai_reply['title']}'")
@@ -317,11 +318,12 @@ def ai_response():
                         hit_rate_limit = True
                 else:
                     try:
+                        has_mermaid = check_mermaid(edited_note)
                         matched_note.md_content = edited_note
                         matched_note.html_content = md_to_html(edited_note)
+                        matched_note.mermaid_needs_conversion = has_mermaid
                         db.session.commit()
                         upsert_note_vector(matched_note)
-                        has_mermaid = check_mermaid(matched_note.md_content)
                         if has_mermaid:
                             mermaid_notes.append({"note_id": matched_note.id, "md_content": matched_note.md_content})
                     except SQLAlchemyError as e:

@@ -14,6 +14,7 @@ import markdown
 _PROTECTED_BLOCK_RE = re.compile(
     r"(```[\s\S]*?```"
     r"|`[^`\n]+`"
+    r"|\[\[MERMAID_START\]\][\s\S]*?\[\[MERMAID_END\]\]"
     r"|\$\$[\s\S]*?\$\$"
     r"|\\\[[\s\S]*?\\\]"
     r"|\\\([\s\S]*?\\\)"

@@ -214,7 +214,7 @@ function renderMarkdown(rawText) {
 
     const mathBlocks = [];
     const protectedText = rawText.replace(
-        /(```[\s\S]*?```|`[^`\n]+`|\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$(?!\s)(?:\\.|[^$\n\\])+?(?<!\s)\$)/g,
+        /(```[\s\S]*?```|`[^`\n]+`|\[\[MERMAID_START\]\][\s\S]*?\[\[MERMAID_END\]\]|\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$(?!\s)(?:\\.|[^$\n\\])+?(?<!\s)\$)/g,
         (match) => {
             if (match.startsWith('`')) return match;
             const idx = mathBlocks.length;
@@ -1549,6 +1549,12 @@ chatInput?.addEventListener('keydown', async function (e) {
 
             if (aiResponse.session_id !== undefined && aiResponse.session_id !== null) {
                 currentSessionId = aiResponse.session_id;
+            }
+
+            if (Array.isArray(aiResponse.mermaid_notes) && aiResponse.mermaid_notes.length > 0 && typeof window.convertPendingMermaidNotes === 'function') {
+                window.convertPendingMermaidNotes(aiResponse.mermaid_notes).catch(err => {
+                    console.error('[chat] background mermaid conversion failed:', err);
+                });
             }
 
             const aiBubble = document.createElement('div');
