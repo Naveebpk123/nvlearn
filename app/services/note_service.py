@@ -1,3 +1,4 @@
+import math
 import re
 from typing import Any, Dict, List, Optional
 
@@ -90,6 +91,35 @@ def get_notes_for_action(topic: str, user_id: int, edit_mode: bool = False):
             return [], "You do not have any notes saved yet.", False
         return all_notes, None, False
     return get_vector_matched_notes(topic, user_id, edit_mode=edit_mode)
+
+
+def count_tokens(text: str) -> int:
+    """Return an estimated token count for text."""
+    return max(1, math.ceil(len((text or "").split()) * 1.3))
+
+
+def trim_messages_to_budget(messages: list, max_tokens: int) -> list:
+    """Return the largest suffix of messages whose combined token count fits under max_tokens."""
+    if not messages:
+        return []
+
+    def _content(msg) -> str:
+        if isinstance(msg, dict):
+            return msg.get("content", "")
+        return getattr(msg, "content", "")
+
+    token_counts = [count_tokens(_content(m)) for m in messages]
+    total = sum(token_counts)
+
+    i = 0
+    while total > max_tokens and i < len(messages) - 1:
+        total -= token_counts[i]
+        i += 1
+
+    if total > max_tokens:
+        return []
+
+    return list(messages[i:])
 
 
 def chunk_notes_content(

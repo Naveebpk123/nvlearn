@@ -92,12 +92,15 @@ def rename_session(session_id):
         db.session.execute(
         db.update(ChatSession)
         .where(ChatSession.id == session_id)
-        .values(title=title)
-    )
+        .values(
+            title=title,
+            updated_at=session.updated_at,   # pin it to current value
+            )
+        )
         db.session.commit()
     except SQLAlchemyError as e:
         db.session.rollback()
         current_app.logger.error("[rename_session] DB error: %s", e)
         return jsonify({"error": "Could not rename session."}), 500
 
-    return jsonify({"status": "renamed", "title": session.title})
+    return jsonify({"status": "renamed", "title": title})

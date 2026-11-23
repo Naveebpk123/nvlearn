@@ -18,6 +18,7 @@ from ..services.note_service import (
     get_notes_for_action,
     get_vector_matched_notes,
     summarize_notes_in_batches,
+    trim_messages_to_budget,
 )
 from ai_service import (
     ask_gemini,
@@ -46,6 +47,27 @@ def ai_response():
     data = request.get_json()
     incoming_session_id = data.get("session_id")
     message = data.get("contents")
+
+    # Load prior session history, trimmed to budget, and prepend it to the
+    # incoming message so the intent router sees conversational context.
+    if incoming_session_id:
+        chat_session = db.session.get(ChatSession, incoming_session_id)
+        if chat_session and chat_session.user_id == current_user.id:
+            recent = db.session.scalars(
+                db.select(ChatMessage)
+                .where(ChatMessage.session_id == incoming_session_id)
+                .order_by(ChatMessage.created_at.desc())
+                .limit(50)
+            ).all()
+            recent = list(reversed(recent))  # oldest first
+
+            trimmed = trim_messages_to_budget(recent, Config.MAX_CONTEXT_TOKENS)
+            if trimmed:
+                history = [
+                    {"role": m.role, "contents": m.content}
+                    for m in trimmed
+                ]
+                message = history + message
 
     cooldown_until = session.get("note_action_cooldown_until")
     is_on_cooldown = (

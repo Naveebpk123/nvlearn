@@ -1446,8 +1446,11 @@ chatInput?.addEventListener('input', function () {
 });
 
 /**
- * AI Chat Submission Handler:
- * Extracts last 8 conversation turns, sends message payload to /ai-response, appends AI response bubble, and triggers MathJax LaTeX typesetting.
+ * AI Chat Submission Handler.
+ * Sends only the new user message + session_id to /ai-response.
+ * The backend loads the session history, trims it to a token budget,
+ * and prepends it before routing — the frontend no longer needs to
+ * know about history, trimming, or context windows.
  */
 chatInput?.addEventListener('keydown', async function (e) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1467,18 +1470,6 @@ chatInput?.addEventListener('keydown', async function (e) {
         userBubble.appendChild(userBubbleText);
         userInputContainer.insertAdjacentElement('beforebegin', userBubble);
 
-        const pastBubbles = Array.from(document.querySelectorAll('.user-bubble, .ai-bubble'));
-        let messageHistory = [];
-        if (pastBubbles.length > 0) {
-            const past8Bubbles = pastBubbles.slice(-8);
-            for (const bubble of past8Bubbles) {
-                if (bubble.classList.contains('user-bubble')) {
-                    messageHistory.push({ role: 'user', contents: bubble.textContent });
-                } else {
-                    messageHistory.push({ role: 'assistant', contents: bubble.textContent });
-                }
-            }
-        }
         chatInput.value = '';
         chatInput.style.height = 'auto';
         chatInput.disabled = true;
@@ -1497,7 +1488,7 @@ chatInput?.addEventListener('keydown', async function (e) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     session_id: currentSessionId,
-                    contents: messageHistory
+                    contents: [{ role: 'user', contents: inputText }]
                 }),
                 signal: controller.signal
             });
@@ -1509,7 +1500,6 @@ chatInput?.addEventListener('keydown', async function (e) {
             if (aiResponse.session_id !== undefined && aiResponse.session_id !== null) {
                 currentSessionId = aiResponse.session_id;
             }
-
 
             const aiBubble = document.createElement('div');
             aiBubble.classList.add('ai-bubble');

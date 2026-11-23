@@ -3,6 +3,8 @@ from types import SimpleNamespace
 from app.services.note_service import (
     extract_topic_for_search,
     chunk_notes_content,
+    count_tokens,
+    trim_messages_to_budget,
 )
 
 
@@ -91,3 +93,44 @@ def test_chunk_skips_notes_with_empty_content():
     assert len(batches) == 1
     text = batches[0] if isinstance(batches[0], str) else batches[0][0]
     assert "Real note content" in text
+
+
+# ── count_tokens & trim_messages_to_budget ────────────────────────────────────
+
+
+def test_count_tokens_basic():
+    result = count_tokens("hello world")
+    assert isinstance(result, int)
+    assert result == 3
+
+
+def test_trim_messages_empty_returns_empty():
+    assert trim_messages_to_budget([], 100) == []
+
+
+def test_trim_messages_under_budget_returns_all():
+    msgs = [
+        SimpleNamespace(content="one"),
+        SimpleNamespace(content="two"),
+        SimpleNamespace(content="three"),
+    ]
+    result = trim_messages_to_budget(msgs, 100)
+    assert result == msgs
+
+
+def test_trim_messages_drops_oldest_first():
+    msgs = [
+        SimpleNamespace(content="word " * 10),
+        SimpleNamespace(content="word " * 10),
+        SimpleNamespace(content="keep1 " * 5),
+        SimpleNamespace(content="keep2 " * 5),
+        SimpleNamespace(content="keep3 " * 5),
+    ]
+    budget = sum(count_tokens(m.content) for m in msgs[2:])
+    result = trim_messages_to_budget(msgs, budget)
+    assert result == msgs[2:]
+
+
+def test_trim_messages_newest_alone_too_big_returns_empty():
+    msgs = [SimpleNamespace(content="word " * 50)]
+    assert trim_messages_to_budget(msgs, 10) == []

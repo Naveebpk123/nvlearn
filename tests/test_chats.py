@@ -417,6 +417,60 @@ def test_rename_session_rejects_empty_title(logged_in_client, db, user):
     db.session.refresh(session)
     assert session.title == original_title
 
+
+# ── Session history loading (/ai-response) ────────────────────────────────────
+
+
+def test_ai_response_prepends_history_from_session(
+    logged_in_client, db, user, monkeypatch
+):
+    session = _create_own_session(db, user, with_messages=2)
+    captured = []
+
+    def fake_build(contents, **kwargs):
+        captured.append(contents)
+        return [{"action": "chat", "content": "<p>ok</p>"}]
+
+    monkeypatch.setattr("app.ai.routes.build_ai_instructions", fake_build)
+
+    response = logged_in_client.post(
+        "/ai-response",
+        json={
+            "session_id": session.id,
+            "contents": [{"role": "user", "contents": "Follow-up question"}],
+        },
+    )
+    assert response.status_code == 200
+    assert len(captured) == 1
+    assert len(captured[0]) == 3
+    assert [m["role"] for m in captured[0]] == ["user", "assistant", "user"]
+    assert captured[0][0]["contents"] == "Message 0"
+    assert captured[0][1]["contents"] == "Message 1"
+    assert captured[0][2]["contents"] == "Follow-up question"
+
+
+def test_ai_response_no_history_when_session_id_null(
+    logged_in_client, db, monkeypatch
+):
+    captured = []
+
+    def fake_build(contents, **kwargs):
+        captured.append(contents)
+        return [{"action": "chat", "content": "<p>ok</p>"}]
+
+    monkeypatch.setattr("app.ai.routes.build_ai_instructions", fake_build)
+
+    response = logged_in_client.post(
+        "/ai-response",
+        json={
+            "session_id": None,
+            "contents": [{"role": "user", "contents": "First question"}],
+        },
+    )
+    assert response.status_code == 200
+    assert len(captured) == 1
+    assert captured[0] == [{"role": "user", "contents": "First question"}]
+
 def test_rename_does_not_change_updated_at(logged_in_client, db, user):
     """Renaming a session should not bump its updated_at timestamp."""
     import time
