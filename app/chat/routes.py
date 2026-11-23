@@ -1,4 +1,4 @@
-from flask import current_app, jsonify
+from flask import current_app, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -71,3 +71,33 @@ def delete_session(session_id):
         return jsonify({"error": "Could not delete session."}), 500
 
     return jsonify({"status": "deleted"})
+
+
+@bp.route("/api/chat/sessions/<int:session_id>/rename", methods=["POST"])
+@login_required
+def rename_session(session_id):
+    """Rename a specific chat session."""
+    session = db.session.get(ChatSession, session_id)
+    if not session or session.user_id != current_user.id:
+        return jsonify({"error": "Session not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "Title cannot be empty."}), 400
+    if len(title) > 200:
+        return jsonify({"error": "Title must be 200 characters or fewer."}), 400
+
+    try:
+        db.session.execute(
+        db.update(ChatSession)
+        .where(ChatSession.id == session_id)
+        .values(title=title)
+    )
+        db.session.commit()
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error("[rename_session] DB error: %s", e)
+        return jsonify({"error": "Could not rename session."}), 500
+
+    return jsonify({"status": "renamed", "title": session.title})

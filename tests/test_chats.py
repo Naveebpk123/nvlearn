@@ -370,3 +370,72 @@ def test_new_session_uses_router_generated_title(logged_in_client, db, user, mon
     })
     session = db.session.scalars(db.select(ChatSession)).first()
     assert session.title == "Router Title"
+
+
+# ── Rename endpoint ───────────────────────────────────────────────────────────
+
+
+def test_rename_session_updates_title(logged_in_client, db, user):
+    session = _create_own_session(db, user, with_messages=1)
+
+    response = logged_in_client.post(
+        f"/api/chat/sessions/{session.id}/rename",
+        json={"title": "New Title"},
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["status"] == "renamed"
+    assert data["title"] == "New Title"
+    db.session.refresh(session)
+    assert session.title == "New Title"
+
+
+def test_rename_session_rejects_other_users_session(logged_in_client, db):
+    _, other_session = _create_other_user_and_session(db, with_messages=1)
+    original_title = other_session.title
+
+    response = logged_in_client.post(
+        f"/api/chat/sessions/{other_session.id}/rename",
+        json={"title": "Hijacked Title"},
+    )
+    assert response.status_code == 404
+    assert "error" in response.get_json()
+    db.session.refresh(other_session)
+    assert other_session.title == original_title
+
+
+def test_rename_session_rejects_empty_title(logged_in_client, db, user):
+    session = _create_own_session(db, user, with_messages=1)
+    original_title = session.title
+
+    response = logged_in_client.post(
+        f"/api/chat/sessions/{session.id}/rename",
+        json={"title": " "},
+    )
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+    db.session.refresh(session)
+    assert session.title == original_title
+
+def test_rename_does_not_change_updated_at(logged_in_client, db, user):
+    """Renaming a session should not bump its updated_at timestamp."""
+    import time
+    from datetime import datetime, timezone
+
+    chat_session = ChatSession(user_id=user.id, title="Original")
+    db.session.add(chat_session)
+    db.session.commit()
+
+    original_updated_at = chat_session.updated_at
+
+    time.sleep(0.05)   # ensure any naive update would produce a different timestamp
+
+    response = logged_in_client.post(
+        f"/api/chat/sessions/{chat_session.id}/rename",
+        json={"title": "Renamed"},
+    )
+    assert response.status_code == 200
+
+    db.session.refresh(chat_session)
+    assert chat_session.title == "Renamed"
+    assert chat_session.updated_at == original_updated_at

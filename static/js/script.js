@@ -150,18 +150,18 @@ function renderSessionList(sessions) {
         body.appendChild(title);
         body.appendChild(meta);
 
-        const del = document.createElement('button');
-        del.type = 'button';
-        del.className = 'chat-history-delete';
-        del.setAttribute('aria-label', 'Delete chat');
-        del.textContent = '✕';
-        del.addEventListener('click', (e) => {
+        const menuBtn = document.createElement('button');
+        menuBtn.type = 'button';
+        menuBtn.className = 'chat-history-menu-btn';
+        menuBtn.setAttribute('aria-label', 'Chat options');
+        menuBtn.textContent = '⋯';
+        menuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            confirmDeleteSession(session.id);
+            openChatMenu(session.id, menuBtn);
         });
 
         card.appendChild(body);
-        card.appendChild(del);
+        card.appendChild(menuBtn);
 
         card.addEventListener('click', () => {
             loadSession(session.id);
@@ -256,6 +256,115 @@ function confirmDeleteSession(sessionId) {
         sessionId,
         null
     );
+}
+
+function openChatMenu(sessionId, anchorEl) {
+    document.querySelectorAll('.chat-menu-dropdown').forEach(el => el.remove());
+
+    const card = anchorEl.closest('.chat-history-card');
+    const rect = anchorEl.getBoundingClientRect();
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'chat-menu-dropdown';
+    dropdown.style.top = `${rect.bottom + 4}px`;
+    dropdown.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
+
+    const renameBtn = document.createElement('button');
+    renameBtn.type = 'button';
+    renameBtn.className = 'chat-menu-item';
+    renameBtn.textContent = 'Rename';
+    renameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.remove();
+        startRenaming(sessionId, card);
+    });
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'chat-menu-item danger';
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.remove();
+        confirmDeleteSession(sessionId);
+    });
+
+    dropdown.appendChild(renameBtn);
+    dropdown.appendChild(deleteBtn);
+    document.body.appendChild(dropdown);
+
+    const closeOnOutsideClick = (e) => {
+        if (!dropdown.contains(e.target)) {
+            dropdown.remove();
+            document.removeEventListener('click', closeOnOutsideClick);
+        }
+    };
+    setTimeout(() => document.addEventListener('click', closeOnOutsideClick), 0);
+}
+
+function startRenaming(sessionId, card) {
+    const titleEl = card?.querySelector('.chat-history-title');
+    if (!titleEl) return;
+
+    const originalTitle = titleEl.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'chat-history-title-input';
+    input.maxLength = 200;
+    input.value = originalTitle;
+
+    titleEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    let finished = false;
+    const restore = (text) => {
+        const restored = document.createElement('div');
+        restored.className = 'chat-history-title';
+        restored.textContent = text;
+        input.replaceWith(restored);
+    };
+
+    const commit = async () => {
+        if (finished) return;
+        finished = true;
+        const newTitle = input.value.trim();
+        if (!newTitle || newTitle === originalTitle) {
+            restore(originalTitle);
+            return;
+        }
+        try {
+            const res = await fetch(`/api/chat/sessions/${sessionId}/rename`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: newTitle }),
+            });
+            if (!res.ok) {
+                restore(originalTitle);
+                flash('Could not rename chat.', 'error');
+                return;
+            }
+            const data = await res.json();
+            restore(data.title || newTitle);
+        } catch (err) {
+            console.error('[chat] rename error:', err);
+            restore(originalTitle);
+            flash('Could not rename chat.', 'error');
+        }
+    };
+
+    input.addEventListener('click', (e) => e.stopPropagation());
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            commit();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            finished = true;
+            restore(originalTitle);
+        }
+    });
+    input.addEventListener('blur', commit);
 }
 
 /**
@@ -740,10 +849,12 @@ sidebarChatHistory?.addEventListener('click', (e) => {
 });
 
 closeChatHistoryBtn?.addEventListener('click', () => {
+    document.querySelectorAll('.chat-menu-dropdown').forEach(el => el.remove());
     chatHistoryModal.style.display = 'none';
 });
 
 chatHistoryModal?.addEventListener('click', (e) => {
+    document.querySelectorAll('.chat-menu-dropdown').forEach(el => el.remove());
     if (e.target === chatHistoryModal) {
         chatHistoryModal.style.display = 'none';
     }
