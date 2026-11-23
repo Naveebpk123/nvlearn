@@ -187,6 +187,58 @@ function formatRelativeDate(isoString) {
     });
 }
 
+function typesetMath(container) {
+    if (!container || !window.MathJax) return;
+    const run = () => {
+        if (typeof window.MathJax.typesetPromise === 'function') {
+            window.MathJax.typesetPromise([container]).catch(() => {});
+        }
+    };
+    if (window.MathJax.startup && window.MathJax.startup.promise) {
+        window.MathJax.startup.promise.then(run).catch(() => {});
+    } else {
+        run();
+    }
+}
+
+function renderMarkdown(rawText) {
+    if (!rawText) return '';
+
+    const sanitize = (html) => (
+        window.DOMPurify ? window.DOMPurify.sanitize(html) : html
+    );
+
+    if (/^\s*<(p|div|h[1-6]|ul|ol|pre|table|blockquote)\b/i.test(rawText)) {
+        return sanitize(rawText);
+    }
+
+    const mathBlocks = [];
+    const protectedText = rawText.replace(
+        /(```[\s\S]*?```|`[^`\n]+`|\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$(?!\s)(?:\\.|[^$\n\\])+?(?<!\s)\$)/g,
+        (match) => {
+            if (match.startsWith('`')) return match;
+            const idx = mathBlocks.length;
+            mathBlocks.push(match);
+            return `MATHPLACEHOLDER${idx}END`;
+        }
+    );
+
+    let html = window.marked
+        ? window.marked.parse(protectedText, { breaks: true, gfm: true })
+        : protectedText;
+    html = sanitize(html);
+
+    mathBlocks.forEach((mathStr, idx) => {
+        const safeMath = mathStr
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        html = html.replace(`MATHPLACEHOLDER${idx}END`, safeMath);
+    });
+
+    return html;
+}
+
 async function loadSession(sessionId) {
     try {
         const res = await fetch(`/api/chat/sessions/${sessionId}`);
@@ -202,23 +254,20 @@ async function loadSession(sessionId) {
 
         // Render messages inline, before the input container
         data.messages.forEach(msg => {
-    const bubble = document.createElement('div');
-    bubble.className = msg.role === 'user' ? 'user-bubble' : 'ai-bubble';
+            const bubble = document.createElement('div');
+            bubble.className = msg.role === 'user' ? 'user-bubble' : 'ai-bubble markdown-body';
 
-    if (msg.role === 'user') {
-        // User messages are plain text — use textContent to avoid XSS
-        bubble.textContent = msg.content;
-    } else {
-        // Assistant messages are pre-rendered HTML from md_to_html
-        bubble.innerHTML = msg.content;
-    }
+            if (msg.role === 'user') {
+                // User messages are plain text — use textContent to avoid XSS
+                bubble.textContent = msg.content;
+            } else {
+                bubble.innerHTML = renderMarkdown(msg.content);
+            }
 
-    userInputContainer.insertAdjacentElement('beforebegin', bubble);
-});
+            userInputContainer.insertAdjacentElement('beforebegin', bubble);
+        });
 
-        if (window.MathJax?.typesetPromise) {
-            MathJax.typesetPromise([document.body]).catch(() => {});
-        }
+        typesetMath(document.body);
 
         chatHistoryModal.style.display = 'none';
     } catch (err) {
@@ -623,6 +672,7 @@ if (flashcards && flashcards.length > 0) {
         // Slide flashcard container track horizontally
         if (innerFlashcardContainer) {
             innerFlashcardContainer.style.transform = `translateX(-${currentCardIndex * 100}%)`;
+            typesetMath(innerFlashcardContainer);
         }
 
         if (previousBtn) {
@@ -1502,31 +1552,35 @@ chatInput?.addEventListener('keydown', async function (e) {
             }
 
             const aiBubble = document.createElement('div');
-            aiBubble.classList.add('ai-bubble');
-            aiBubble.innerHTML = `${aiResponse.chat || ''}<br>${aiResponse.note_action || ''}<br>${aiResponse.notes || ''}`;
+            aiBubble.classList.add('ai-bubble', 'markdown-body');
+            const parts = [aiResponse.chat, aiResponse.note_action, aiResponse.notes]
+                .filter(part => typeof part === 'string' && part.trim().length > 0);
+            aiBubble.innerHTML = parts.map(part => renderMarkdown(part)).join('');
 
-            if (aiResponse.flashcard_id) {
-                const flashcardLink = document.createElement('a');
-                flashcardLink.className = 'button';
-                flashcardLink.href = `/flashcards/${aiResponse.flashcard_id}`;
-                flashcardLink.textContent = 'View Flashcards';
-                flashcardLink.target = '_blank';
-                aiBubble.appendChild(flashcardLink);
-            }
-            if (aiResponse.quiz_id) {
-                const quizLink = document.createElement('a');
-                quizLink.className = 'button';
-                quizLink.href = `/quiz/${aiResponse.quiz_id}`;
-                quizLink.textContent = 'View Quiz';
-                quizLink.target = '_blank';
-                aiBubble.appendChild(quizLink);
+            if (aiResponse.flashcard_id || aiResponse.quiz_id) {
+                const actionsRow = document.createElement('div');
+                actionsRow.className = 'ai-bubble-actions';
+                if (aiResponse.flashcard_id) {
+                    const flashcardLink = document.createElement('a');
+                    flashcardLink.className = 'button';
+                    flashcardLink.href = `/flashcards/${aiResponse.flashcard_id}`;
+                    flashcardLink.textContent = 'View Flashcards';
+                    flashcardLink.target = '_blank';
+                    actionsRow.appendChild(flashcardLink);
+                }
+                if (aiResponse.quiz_id) {
+                    const quizLink = document.createElement('a');
+                    quizLink.className = 'button';
+                    quizLink.href = `/quiz/${aiResponse.quiz_id}`;
+                    quizLink.textContent = 'View Quiz';
+                    quizLink.target = '_blank';
+                    actionsRow.appendChild(quizLink);
+                }
+                aiBubble.appendChild(actionsRow);
             }
 
             userInputContainer.insertAdjacentElement('beforebegin', aiBubble);
-
-            if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-                MathJax.typesetPromise([aiBubble]).catch(() => {});
-            }
+            typesetMath(aiBubble);
 
         } catch (error) {
             clearTimeout(timeoutId);
@@ -1661,7 +1715,7 @@ function initTheme() {
 
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
-    if (readNoteContent && window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-        MathJax.typesetPromise([readNoteContent]).catch(() => { });
+    if (readNoteContent) {
+        typesetMath(readNoteContent);
     }
 });

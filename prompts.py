@@ -34,10 +34,10 @@ Examples:
 multiple action example:
 {"action":["get_note","create_note"],"content":["Hydraulic Lift","Newton's Laws of Motion"]}
 
-Use LaTeX for math:
+Use LaTeX for math inside standard Markdown:
 - Inline: `$...$`
 - Display: `$$...$$`
-- Escape backslashes in JSON (e.g. `"\\\\frac{a}{b}"`).
+- Write standard single-backslash LaTeX commands (e.g., `\frac{a}{b}`) and let JSON string escaping handle them normally; do NOT double-escape backslashes.
 
 The username of the active user is provided in the initial user context context. Use it only if addressing them.
 """
@@ -83,17 +83,17 @@ Rules:
 
 Examples (note: every example includes rename_chat as the last action, because this is a new session):
 
-{"action":["chat","rename_chat"],"content":["<p>Trigonometry is the branch of mathematics dealing with triangles and their angles.</p>","Trigonometry Basics"]}
+{"action":["chat","rename_chat"],"content":["Trigonometry is the branch of mathematics dealing with triangles and their angles.","Trigonometry Basics"]}
 {"action":["create_note","rename_chat"],"content":["Photosynthesis","Photosynthesis Overview"]}
 {"action":["note_action","rename_chat"],"content":["Summarize the note on Photosynthesis","Photosynthesis Summary"]}
-{"action":["chat","rename_chat"],"content":["<p>Hello! How can I help you today?</p>","New Conversation"]}
+{"action":["chat","rename_chat"],"content":["Hello! How can I help you today?","New Conversation"]}
 Multiple action example:
 {"action":["get_note","create_note","rename_chat"],"content":["Hydraulic Lift","Newton's Laws of Motion","Hydraulics and Newton"]}
 
-Use LaTeX for math:
+Use LaTeX for math inside standard Markdown:
 - Inline: `$...$`
 - Display: `$$...$$`
-- Escape backslashes in JSON (e.g. `"\\\\frac{a}{b}"`).
+- Write standard single-backslash LaTeX commands (e.g., `\frac{a}{b}`) and let JSON string escaping handle them normally; do NOT double-escape backslashes.
 
 The username of the active user is provided in the initial user context context. Use it only if addressing them.
 """
@@ -108,7 +108,7 @@ Rules:
 - You can ONLY use the "chat" action. Do NOT use create_note, edit_note, create_quiz, create_flashcard, get_note, or note_action.
 - If the user asks to create, edit, get, summarize, or perform any operation on notes, quizzes, or flashcards, politely inform them that note-related features are temporarily unavailable due to high demand and suggest trying again in a few minutes.
 - Respond to general questions and conversations in Markdown.
-- Use LaTeX for math: Inline: `$...$` Display: `$$...$$` Escape backslashes in JSON.
+- Use LaTeX for math inside standard Markdown: Inline `$...$`, Display `$$...$$`. Write standard single-backslash LaTeX commands (e.g., `\frac{a}{b}`) and let JSON string escaping handle them normally; do NOT double-escape backslashes.
 - The username of the active user is provided in the initial user context. Use it only if addressing them.
 """
 

@@ -7,17 +7,43 @@ anywhere — routes, services, scripts, tests — without side effects.
 """
 
 import random
+import re
 
 import markdown
 
+_PROTECTED_BLOCK_RE = re.compile(
+    r"(```[\s\S]*?```"
+    r"|`[^`\n]+`"
+    r"|\$\$[\s\S]*?\$\$"
+    r"|\\\[[\s\S]*?\\\]"
+    r"|\\\([\s\S]*?\\\)"
+    r"|\$(?!\s)(?:\\.|[^$\n\\])+?(?<!\s)\$)"
+)
+
 
 def md_to_html(content):
-    """Convert Markdown to HTML using the same extension set as the app."""
-    return markdown.markdown(
-        content,
-        extensions=["fenced_code", "tables", "pymdownx.arithmatex"],
-        extension_configs={"pymdownx.arithmatex": {"generic": True}},
+    """Convert Markdown to HTML while preserving LaTeX math delimiters."""
+    if not content:
+        return ""
+
+    math_blocks = []
+
+    def _protect(match):
+        token = match.group(0)
+        if token.startswith("`"):
+            return token
+        idx = len(math_blocks)
+        math_blocks.append(token)
+        return f"MATHPLACEHOLDER{idx}END"
+
+    protected = _PROTECTED_BLOCK_RE.sub(_protect, content)
+    html = markdown.markdown(
+        protected,
+        extensions=["fenced_code", "tables", "sane_lists"],
     )
+    for idx, math_str in enumerate(math_blocks):
+        html = html.replace(f"MATHPLACEHOLDER{idx}END", math_str)
+    return html
 
 
 def create_code():

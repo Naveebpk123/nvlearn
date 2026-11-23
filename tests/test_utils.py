@@ -35,3 +35,14 @@ def test_md_to_html_converts_fenced_code():
 def test_md_to_html_wraps_plain_text_in_paragraph():
     result = md_to_html("Hello World")
     assert "<p>Hello World</p>" in result
+
+
+def test_md_to_html_preserves_inline_and_display_latex():
+    md = r"Inline $x_1 + x_2$ and \(a_1\) and $$\frac{a}{b}$$ and \[E = mc^2\]"
+    result = md_to_html(md)
+    assert "$x_1 + x_2$" in result
+    assert r"\(a_1\)" in result
+    assert r"$$\frac{a}{b}$$" in result
+    assert r"\[E = mc^2\]" in result
+    assert "<em>" not in result
+    assert "arithmatex" not in result

@@ -161,7 +161,7 @@ def ask_intent_router(contents, username="", chat_only=False, new_session=False)
     }
     payload = {
     "messages": messages,
-    "max_tokens": 1024,
+    "max_tokens": 4096,
     "response_format": {
         "type": "json_schema",
         "json_schema": {
