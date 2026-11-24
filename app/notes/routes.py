@@ -113,17 +113,6 @@ def edit_note(note_id):
     form = EditNoteForm()
     if request.method == "GET":
         form.content.data = note.md_content
-        content = note.md_content or ""
-        if re.search(
-            r"(\$\$.*?\$\$|\$.*?\$|\\\(.*?\\\)|\\\[.*?\\\]|\\frac|\\sqrt|\\sum|\\int|\\begin|\\alpha|\\beta|\\theta)",
-            content,
-            re.DOTALL,
-        ):
-            flash(
-                "This note contains mathematical formulas (LaTeX). "
-                "Switch to Read Mode for the best rendering experience!",
-                "info",
-            )
 
     if form.validate_on_submit():
         try:

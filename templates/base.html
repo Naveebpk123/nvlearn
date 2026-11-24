@@ -17,7 +17,7 @@
             })();
         </script>
         <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css')}}">
-        <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+        <link rel="stylesheet" href="{{ url_for('static', filename='vendor/katex/katex.min.css') }}">
         <title>{% block title %}NVLearn{% endblock %}</title>
     </head>
     <body class="site-layout">
@@ -220,6 +220,48 @@
                 </div>
             </div>
         </div>
+        <div class="diagram-modal-bg" id="mathModal" style="display:none;">
+            <div class="diagram-modal-content math-modal-content" id="mathModalContent">
+                <div class="diagram-modal-header">
+                    <span class="diagram-modal-title">Equation Editor</span>
+                    <div class="diagram-modal-actions">
+                        <button type="button" class="diagram-btn close-btn" id="closeMathModalBtn" title="Close Equation Editor">
+                            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="math-modal-body">
+                    <div class="math-mode-toggle">
+                        <button type="button" class="math-mode-btn active" id="mathModeInlineBtn">Inline ($...$)</button>
+                        <button type="button" class="math-mode-btn" id="mathModeBlockBtn">Display Block ($$...$$)</button>
+                    </div>
+                    <div class="math-chips" id="mathChipsContainer">
+                        <button type="button" class="math-chip" data-latex="\frac{a}{b}">\frac{a}{b}</button>
+                        <button type="button" class="math-chip" data-latex="\sqrt{x}">\sqrt{x}</button>
+                        <button type="button" class="math-chip" data-latex="x^{2}">x^{2}</button>
+                        <button type="button" class="math-chip" data-latex="x_{i}">x_{i}</button>
+                        <button type="button" class="math-chip" data-latex="\sum_{i=1}^{n}">\sum_{i=1}^{n}</button>
+                        <button type="button" class="math-chip" data-latex="\int_{a}^{b}">\int_{a}^{b}</button>
+                        <button type="button" class="math-chip" data-latex="\pi">\pi</button>
+                        <button type="button" class="math-chip" data-latex="\theta">\theta</button>
+                        <button type="button" class="math-chip" data-latex="\times">\times</button>
+                        <button type="button" class="math-chip" data-latex="\pm">\pm</button>
+                        <button type="button" class="math-chip" data-latex="\leq">\leq</button>
+                        <button type="button" class="math-chip" data-latex="\geq">\geq</button>
+                    </div>
+                    <textarea id="mathLatexInput" class="form-input math-latex-input" placeholder="Enter LaTeX (e.g. \frac{-b \pm \sqrt{b^2 - 4ac}}{2a})"></textarea>
+                    <div class="math-preview-box" id="mathPreviewBox"></div>
+                    <div class="math-modal-footer">
+                        <button type="button" class="button cancel hidden" id="deleteMathBtn">Delete</button>
+                        <button type="button" class="button cancel" id="cancelMathBtn">Cancel</button>
+                        <button type="button" class="button" id="saveMathBtn">Insert</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="camera-modal-bg hidden" id="cameraModal">
     <div class="camera-modal">
         <div class="camera-preview-wrap">
@@ -236,8 +278,7 @@
     </div>
 </div>
         <script src="{{url_for('static',filename='js/script.js')}}"></script>
-        <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/turndown@7.1.3/dist/turndown.js"></script>
+        <script src="{{ url_for('static', filename='js/tiptap-bundle.js') }}"></script>
         <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
         <script>
@@ -401,30 +442,31 @@
                                 const displayImgUrl = cleanImgUrl + '?t=' + Date.now(); // Cache buster query param for instant DOM refresh
 
                                 if (activeDiagramImg) {
-                                    // Update existing diagram image element in DOM
+                                    // Update existing diagram image element in DOM and TipTap node attrs
                                     activeDiagramImg.setAttribute('src', displayImgUrl);
-                                    activeDiagramImg.setAttribute('data-diagram-id', savedId);
+                                    activeDiagramImg.setAttribute('data-diagram-id', String(savedId));
                                     activeDiagramImg.classList.add('diagram-image');
-                                } else if (window.quillEditor) {
-                                    // Insert clean diagram image URL into Quill editor at cursor position
-                                    const range = window.quillEditor.getSelection(true);
-                                    const index = (range && range.index !== undefined) ? range.index : window.quillEditor.getLength();
-
-                                    window.quillEditor.insertEmbed(index, 'image', displayImgUrl);
-
-                                    // Apply diagram-image class and data-diagram-id attribute to newly inserted image
-                                    setTimeout(() => {
-                                        const imgs = window.quillEditor.root.querySelectorAll('img');
-                                        imgs.forEach(img => {
-                                            const src = img.getAttribute('src') || '';
-                                            if (src.includes(`/diagram_image/${savedId}.png`)) {
-                                                img.classList.add('diagram-image');
-                                                img.setAttribute('data-diagram-id', savedId);
-                                            }
-                                        });
-                                    }, 50);
-
-                                    window.quillEditor.setSelection(index + 1);
+                                    if (window.tiptapEditor) {
+                                        const { state, view } = window.tiptapEditor;
+                                        const pos = view.posAtDOM(activeDiagramImg, 0);
+                                        if (typeof pos === 'number' && pos >= 0) {
+                                            const tr = state.tr.setNodeMarkup(pos, undefined, {
+                                                ...state.doc.nodeAt(pos)?.attrs,
+                                                src: displayImgUrl,
+                                                'data-diagram-id': String(savedId),
+                                            });
+                                            view.dispatch(tr);
+                                        }
+                                    }
+                                } else if (window.tiptapEditor) {
+                                    window.tiptapEditor
+                                        .chain()
+                                        .focus()
+                                        .setImage({
+                                            src: displayImgUrl,
+                                            'data-diagram-id': String(savedId),
+                                        })
+                                        .run();
                                 }
 
                                 if (typeof flash === 'function') {
@@ -479,7 +521,7 @@
                 // Event delegation for clicking diagram images inside the note editor to re-edit
                 document.addEventListener('click', function(e) {
                     const targetImg = e.target.closest('img');
-                    if (!targetImg || !targetImg.closest('.ql-editor')) return;
+                    if (!targetImg || !targetImg.closest('.ProseMirror')) return;
 
                     const src = targetImg.getAttribute('src') || '';
                     const isDiagram = targetImg.classList.contains('diagram-image') ||
@@ -502,170 +544,380 @@
             });
         </script>
         <script>
-            function toggleReadMode() {
-                const backBtn = document.getElementById('backToEditBtn');
-                const readNoteContent = document.getElementById('read-note-content');
-                const editNoteForm = document.getElementById('edit-note-form');
-                const editorWrapper = document.querySelector('.quill-editor-wrapper');
-                const noteTitleInput = document.getElementById('noteTitleInput');
-                const noteTitleDisplay = document.getElementById('noteTitleDisplay');
+            (function() {
+                let mathState = { mode: 'inline', pos: null };
 
-
-                if (!window.quillEditor || !readNoteContent || !editNoteForm) return;
-
-                // Get the current rich HTML content from the Quill editor
-                const content = window.quillEditor.root.innerHTML;
-                readNoteContent.innerHTML = content;
-
-                noteTitleDisplay.textContent = noteTitleInput.value || 'Untitled Note';
-
-                // Hide editor and form, show read view
-                editNoteForm.classList.add('hidden');
-                if (editorWrapper) editorWrapper.classList.add('hidden');
-                readNoteContent.classList.remove('hidden');
-                backBtn.classList.remove('hidden');
-
-                // Typeset MathJax on the read view content
-                if (typeof typesetMath === 'function') {
-                    typesetMath(readNoteContent);
-                } else if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-                    MathJax.typesetPromise([readNoteContent]).catch(() => {});
+                function getMathModalEls() {
+                    return {
+                        modal: document.getElementById('mathModal'),
+                        closeBtn: document.getElementById('closeMathModalBtn'),
+                        cancelBtn: document.getElementById('cancelMathBtn'),
+                        saveBtn: document.getElementById('saveMathBtn'),
+                        deleteBtn: document.getElementById('deleteMathBtn'),
+                        inlineBtn: document.getElementById('mathModeInlineBtn'),
+                        blockBtn: document.getElementById('mathModeBlockBtn'),
+                        input: document.getElementById('mathLatexInput'),
+                        preview: document.getElementById('mathPreviewBox'),
+                        chips: document.getElementById('mathChipsContainer'),
+                    };
                 }
-                const images = document.querySelectorAll('#read-note-content img');
-                images.forEach(img => {
-                    img.classList = []; // Clear existing classes
-                    img.classList.add('read-note-image'); // Add the new class
-            });
-        };
-            
 
-            // Set up the back button listener once on page load (avoids listener leak)
-            document.addEventListener('DOMContentLoaded', function() {
-                const backBtn = document.getElementById('backToEditBtn');
-                if (backBtn) {
-                    backBtn.addEventListener('click', function() {
-                        const readNoteContent = document.getElementById('read-note-content');
-                        const editNoteForm = document.getElementById('edit-note-form');
-                        const editorWrapper = document.querySelector('.quill-editor-wrapper');
+                function renderMathPreview() {
+                    const { input, preview } = getMathModalEls();
+                    if (!input || !preview) return;
+                    const latex = input.value.trim();
+                    if (!latex) {
+                        preview.innerHTML = '<span style="color: var(--text-muted); font-size: 0.85rem;">Preview will appear here</span>';
+                        return;
+                    }
+                    const katexLib = window.TiptapBundle && window.TiptapBundle.katex;
+                    if (katexLib) {
+                        katexLib.render(latex, preview, {
+                            throwOnError: false,
+                            displayMode: mathState.mode === 'block',
+                        });
+                    } else {
+                        preview.textContent = latex;
+                    }
+                }
 
-                        editNoteForm.classList.remove('hidden');
-                        if (editorWrapper) editorWrapper.classList.remove('hidden');
-                        readNoteContent.innerHTML = '';
-                        readNoteContent.classList.add('hidden');
-                        backBtn.classList.add('hidden');
-                        noteTitleDisplay.textContent = 'Add Note';
+                function setMathMode(mode) {
+                    mathState.mode = mode;
+                    const { inlineBtn, blockBtn } = getMathModalEls();
+                    inlineBtn?.classList.toggle('active', mode === 'inline');
+                    blockBtn?.classList.toggle('active', mode === 'block');
+                    renderMathPreview();
+                }
+
+                function closeMathModal() {
+                    const { modal } = getMathModalEls();
+                    if (modal) modal.style.display = 'none';
+                    window.tiptapEditor?.commands.focus();
+                }
+
+                window.openMathModal = function(opts = {}) {
+                    const { modal, input, saveBtn, deleteBtn } = getMathModalEls();
+                    if (!modal || !input) return;
+                    mathState = {
+                        mode: opts.mode === 'block' ? 'block' : 'inline',
+                        pos: typeof opts.pos === 'number' ? opts.pos : null,
+                    };
+                    input.value = opts.latex || '';
+                    const isEditing = mathState.pos !== null;
+                    if (saveBtn) saveBtn.textContent = isEditing ? 'Save' : 'Insert';
+                    if (deleteBtn) deleteBtn.classList.toggle('hidden', !isEditing);
+                    setMathMode(mathState.mode);
+                    modal.style.display = 'flex';
+                    setTimeout(() => input.focus(), 20);
+                };
+
+                document.addEventListener('DOMContentLoaded', function() {
+                    const els = getMathModalEls();
+                    if (!els.modal) return;
+
+                    els.closeBtn?.addEventListener('click', closeMathModal);
+                    els.cancelBtn?.addEventListener('click', closeMathModal);
+                    els.modal.addEventListener('click', (e) => {
+                        if (e.target === els.modal) closeMathModal();
                     });
+                    window.addEventListener('keydown', (e) => {
+                        if (e.key === 'Escape' && els.modal.style.display === 'flex') {
+                            closeMathModal();
+                        }
+                    });
+                    els.inlineBtn?.addEventListener('click', () => setMathMode('inline'));
+                    els.blockBtn?.addEventListener('click', () => setMathMode('block'));
+                    els.input?.addEventListener('input', renderMathPreview);
+
+                    els.chips?.addEventListener('click', (e) => {
+                        const chip = e.target.closest('.math-chip');
+                        if (!chip || !els.input) return;
+                        const snippet = chip.getAttribute('data-latex') || '';
+                        const start = els.input.selectionStart ?? els.input.value.length;
+                        const end = els.input.selectionEnd ?? els.input.value.length;
+                        els.input.value = els.input.value.slice(0, start) + snippet + els.input.value.slice(end);
+                        els.input.focus();
+                        els.input.setSelectionRange(start + snippet.length, start + snippet.length);
+                        renderMathPreview();
+                    });
+
+                    els.saveBtn?.addEventListener('click', () => {
+                        const editor = window.tiptapEditor;
+                        const latex = (els.input?.value || '').trim();
+                        if (!editor || !latex) {
+                            closeMathModal();
+                            return;
+                        }
+                        const chain = editor.chain().focus();
+                        if (mathState.pos !== null) {
+                            if (mathState.mode === 'block') {
+                                chain.updateBlockMath({ pos: mathState.pos, latex }).run();
+                            } else {
+                                chain.updateInlineMath({ pos: mathState.pos, latex }).run();
+                            }
+                        } else if (mathState.mode === 'block') {
+                            chain.insertBlockMath({ latex }).run();
+                        } else {
+                            chain.insertInlineMath({ latex }).run();
+                        }
+                        closeMathModal();
+                    });
+
+                    els.deleteBtn?.addEventListener('click', () => {
+                        const editor = window.tiptapEditor;
+                        if (!editor || mathState.pos === null) {
+                            closeMathModal();
+                            return;
+                        }
+                        const chain = editor.chain().focus();
+                        if (mathState.mode === 'block') {
+                            chain.deleteBlockMath({ pos: mathState.pos }).run();
+                        } else {
+                            chain.deleteInlineMath({ pos: mathState.pos }).run();
+                        }
+                        closeMathModal();
+                    });
+                });
+            })();
+
+            window.loadMarkdownIntoTiptap = function(editor, rawMd) {
+                if (!editor) return;
+                const { migrateMathStrings } = window.TiptapBundle || {};
+                const mermaidBlocks = [];
+                const stashed = (rawMd || '').replace(/\[\[MERMAID_START\]\][\s\S]*?\[\[MERMAID_END\]\]/g, (m) => {
+                    const idx = mermaidBlocks.length;
+                    mermaidBlocks.push(m);
+                    return `MERMAIDSTASH${idx}END`;
+                });
+
+                editor.commands.setContent(stashed, { contentType: 'markdown' });
+
+                // Restore stashed mermaid blocks verbatim
+                if (mermaidBlocks.length > 0) {
+                    const { state, view } = editor;
+                    let tr = state.tr;
+                    state.doc.descendants((node, pos) => {
+                        if (node.isText && node.text) {
+                            const match = node.text.match(/MERMAIDSTASH(\d+)END/);
+                            if (match) {
+                                const idx = parseInt(match[1], 10);
+                                const start = pos + match.index;
+                                const end = start + match[0].length;
+                                tr = tr.insertText(mermaidBlocks[idx], start, end);
+                            }
+                        }
+                    });
+                    if (tr.docChanged) view.dispatch(tr);
                 }
-            });
+
+                // Convert standalone $$...$$ display blocks into blockMath nodes
+                const blockMathTargets = [];
+                editor.state.doc.descendants((node, pos) => {
+                    if (node.type.name === 'paragraph') {
+                        const text = node.textContent.trim();
+                        const m = text.match(/^\$\$([\s\S]+?)\$\$$/);
+                        if (m && editor.schema.nodes.blockMath) {
+                            blockMathTargets.push({ pos, size: node.nodeSize, latex: m[1].trim() });
+                        }
+                    }
+                });
+                if (blockMathTargets.length > 0) {
+                    let tr = editor.state.tr;
+                    for (let i = blockMathTargets.length - 1; i >= 0; i--) {
+                        const t = blockMathTargets[i];
+                        tr = tr.replaceWith(
+                            t.pos,
+                            t.pos + t.size,
+                            editor.schema.nodes.blockMath.create({ latex: t.latex })
+                        );
+                    }
+                    editor.view.dispatch(tr);
+                }
+
+                if (typeof migrateMathStrings === 'function') {
+                    migrateMathStrings(editor);
+                }
+            };
+
             document.addEventListener("DOMContentLoaded", function() {
-                
                 const textarea = document.getElementById('markdownEditor');
                 if (!textarea) return;
+                if (!window.TiptapBundle) {
+                    console.error('TiptapBundle is not loaded. Build static/js/tiptap-bundle.js first.');
+                    return;
+                }
+
+                const {
+                    Editor,
+                    StarterKit,
+                    Markdown,
+                    TableKit,
+                    CodeBlockLowlight,
+                    common,
+                    createLowlight,
+                    Mathematics,
+                    Image,
+                } = window.TiptapBundle;
+
+                const CustomDiagramImage = Image.extend({
+                    addAttributes() {
+                        return {
+                            ...this.parent?.(),
+                            'data-diagram-id': {
+                                default: null,
+                                parseHTML: el => {
+                                    const attr = el.getAttribute('data-diagram-id');
+                                    if (attr) return attr;
+                                    const src = el.getAttribute('src') || '';
+                                    const m = src.match(/\/diagram_image\/(\d+)\.png/);
+                                    return m ? m[1] : null;
+                                },
+                                renderHTML: attrs => (
+                                    attrs['data-diagram-id']
+                                        ? { 'data-diagram-id': attrs['data-diagram-id'] }
+                                        : {}
+                                ),
+                            },
+                        };
+                    },
+                });
 
                 const editorWrapper = document.createElement('div');
-                editorWrapper.className = 'quill-editor-wrapper';
+                editorWrapper.className = 'tiptap-editor-wrapper';
                 textarea.parentNode.insertBefore(editorWrapper, textarea);
 
-                const quillContainer = document.createElement('div');
-                editorWrapper.appendChild(quillContainer);
+                const toolbar = document.createElement('div');
+                toolbar.className = 'tiptap-toolbar';
+                editorWrapper.appendChild(toolbar);
+
+                const editorContentEl = document.createElement('div');
+                editorContentEl.className = 'tiptap-editor-content';
+                editorWrapper.appendChild(editorContentEl);
                 textarea.style.display = 'none';
 
-                const themeOptions = {
-                    modules: {
-                        toolbar: {
-                            container: [
-                                ['bold', 'italic', 'underline'],
-                                [{ 'header': 1 }, { 'header': 2 }],
-                                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                                ['clean'],
-                                ['diagram'],
-                                ['fullscreen'],
-                                ['readmode']
-                            ],
-                            handlers: {
-                                'fullscreen': function() {
-                                    editorWrapper.classList.toggle('fullscreen-active');
-                                    document.body.classList.toggle('editor-lock-scroll');
-                                },
-                                'readmode': function() {
-                                    toggleReadMode();
-                                },
-                                'diagram': function() {
-                                    openDiagramEditor();
-                                }
-                            }
+                const editor = new Editor({
+                    element: editorContentEl,
+                    extensions: [
+                        StarterKit.configure({ codeBlock: false }),
+                        CodeBlockLowlight.configure({
+                            lowlight: createLowlight(common),
+                            enableTabIndentation: true,
+                        }),
+                        TableKit.configure({ table: { resizable: false } }),
+                        CustomDiagramImage.configure({
+                            inline: false,
+                            HTMLAttributes: { class: 'diagram-image' },
+                        }),
+                        Mathematics.configure({
+                            katexOptions: { throwOnError: false },
+                            inlineOptions: {
+                                onClick: (node, pos) => window.openMathModal({
+                                    mode: 'inline',
+                                    latex: node.attrs.latex,
+                                    pos,
+                                }),
+                            },
+                            blockOptions: {
+                                onClick: (node, pos) => window.openMathModal({
+                                    mode: 'block',
+                                    latex: node.attrs.latex,
+                                    pos,
+                                }),
+                            },
+                        }),
+                        Markdown,
+                    ],
+                });
+                window.tiptapEditor = editor;
+
+                const toolbarGroups = [
+                    [
+                        { label: 'B', title: 'Bold', action: () => editor.chain().focus().toggleBold().run(), isActive: () => editor.isActive('bold') },
+                        { label: 'I', title: 'Italic', action: () => editor.chain().focus().toggleItalic().run(), isActive: () => editor.isActive('italic') },
+                        { label: 'U', title: 'Underline', action: () => editor.chain().focus().toggleUnderline().run(), isActive: () => editor.isActive('underline') },
+                        { label: '<>', title: 'Inline Code', action: () => editor.chain().focus().toggleCode().run(), isActive: () => editor.isActive('code') },
+                    ],
+                    [
+                        { label: 'H1', title: 'Heading 1', action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(), isActive: () => editor.isActive('heading', { level: 1 }) },
+                        { label: 'H2', title: 'Heading 2', action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), isActive: () => editor.isActive('heading', { level: 2 }) },
+                        { label: 'H3', title: 'Heading 3', action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(), isActive: () => editor.isActive('heading', { level: 3 }) },
+                        { label: '• List', title: 'Bullet List', action: () => editor.chain().focus().toggleBulletList().run(), isActive: () => editor.isActive('bulletList') },
+                        { label: '1. List', title: 'Numbered List', action: () => editor.chain().focus().toggleOrderedList().run(), isActive: () => editor.isActive('orderedList') },
+                        { label: '“ ”', title: 'Blockquote', action: () => editor.chain().focus().toggleBlockquote().run(), isActive: () => editor.isActive('blockquote') },
+                        { label: '{ }', title: 'Code Block', action: () => editor.chain().focus().toggleCodeBlock().run(), isActive: () => editor.isActive('codeBlock') },
+                    ],
+                    [
+                        { label: '∑ Eq', title: 'Insert Equation', action: () => window.openMathModal({ mode: 'inline' }) },
+                        { label: '⊞ Table', title: 'Insert 3x3 Table', action: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(), isActive: () => editor.isActive('table') },
+                        { label: '+Row', title: 'Add Row Below', action: () => editor.chain().focus().addRowAfter().run(), isTableControl: true },
+                        { label: '-Row', title: 'Delete Row', action: () => editor.chain().focus().deleteRow().run(), isTableControl: true },
+                        { label: '+Col', title: 'Add Column Right', action: () => editor.chain().focus().addColumnAfter().run(), isTableControl: true },
+                        { label: '-Col', title: 'Delete Column', action: () => editor.chain().focus().deleteColumn().run(), isTableControl: true },
+                        { label: '×Table', title: 'Delete Table', action: () => editor.chain().focus().deleteTable().run(), isTableControl: true },
+                        { label: '◫ Diagram', title: 'Insert Diagram', action: () => openDiagramEditor() },
+                    ],
+                    [
+                        {
+                            label: '⛶',
+                            title: 'Toggle Fullscreen Mode',
+                            action: () => {
+                                editorWrapper.classList.toggle('fullscreen-active');
+                                document.body.classList.toggle('editor-lock-scroll');
+                            },
+                            isActive: () => editorWrapper.classList.contains('fullscreen-active'),
+                        },
+                    ],
+                ];
+
+                const buttonEntries = [];
+                toolbarGroups.forEach(group => {
+                    const groupEl = document.createElement('div');
+                    groupEl.className = 'tiptap-toolbar-group';
+                    group.forEach(item => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'tiptap-toolbar-btn';
+                        btn.textContent = item.label;
+                        btn.title = item.title;
+                        btn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            item.action();
+                            updateToolbarState();
+                        });
+                        groupEl.appendChild(btn);
+                        buttonEntries.push({ btn, item });
+                    });
+                    toolbar.appendChild(groupEl);
+                });
+
+                function updateToolbarState() {
+                    const inTable = editor.isActive('table');
+                    buttonEntries.forEach(({ btn, item }) => {
+                        if (item.isActive) {
+                            btn.classList.toggle('active', item.isActive());
                         }
-                    },
-                    placeholder: 'Write your note here...',
-                    theme: 'snow'
-                };
-                const editor = new Quill(quillContainer, themeOptions);
-                window.quillEditor = editor;
-
-                const readModeBtn = editorWrapper.querySelector('.ql-readmode');
-                if (readModeBtn) {
-                    readModeBtn.innerHTML = `
-            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-            </svg>`;
-                    readModeBtn.title = "Open Read Mode";
-                }
-
-                const fullscreenBtn = editorWrapper.querySelector('.ql-fullscreen');
-                if (fullscreenBtn) {
-                    fullscreenBtn.innerHTML = `
-            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-            </svg>`;
-                    fullscreenBtn.title = "Toggle Fullscreen Mode";
-                }
-
-                const addDiagramBtn = editorWrapper.querySelector('.ql-diagram');
-                if (addDiagramBtn) {
-                    addDiagramBtn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
-                    <circle cx="9" cy="9" r="2"></circle>
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
-                    <path d="M15 3h6v6"></path>
-                </svg>
-                `;
-                    addDiagramBtn.title = "Add Diagram";
-                }
-
-                const syncDiagramAttributes = () => {
-                    const imgs = editor.root.querySelectorAll('img');
-                    imgs.forEach(img => {
-                        const src = img.getAttribute('src') || '';
-                        const match = src.match(/\/diagram_image\/(\d+)\.png/);
-                        if (match) {
-                            if (!img.classList.contains('diagram-image')) {
-                                img.classList.add('diagram-image');
-                            }
-                            if (!img.hasAttribute('data-diagram-id')) {
-                                img.setAttribute('data-diagram-id', match[1]);
-                            }
+                        if (item.isTableControl) {
+                            btn.disabled = !inTable;
                         }
                     });
-                };
-
-                editor.on('text-change', syncDiagramAttributes);
-
-                if (textarea.value) {
-                    const htmlFromMarkdown = typeof renderMarkdown === 'function'
-                        ? renderMarkdown(textarea.value)
-                        : marked.parse(textarea.value);
-                    editor.clipboard.dangerouslyPasteHTML(htmlFromMarkdown);
-                    setTimeout(syncDiagramAttributes, 50);
                 }
 
-                const turndownService = new TurndownService();
+                editor.on('selectionUpdate', updateToolbarState);
+                editor.on('transaction', updateToolbarState);
+                updateToolbarState();
+
+                if (textarea.value) {
+                    window.loadMarkdownIntoTiptap(editor, textarea.value);
+                }
+
                 textarea.form.addEventListener('submit', function() {
                     isFormSubmitting = true;
-                    const htmlContent = editor.getSemanticHTML();
-                    const markdownContent = turndownService.turndown(htmlContent);
+                    const rawMarkdown = editor.getMarkdown()
+                        .replace(/\\?\[\\?\[MERMAID_START\\?\]\\?\]/g, '[[MERMAID_START]]')
+                        .replace(/\\?\[\\?\[MERMAID_END\\?\]\\?\]/g, '[[MERMAID_END]]');
 
-                    textarea.value = markdownContent;
+                    textarea.value = rawMarkdown;
+                    const htmlContent = editor.getHTML();
 
                     let htmlHiddenInput = document.getElementById('htmlNoteContent');
                     if (!htmlHiddenInput) {
@@ -800,6 +1052,13 @@ window.convertPendingMermaidNotes = async function(notes) {
         });
         if (savedRes.ok) {
             window.mermaid_pending_set.delete(note.note_id);
+            if (
+                window.tiptapEditor &&
+                window.currentEditingNoteId === note.note_id &&
+                typeof window.loadMarkdownIntoTiptap === 'function'
+            ) {
+                window.loadMarkdownIntoTiptap(window.tiptapEditor, updatedMd);
+            }
         }
     }
     iframe.src = 'about:blank';
@@ -846,7 +1105,7 @@ window.addEventListener('pagehide', (e) => {
                 processEscapes: true
             },
             options: {
-                ignoreHtmlClass: 'ql-editor|ql-toolbar'
+                ignoreHtmlClass: 'ProseMirror|tiptap-toolbar'
             }
         };
     </script>

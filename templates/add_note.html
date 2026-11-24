@@ -3,8 +3,6 @@
 {% block title %}Add Note{% endblock %}
 
 {% block content %}
-    <button class="button top-left-back-btn hidden" id="backToEditBtn">↩ Back</button>
-
     <header>
         <h1 id="noteTitleDisplay">Add a note</h1>
     </header>
@@ -36,7 +34,4 @@
             <a class="button cancel" href="{{url_for('notes.notes')}}">Cancel</a>
         </div>
     </form>
-        <div id="read-note-content" class="markdown-body hidden">
-
-    </div>
 {% endblock %}
