@@ -20,23 +20,26 @@ In short: NVLearn helps a learner move from passive note storage to active revis
 
 ## Main Features
 
-- User registration and login with password hashing.
-- Six-digit email verification during registration and login.
+- User registration and login with password hashing, six-digit email verification (2FA), password visibility toggle on auth forms, and `/logout` session sign-out.
 - Personal note CRUD workflow:
   - create notes
   - edit notes
-  - read notes
   - move notes to bin
   - restore notes
   - permanently delete notes
+- **TipTap v3 Note Editor & Live Equations**:
+  - Local, offline-ready rich-text Markdown editor (`static/js/tiptap-bundle.js`) with a wider 1040px editing layout and fullscreen mode.
+  - Structured tables with contextual row/column controls, syntax-highlighted code blocks (`lowlight`), and a customizable toolbar.
+  - Live inline (`$...$`) and display (`$$...$$`) **KaTeX** equation rendering directly inside the editor, plus a centered **Equation Editor** modal with real-time preview and symbol shortcuts (replacing the old Read Mode toggle).
 - Integrated Draw.io visual diagramming:
   - Create and insert flowcharts, UML diagrams, mind maps, and technical drawings directly inside notes.
   - Click any existing diagram image in the note editor to re-open and continue drawing/editing.
   - Active pointer cursor and visual highlight indicators when hovering over diagram images.
   - Export diagrams in `xmlpng` format with embedded editable XML metadata for full editability.
   - Toggle Draw.io modal window between centered floating mode and 100vw/100vh full-screen view.
-- Document import with OCR and diagram preservation:
-  - Upload PDFs and DOCX files to extract their text into a new note.
+- Document import and **Camera Multi-Photo Upload** with OCR and diagram preservation:
+  - Upload PDFs, DOCX files, and images to extract their text into a new note.
+  - Capture up to 8 photos in the Camera modal (`files[]` multi-file upload), merged into an in-memory PDF for Gemini OCR and saved as diagram assets.
   - For scanned PDF pages without an embedded text layer, NVLearn renders the page and uses Tesseract OCR as a fallback.
   - Images embedded in imported PDFs and DOCX files are normalized to PNG, saved as diagram assets, and inserted into the note as diagram images.
 - AI-powered OCR post-formatting:
@@ -46,50 +49,38 @@ In short: NVLearn helps a learner move from passive note storage to active revis
 - AI-generated Mermaid diagrams for notes:
   - When creating a note, the AI can generate a Mermaid flowchart, sequence diagram, or other helpful visual when it improves the explanation.
   - When editing a note, users can ask the AI to add a new Mermaid diagram without changing existing diagram images or unrelated note content.
-  - Mermaid source is converted into a saved, editable Draw.io diagram and inserted into the note, so it can later be opened and refined in the diagram editor.
+  - Mermaid source is converted in the background into a saved, editable Draw.io diagram and inserted into the note (and synced into an open editor), so it can later be opened and refined in the diagram editor.
 - Diagram-aware AI note actions:
   - The AI receives diagram images together with the note text when it creates metadata, answers questions, summarizes, searches, or performs other note actions.
   - This lets the AI use diagrams already embedded in a note as part of its understanding, rather than treating them as ignored attachments.
-- Rich-text Quill.js note editor with fullscreen mode and read-mode shortcut.
-- Markdown note rendering with support for code blocks, tables, and math formatting.
-- AI assistant chat.
-- AI note generation.
-- AI note search, edit-note actions, and note actions, including ChromaDB-backed vector search for note actions.
-- AI flashcard generation.
-- Flashcard review analytics:
-  - Track the proportion of cards marked **Needs Review** in each saved flashcard set.
-  - Prioritize the saved sets with the highest review ratio on the home page, helping learners focus on weaker topics.
-- AI quiz generation.
-- Practice Hub for saved flashcards and saved quizzes.
-- Quiz scoring with correct, wrong, unanswered, and percentage score tracking.
-- Practice analytics for overall quiz performance and performance by relevant quiz tags.
+- **Persistent AI Chat Sessions**:
+  - Server-backed chat history (`ChatSession` / `ChatMessage`) with automatic AI-generated session titles (`rename_chat`), sidebar **Chats** modal, inline rename, and delete.
+  - Backend loads up to the last 50 messages and trims context to a 6,000-token budget (`MAX_CONTEXT_TOKENS`) before routing.
+- **Universal Markdown & LaTeX Rendering**:
+  - Math-protected Markdown rendering (`Marked.js` + `DOMPurify` on the client, `md_to_html` on the server) and Light/Dark typography styling (headings, tables, blockquotes, fenced code blocks) across AI chat, saved sessions, and flashcards.
+- AI note generation, search, edit-note actions, and ChromaDB-backed vector search (with improved search topic extraction).
+- AI flashcard and quiz generation, Practice Hub, flashcard review analytics, and quiz scoring/tag analytics (with aligned quiz card stats).
 - Client-side note sorting by title and last-opened time.
-- Background cleanup jobs for unsaved flashcards and quizzes.
-- SQLite database storage through SQLAlchemy.
-- Local ChromaDB vector storage for semantic note retrieval.
+- Background cleanup jobs for unsaved flashcards, quizzes, and draft diagrams.
+- SQLite database storage (WAL mode with 30s `busy_timeout`) through SQLAlchemy and local ChromaDB vector storage.
 
 ## Tech Stack
 
 - Python
 - Flask (application factory + blueprints)
-- Flask-SQLAlchemy
-- SQLAlchemy
-- Flask-Login
-- Flask-WTF
-- Flask-Migrate (Alembic)
-- WTForms
-- SQLite
+- Flask-SQLAlchemy / SQLAlchemy / Flask-Migrate (Alembic)
+- Flask-Login / Flask-WTF / WTForms
+- SQLite (WAL mode + 30s `busy_timeout`)
 - APScheduler
 - python-dotenv
-- Draw.io (Embed API / Diagrams.net)
-- Mermaid diagram syntax (generated by AI and imported through Draw.io)
-- Quill.js (Rich-text editor)
-- Turndown.js & Marked.js (Markdown parsing & HTML conversion)
-- MathJax (LaTeX math rendering)
-- Markdown / pymdown-extensions
-- Google Gemini API (content generation, note formatting, vision)
-- Cloudflare Workers AI (intent routing)
+- **TipTap v3** (`static/js/tiptap-bundle.js` with `@tiptap/markdown`, `@tiptap/extension-table`, `@tiptap/extension-code-block-lowlight`, `@tiptap/extension-mathematics`, and local **KaTeX** assets)
+- **Marked.js** & **DOMPurify** (math-protected Markdown rendering in chat)
+- **MathJax v3** (LaTeX rendering in chat and flashcards)
+- **Draw.io** (`embed.diagrams.net` Embed API) & Mermaid diagram syntax
+- **Cloudflare Workers AI** (`@cf/meta/llama-3.3-70b-instruct-fp8-fast` with structured JSON schema output, `max_tokens: 4096`) for intent routing
+- **Google Gemini API** (content generation, note formatting, OCR, vision)
 - ChromaDB
+- GitHub Actions CI (`pytest`)
 - Gmail SMTP or another compatible SMTP email account
 - HTML, CSS, and vanilla JavaScript
 
@@ -103,10 +94,11 @@ run.py                          ← start here (dev)
     ▼
 app/__init__.py  (create_app)
     ├── loads Config (app/config.py)
+    ├── enables SQLite WAL + 30s busy_timeout
     ├── initializes db, migrate, login_manager (app/extensions.py)
     ├── registers blueprints
     │     ├── main/      auth/      notes/      uploads/
-    │     └── diagrams/  ai/        practice/
+    │     └── diagrams/  ai/        chat/       practice/
     ├── runs db.create_all()
     └── starts APScheduler (app/jobs.py)
                 │
@@ -114,7 +106,7 @@ app/__init__.py  (create_app)
         app/services/*          ← shared business logic
                 │
                 ▼
-        helpers.py, vector_store.py, prompts.py
+        ai_service.py, utils.py, vector_store.py, prompts.py
         (external integrations + utilities)
 ```
 
@@ -131,24 +123,26 @@ app/__init__.py  (create_app)
 study-project/
 +-- run.py                 # Application entrypoint — create_app() + app.run()
 +-- app/
-|   +-- __init__.py        # create_app() factory, user_loader, logging setup
-|   +-- config.py          # Config class (SECRET_KEY, DB URI, TTLs, DEFAULT_TAGS)
+|   +-- __init__.py        # create_app() factory, SQLite WAL pragmas, user_loader, logging
+|   +-- config.py          # Config class (SECRET_KEY, DB URI, TTLs, MAX_CONTEXT_TOKENS, DEFAULT_TAGS)
 |   +-- extensions.py      # db, migrate, login_manager, scheduler instances
-|   +-- models.py          # Note, User, Flashcard, Quiz, QuizAttempt, Diagram
+|   +-- models.py          # Note, User, Flashcard, Quiz, QuizAttempt, Diagram, ChatSession, ChatMessage
 |   +-- jobs.py            # Background scheduler jobs (metadata, cleanup, rollback)
 |   +-- services/
 |   |   +-- auth_service.py      # 2FA session helpers
 |   |   +-- diagram_service.py   # diagram linking + multimodal preparation
 |   |   +-- metadata_service.py  # AI metadata generation + normalization
-|   |   +-- note_service.py      # vector search, chunking, batch summaries
+|   |   +-- note_service.py      # vector search, chunking, token trimming, batch summaries
 |   +-- main/              # Home, About, 404 handler
 |   +-- auth/              # Register, login, logout (2FA)
 |   +-- notes/             # CRUD, bin, search, mermaid conversion
-|   +-- uploads/           # PDF/DOCX/image ingestion
+|   +-- uploads/           # PDF/DOCX/multi-photo camera ingestion
 |   +-- diagrams/          # save, restore, image serving
 |   +-- ai/                # chat + multi-action AI orchestrator
+|   +-- chat/              # persistent chat session list, get, rename, delete
 |   +-- practice/          # flashcards, quizzes, analytics
-+-- helpers.py             # Email helpers, AI clients, AI parsing, markdown rendering
++-- ai_service.py          # Cloudflare Workers AI router + Gemini callers
++-- utils.py               # Pure helpers (math-protected md_to_html, 2FA codes, greetings)
 +-- forms.py               # Flask-WTF forms for notes, auth, and verification
 +-- prompts.py             # AI system prompts for chat, notes, flashcards, quizzes, metadata
 +-- vector_store.py        # ChromaDB vector store helpers for note embeddings and semantic search
@@ -160,10 +154,12 @@ study-project/
 |   +-- notes.db           # SQLite database, created/used locally
 |   +-- chroma_db/         # ChromaDB vector database, created/used locally
 +-- static/
-|   +-- css/styles.css     # App styles
-|   +-- js/script.js       # Client-side interactions
+|   +-- css/styles.css     # App styles (light/dark themes, markdown typography, TipTap)
+|   +-- js/script.js       # Client-side interactions, universal Markdown/MathJax renderer
+|   +-- js/tiptap-bundle.js # Local offline-ready TipTap v3 + KaTeX + lowlight bundle
+|   +-- vendor/katex/      # Local KaTeX CSS and fonts
 +-- templates/             # Jinja templates
-+-- tests/                 # Pytest suite (unit, route, ownership, AI, auth)
++-- tests/                 # Pytest suite (~118 tests across 8 modules)
 ```
 
 ## Requirements
@@ -260,7 +256,7 @@ The script indexes every active (non-binned) note and reports the sync result. I
 
 ## Environment Variables and API Keys
 
-The app reads secrets from `.env` in `helpers.py` using `python-dotenv`.
+The app loads `.env` in `app/config.py` using `python-dotenv`, and `ai_service.py` / `email_service.py` read those environment variables.
 
 ### Required Variables
 
@@ -299,18 +295,18 @@ Example:
 APP_PASSWORD=abcd efgh ijkl mnop
 ```
 
-The current SMTP settings in `helpers.py` are:
+The current SMTP settings in `email_service.py` are:
 
 ```python
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 ```
 
-If you use another email provider, update those SMTP values in `helpers.py`.
+If you use another email provider, update those SMTP values in `email_service.py`.
 
 ### `CLOUDFLARE_API_TOKEN`
 
-This token authenticates NVLearn's AI intent router with Cloudflare Workers AI. The router uses the Workers AI REST API and the `@cf/meta/llama-3.1-8b-instruct` model to decide whether a request should be handled as chat, note creation, note retrieval, note editing, flashcard generation, or quiz generation. Gemini then generates the requested study content.
+This token authenticates NVLearn's AI intent router with Cloudflare Workers AI. The router uses the Workers AI REST API and the `@cf/meta/llama-3.3-70b-instruct-fp8-fast` model with structured JSON schema output (`max_tokens: 4096`) to decide whether a request should be handled as chat, note creation, note retrieval, note editing, flashcard generation, quiz generation, or chat session titling (`rename_chat`). Gemini then generates the requested study content.
 
 To create the token:
 
@@ -403,6 +399,8 @@ Flask stores this database under the app instance folder:
 ```text
 instance/notes.db
 ```
+
+On every SQLite connection, `app/__init__.py` enables Write-Ahead Logging (`PRAGMA journal_mode=WAL;`) and a 30-second busy timeout (`PRAGMA busy_timeout=30000;`) so concurrent APScheduler background jobs and web requests do not hit lock errors.
 
 ### Managing Schema Changes with Flask-Migrate
 
@@ -514,7 +512,7 @@ Use `/add_note` to create notes manually. Notes support markdown-style content, 
 
 ### 4. Create and Edit Diagrams
 
-In the note editor, click the **Add Diagram** button in the Quill toolbar to open the Draw.io editor modal. Create or design flowcharts, UML diagrams, or mind maps, and click **Save** inside Draw.io to insert the diagram directly into your note. You can click any existing diagram image inside your note at any time to re-open it in Draw.io and continue editing.
+In the note editor, click the **Diagram** button in the TipTap editor toolbar to open the Draw.io editor modal. Create or design flowcharts, UML diagrams, or mind maps, and click **Save** inside Draw.io to insert the diagram directly into your note. You can click any existing diagram image inside your note at any time to re-open it in Draw.io and continue editing.
 
 ### 5. Import a PDF or DOCX
 
@@ -596,6 +594,9 @@ All routes and their URL paths are unchanged from previous versions. Blueprints 
 | `/search-results/<query>` | Search results page |
 | `/ai-chat` | AI assistant page |
 | `/ai-response` | AI assistant API endpoint |
+| `/api/chat/sessions` | List saved chat sessions for the current user |
+| `/api/chat/sessions/<session_id>` | Load (`GET`) or delete (`DELETE`) a saved chat session |
+| `/api/chat/sessions/<session_id>/rename` | Rename a saved chat session (`POST`) |
 | `/save_mermaid_notes` | Persist AI-converted Mermaid diagrams |
 | `/mark_mermaid_pending` | Flag notes for background Mermaid conversion |
 | `/get_pending_mermaid_notes` | Fetch notes needing Mermaid conversion |
@@ -657,7 +658,7 @@ Check:
 - `EMAIL` is set correctly.
 - `APP_PASSWORD` is set correctly.
 - Gmail App Passwords are enabled.
-- The SMTP server and port in `helpers.py` match your email provider.
+- The SMTP server and port in `email_service.py` match your email provider.
 - Your email provider has not blocked SMTP sign-in.
 
 ### AI chat responds with errors
@@ -668,7 +669,7 @@ Check:
 - `CLOUDFLARE_ACCOUNT_ID` matches the account that owns the Workers AI token.
 - `GEMINI_API_KEY` is present and valid.
 - Your Cloudflare Workers AI and Gemini accounts have available quota or billing access.
-- The Workers AI model and Gemini model names in `helpers.py` are available for your accounts.
+- The Workers AI model and Gemini model names in `ai_service.py` are available for your accounts.
 
 If Cloudflare returns an authentication or authorization error, create a new scoped Workers AI token, confirm the two Workers AI permissions, update `.env`, and restart the Flask app. If the response is a rate-limit error, wait a few minutes before retrying.
 
@@ -745,10 +746,10 @@ Each PDF/DOCX upload with diagrams makes one Gemini vision call after extraction
 
 ### `database is locked` errors under load
 
-WAL mode with a 10-second `busy_timeout` is enabled by default. If you still see `database is locked`, check:
+WAL mode with a 30-second `busy_timeout` is enabled by default. If you still see `database is locked`, check:
 
 - Multiple processes are writing to the same `notes.db` (for example, two dev servers running). Stop the extra instance.
-- A long-running transaction is holding the write lock. Check `app/jobs.py` for any job that runs longer than 10 seconds.
+- A long-running transaction is holding the write lock. Check `app/jobs.py` for any job that runs longer than 30 seconds.
 - The filesystem does not support WAL (some network filesystems). Move `notes.db` to a local disk.
 
 ### CSS or JavaScript changes do not appear
@@ -767,30 +768,34 @@ That helps reduce caching, but the browser may still cache files. Try a hard ref
 ### Where code lives
 
 - **`run.py`** — entrypoint (dev server + factory call)
-- **`app/__init__.py`** — `create_app()` factory, blueprint registration, scheduler startup, user loader
-- **`app/config.py`** — all constants and app config (SECRET_KEY, DB URI, verification TTL, cooldown, DEFAULT_TAGS)
+- **`app/__init__.py`** — `create_app()` factory, SQLite WAL/`busy_timeout` pragmas, blueprint registration, scheduler startup, user loader
+- **`app/config.py`** — all constants and app config (`SECRET_KEY`, DB URI, verification TTL, cooldown, `MAX_CONTEXT_TOKENS`, `DEFAULT_TAGS`)
 - **`app/extensions.py`** — `db`, `migrate`, `login_manager`, `scheduler` instances
-- **`app/models.py`** — every SQLAlchemy model
+- **`app/models.py`** — every SQLAlchemy model (`Note`, `User`, `Flashcard`, `Quiz`, `QuizAttempt`, `Diagram`, `ChatSession`, `ChatMessage`)
 - **`app/jobs.py`** — four background scheduler jobs
 - **`app/services/`** — business logic reused by routes and jobs:
   - `auth_service.py` — 2FA session helpers
   - `diagram_service.py` — diagram linking, multimodal preparation
   - `metadata_service.py` — AI metadata generation and normalization
-  - `note_service.py` — vector search, chunking, batch summaries, AI note formatting
+  - `note_service.py` — vector search, chunking, token trimming, batch summaries, AI note formatting
 - **`app/<blueprint>/`** — routes grouped by feature:
   - `main/` — home, about, 404
   - `auth/` — register, login, logout
   - `notes/` — CRUD, bin, search, Mermaid
-  - `uploads/` — PDF/DOCX/image ingestion
+  - `uploads/` — PDF/DOCX/multi-photo camera ingestion
   - `diagrams/` — save, restore, image serving
   - `ai/` — chat + multi-action orchestrator
+  - `chat/` — persistent chat session list, get, rename, delete
   - `practice/` — flashcards, quizzes, analytics
-- **`helpers.py`** — external integrations (Gemini, SMTP, Cloudflare) + pure utilities
+- **`ai_service.py`** — Cloudflare Workers AI router + Gemini callers
+- **`email_service.py`** — SMTP verification email helpers
+- **`utils.py`** — pure helpers (math-protected `md_to_html`, 2FA codes, greetings)
 - **`prompts.py`** — AI prompt templates
 - **`vector_store.py`** — ChromaDB client and sync
 - **`forms.py`** — WTForms definitions
-- **`templates/base.html`** — shared layout and navigation
-- **`static/js/script.js`** — main client behavior
+- **`templates/base.html`** — shared layout, TipTap editor + Equation modal, Draw.io + background Mermaid worker
+- **`static/js/script.js`** — main client behavior and universal Markdown/MathJax renderer
+- **`static/js/tiptap-bundle.js`** — local offline-ready TipTap v3 + KaTeX + lowlight bundle
 - **`tests/`** — pytest suite, fixtures (`conftest.py`), and coverage tests
 
 ### Adding a new endpoint
@@ -877,13 +882,16 @@ pytest --cov=app --cov=utils --cov=ai_service --cov-report=term-missing
 
 #### What's covered
 
-- `test_utils.py` — pure functions (`md_to_html`, `create_code`, `get_welcome_message`)
-- `test_ai_service.py` — AI validation helpers (`is_ai_error`, `parse_json_object`, `is_rate_limit_error`, `validate_router_response`)
-- `test_services.py` — chunking, `extract_topic_for_search`
+GitHub Actions CI runs `pytest` on pushes and pull requests (~118 tests across 8 test modules):
+
+- `test_utils.py` — pure functions (`md_to_html` with LaTeX preservation, `create_code`, `get_welcome_message`)
+- `test_ai_service.py` — AI validation helpers (`is_ai_error`, `parse_json_object`, `is_rate_limit_error`, `validate_router_response`, `rename_chat` handling)
+- `test_services.py` — chunking, `extract_topic_for_search`, `count_tokens`, `trim_messages_to_budget`
 - `test_notes.py` — notes CRUD + cross-user ownership enforcement
 - `test_practice.py` — flashcard/quiz ownership + happy paths
 - `test_auth.py` — register/login/logout with mocked email
 - `test_ai.py` — AI orchestrator with monkeypatched Gemini/Cloudflare calls
+- `test_chats.py` — persistent chat session list/get/rename/delete, ownership checks, and `/ai-response` history loading & persistence
 
 Pure functions are tested directly. Route ownership tests assert both the response and that the DB state is unchanged (to catch mutate-before-check bugs), and external AI/SMTP calls are always monkeypatched.
 
