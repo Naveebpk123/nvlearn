@@ -37,15 +37,13 @@ In short: NVLearn helps a learner move from passive note storage to active revis
   - Active pointer cursor and visual highlight indicators when hovering over diagram images.
   - Export diagrams in `xmlpng` format with embedded editable XML metadata for full editability.
   - Toggle Draw.io modal window between centered floating mode and 100vw/100vh full-screen view.
-- Document import and **Camera Multi-Photo Upload** with OCR and diagram preservation:
-  - Upload PDFs, DOCX files, and images to extract their text into a new note.
-  - Capture up to 8 photos in the Camera modal (`files[]` multi-file upload), merged into an in-memory PDF for Gemini OCR and saved as diagram assets.
-  - For scanned PDF pages without an embedded text layer, NVLearn renders the page and uses Tesseract OCR as a fallback.
-  - Images embedded in imported PDFs and DOCX files are normalized to PNG, saved as diagram assets, and inserted into the note as diagram images.
-- AI-powered OCR post-formatting:
-  - After PDF/DOCX extraction, a Gemini pass cleans up the raw OCR output: splits paragraph walls at natural topic boundaries, promotes detected section titles to Markdown headings, rebuilds collapsed lists, reconstructs flattened tables, normalizes spacing, and fixes only 100% unambiguous OCR typos.
-  - The same pass repositions diagrams: each embedded image is sent to Gemini alongside the text, and the AI moves its placeholder next to the paragraph or section that describes what the image shows.
-  - Content is never invented, summarized, or paraphrased — the pass is guarded by placeholder-preservation, invented-ID rejection, and a 5% word-drift tolerance. Any failure falls back to the original OCR text, so uploads always succeed.
+- **Section-Wise OCR & Inline Diagram Localization** (`app/services/extraction_service.py`):
+  - Splits PDFs, DOCX files, and camera photos into ordered `Region(text | diagram)` blocks in human reading order so diagrams sit **inline** where they appeared on the page rather than being appended at the end.
+  - **Digital PDFs**: Deterministic `pymupdf` (`get_text("dict")`) extraction of text blocks, raster images, and clustered vector drawings (`>60×60 pt`), sorted using spanning-band and vertical column-gutter detection so multi-column papers and full-width figures never interleave.
+  - **DOCX Files**: Sequential `word/document.xml` traversal preserving inline images (`a:blip` / `v:imagedata`, skipping duplicate `<mc:Fallback>` blocks) and converting Word tables (`w:tbl`) into Markdown pipe tables.
+  - **Camera Multi-Photo & Scanned Pages**: EXIF-transposed photos and 200 DPI scanned PDF pages are packed via **dynamic byte-budget batching** (up to **19 MB base64 per Gemini Vision request**, 1 MB under the 20 MB ceiling; up to **45 MB** client camera cap / **50 MB** server upload limit—removing the old 8-photo count cap). Gemini Vision (`detect_regions`, `max_output_tokens=32768`) detects `box_2d` coordinates (`0–1000`) for hand-drawn sketches or printed diagrams and transcribes handwritten/printed text & LaTeX in one pass; `Pillow` crops each diagram with 15px padding inline, with recursive half-batch splitting and `pytesseract` fallback on error.
+- **AI Post-Formatting Polish**:
+  - `format_note_content` runs a text-only Gemini pass that cleans up paragraph walls, headings, lists, and tables while keeping `%%__DIAGRAM_N__%%` placeholders anchored in place (guarded by placeholder-preservation, invented-ID rejection, and a 5% word-drift tolerance). Any failure falls back to the extracted text, so uploads always succeed.
 - AI-generated Mermaid diagrams for notes:
   - When creating a note, the AI can generate a Mermaid flowchart, sequence diagram, or other helpful visual when it improves the explanation.
   - When editing a note, users can ask the AI to add a new Mermaid diagram without changing existing diagram images or unrelated note content.
@@ -78,7 +76,7 @@ In short: NVLearn helps a learner move from passive note storage to active revis
 - **MathJax v3** (LaTeX rendering in chat and flashcards)
 - **Draw.io** (`embed.diagrams.net` Embed API) & Mermaid diagram syntax
 - **Cloudflare Workers AI** (`@cf/meta/llama-3.3-70b-instruct-fp8-fast` with structured JSON schema output, `max_tokens: 4096`) for intent routing
-- **Google Gemini API** (content generation, note formatting, OCR, vision)
+- **Google Gemini API** (two-tier model fallback chain across Gemini 4, 3.8, 3.6, 3 Flash, 2.5 Flash, and Flash-Lite models for content generation, formatting, OCR, and vision localization)
 - ChromaDB
 - GitHub Actions CI (`pytest`)
 - Gmail SMTP or another compatible SMTP email account
@@ -129,10 +127,11 @@ study-project/
 |   +-- models.py          # Note, User, Flashcard, Quiz, QuizAttempt, Diagram, ChatSession, ChatMessage
 |   +-- jobs.py            # Background scheduler jobs (metadata, cleanup, rollback)
 |   +-- services/
-|   |   +-- auth_service.py      # 2FA session helpers
-|   |   +-- diagram_service.py   # diagram linking + multimodal preparation
-|   |   +-- metadata_service.py  # AI metadata generation + normalization
-|   |   +-- note_service.py      # vector search, chunking, token trimming, batch summaries
+|   |   +-- auth_service.py        # 2FA session helpers
+|   |   +-- diagram_service.py     # diagram linking + multimodal preparation
+|   |   +-- extraction_service.py  # section-wise PDF/DOCX/image OCR + diagram localization
+|   |   +-- metadata_service.py    # AI metadata generation + normalization
+|   |   +-- note_service.py        # vector search, chunking, token trimming, batch summaries
 |   +-- main/              # Home, About, 404 handler
 |   +-- auth/              # Register, login, logout (2FA)
 |   +-- notes/             # CRUD, bin, search, mermaid conversion
@@ -159,7 +158,7 @@ study-project/
 |   +-- js/tiptap-bundle.js # Local offline-ready TipTap v3 + KaTeX + lowlight bundle
 |   +-- vendor/katex/      # Local KaTeX CSS and fonts
 +-- templates/             # Jinja templates
-+-- tests/                 # Pytest suite (~118 tests across 8 modules)
++-- tests/                 # Pytest suite (~125+ tests across 9 modules)
 ```
 
 ## Requirements
@@ -335,16 +334,14 @@ CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id
 
 ### `GEMINI_API_KEY`
 
-Used by `ask_gemini()` for content generation tasks, including:
+Used by `ask_gemini()` in `ai_service.py` for content generation, formatting, and vision tasks. `ask_gemini()` uses a **two-tier model fallback chain** to maximize quality while preserving daily quotas:
 
-- note creation
-- note actions
-- metadata generation
-- response summarization
-- flashcard generation
-- quiz generation
+- **Full-capability chain (`all_models`)** — used for note creation, note actions, flashcards, quizzes, note editing, formatting, and vision region localization (`detect_regions`):
+  `gemini-4-hydrogen` → `gemini-3.8-flash` → `gemini-3.6-flash` → `gemini-3-flash-preview` → `gemini-2.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-2.5-flash-lite`
+- **Lightweight chain (`lite_models`)** — used for high-frequency utility and background tasks (`metadata`, `batch_summary`, `summarize`) to preserve full-model daily quotas:
+  `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-2.5-flash-lite`
 
-The app attempts several Gemini model names in sequence. If one fails, it tries the next one.
+If a model hits a rate limit (`429`) or transient error, `ask_gemini()` automatically steps down to the next model in the list—pooling free-tier RPM/TPM/RPD limits before falling back to chat-only mode or Tesseract OCR.
 
 ## Important Secret Notes
 
@@ -455,24 +452,28 @@ flask db downgrade
 
 ## OCR and Imported Diagrams
 
-PDF and DOCX uploads are imported as notes. For PDFs, NVLearn first reads the page text directly. If a page is image-only or its text layer is empty, it renders that page at 150 DPI and passes the resulting image to Tesseract OCR. This means OCR quality depends on the source scan; clear, upright pages with readable text work best.
+PDF, DOCX, and image/camera uploads are processed through the unified section-wise extraction pipeline in `app/services/extraction_service.py`, producing an ordered sequence of `Region(text | diagram)` blocks in human reading order:
 
-For both PDFs and DOCX files, embedded images are retained as separate diagram records rather than discarded. They are converted to PNG when needed and inserted into the imported note as `![Diagram](/diagram_image/<id>.png)`. Once imported, the images behave like other note diagrams: they can be reopened in Draw.io, edited, and used as visual context for AI note actions.
+- **Digital PDFs** — `pymupdf` (`get_text("dict")`) extracts text blocks, raster images, and clustered vector drawings (`>60×60 pt`), sorted with spanning-band and vertical column-gutter detection so multi-column papers and full-width figures never interleave.
+- **Scanned PDFs & Camera Photos** — PDF pages with `< 30` non-whitespace characters (or `> 15%` garbled `\ufffd`) are rendered at **200 DPI**, and camera photos (with EXIF orientation transpose) are packed into **19 MB base64** batches (up to 45 MB client / 50 MB server limit, with no photo count cap). Gemini Vision (`detect_regions`, `max_output_tokens=32768`) detects `box_2d` coordinates (`0–1000`) for diagrams and transcribes text/LaTeX inline; `Pillow` crops each diagram with 15px padding, with recursive half-batch splitting and `pytesseract` fallback on error.
+- **DOCX Files** — `word/document.xml` is walked sequentially to preserve inline images (`a:blip` / `v:imagedata`, skipping duplicate `<mc:Fallback>` blocks) and convert Word tables (`w:tbl`) into Markdown pipe tables.
+
+Extracted diagrams are saved as PNG `Diagram` records and inserted **inline** at their exact reading-order position as `![Diagram](/diagram_image/<id>.png)`, where they can be reopened in Draw.io or used as visual context for AI note actions.
 
 ## AI Note Formatting for Uploads
 
-Raw OCR output is often a single wall of text with no headings, collapsed lists, and diagrams dumped at the end. After extraction, NVLearn runs a single Gemini formatting pass (`format_note_content` in `app/services/note_service.py`) that produces a clean Markdown note before saving.
+Because `extraction_service.py` already places diagrams inline during extraction, `format_note_content` (`app/services/note_service.py`) runs a **text-only** Gemini formatting pass to polish paragraph walls, headings, lists, and tables before saving.
 
 ### What the pass does
 
-1. **Prepares the input** — each diagram URL (`![Diagram](/diagram_image/N.png)`) is replaced with a machine-parseable placeholder `%%__DIAGRAM_N__%%`, and the underlying diagram bytes are attached as Gemini vision parts.
-2. **Calls Gemini** with the placeholder text plus images, using `NOTE_FORMATTING_PROMPT` (`prompts.py`) and the `format_note` action in `ask_gemini`.
+1. **Prepares the input** — each inline diagram URL (`![Diagram](/diagram_image/N.png)`) is replaced with a machine-parseable placeholder `%%__DIAGRAM_N__%%` (no image attachments are needed since diagrams are already positioned inline).
+2. **Calls Gemini** with the placeholder text using `NOTE_FORMATTING_PROMPT` (`prompts.py`) and the `format_note` action in `ask_gemini`.
 3. **Validates the output** — the returned markdown must:
-   - Preserve every original placeholder (missing ones are appended at the end)
+   - Preserve every original placeholder in place (any missing ones are appended at the end)
    - Not introduce new placeholder IDs (invented ones are dropped on rehydration)
    - Keep word count within **5%** of the original (larger drift → discard AI output)
 4. **Rehydrates** — each `%%__DIAGRAM_N__%%` becomes `![Diagram](/diagram_image/N.png)` again, then `associate_diagrams_with_note` links the diagrams to the note.
-5. **Falls back safely** — any AI error, empty response, or failed validation causes the original OCR text to be used as-is. Uploads never fail because formatting failed.
+5. **Falls back safely** — any AI error, empty response, or failed validation causes the original extracted text to be used as-is. Uploads never fail because formatting failed.
 
 ### When it runs
 
@@ -488,7 +489,7 @@ Mermaid conversions (`/save_mermaid_notes`) are **not** reformatted — Mermaid 
 
 ### Why the output is safe
 
-The word-drift tolerance catches every common AI failure: paraphrase, summary, hallucination, and silent data loss all shift word count well past 5%. Formatting legitimately shifts a few words (list reconstruction removes gluing "and"s, table rebuilding duplicates headers), which is why the tolerance isn't zero. When drift exceeds the threshold, the AI output is discarded and the user gets the unformatted OCR note — ugly but complete, never lossy.
+The word-drift tolerance catches every common AI failure: paraphrase, summary, hallucination, and silent data loss all shift word count well past 5%. Formatting legitimately shifts a few words (list reconstruction removes gluing "and"s, table rebuilding duplicates headers), which is why the tolerance isn't zero. When drift exceeds the threshold, the AI output is discarded and the user gets the unformatted extracted note — ugly but complete, never lossy.
 
 ## Diagram Restoration
 
@@ -514,9 +515,9 @@ Use `/add_note` to create notes manually. Notes support markdown-style content, 
 
 In the note editor, click the **Diagram** button in the TipTap editor toolbar to open the Draw.io editor modal. Create or design flowcharts, UML diagrams, or mind maps, and click **Save** inside Draw.io to insert the diagram directly into your note. You can click any existing diagram image inside your note at any time to re-open it in Draw.io and continue editing.
 
-### 5. Import a PDF or DOCX
+### 5. Import a PDF, DOCX, or Camera Photos
 
-Use the file-upload option when creating a note and select a PDF or DOCX file. NVLearn extracts document text, falls back to OCR for scanned PDF pages, and preserves embedded images as editable diagrams in the resulting note. Review the imported text — especially text recovered from scans — before relying on it for study material.
+Use the file-upload or Camera capture option when creating a note to import a PDF, DOCX, or multi-photo batch (up to 45 MB in the Camera modal / 50 MB on the server). NVLearn extracts text, tables, and inline diagrams in reading order—using Gemini Vision + Pillow cropping for scanned pages and camera photos (with Tesseract OCR fallback). Review the imported text — especially text recovered from scans — before relying on it for study material.
 
 ### 6. Search Notes
 
@@ -742,7 +743,7 @@ The AI formatting pass is best-effort. If Gemini errors, drops placeholders, inv
 
 ### Uploads are slow
 
-Each PDF/DOCX upload with diagrams makes one Gemini vision call after extraction. Latency scales with note size and diagram count — typically 3–25 seconds. Uploads without diagrams that are under 800 characters skip the pass entirely and return immediately. If latency becomes a problem, the formatting pass can be moved to a background job later (see the `TODO` in `app/uploads/routes.py`); today it runs synchronously.
+Digital PDFs and DOCX files extract locally without Gemini Vision calls, while scanned PDF pages and camera photos batch up to 19 MB base64 per Gemini Vision call (`detect_regions`) before running the text-only `format_note_content` pass. Uploads without diagrams that are under 800 characters skip the formatting pass entirely and return immediately.
 
 ### `database is locked` errors under load
 
@@ -776,6 +777,7 @@ That helps reduce caching, but the browser may still cache files. Try a hard ref
 - **`app/services/`** — business logic reused by routes and jobs:
   - `auth_service.py` — 2FA session helpers
   - `diagram_service.py` — diagram linking, multimodal preparation
+  - `extraction_service.py` — section-wise PDF/DOCX/image OCR + inline diagram localization
   - `metadata_service.py` — AI metadata generation and normalization
   - `note_service.py` — vector search, chunking, token trimming, batch summaries, AI note formatting
 - **`app/<blueprint>/`** — routes grouped by feature:
@@ -882,7 +884,7 @@ pytest --cov=app --cov=utils --cov=ai_service --cov-report=term-missing
 
 #### What's covered
 
-GitHub Actions CI runs `pytest` on pushes and pull requests (~118 tests across 8 test modules):
+GitHub Actions CI runs `pytest` on pushes and pull requests (~125+ tests across 9 test modules):
 
 - `test_utils.py` — pure functions (`md_to_html` with LaTeX preservation, `create_code`, `get_welcome_message`)
 - `test_ai_service.py` — AI validation helpers (`is_ai_error`, `parse_json_object`, `is_rate_limit_error`, `validate_router_response`, `rename_chat` handling)
@@ -892,6 +894,7 @@ GitHub Actions CI runs `pytest` on pushes and pull requests (~118 tests across 8
 - `test_auth.py` — register/login/logout with mocked email
 - `test_ai.py` — AI orchestrator with monkeypatched Gemini/Cloudflare calls
 - `test_chats.py` — persistent chat session list/get/rename/delete, ownership checks, and `/ai-response` history loading & persistence
+- `test_extraction.py` — single-column, two-column, and spanning-figure digital PDF reading order, DOCX inline images/tables/`<mc:Fallback>` deduplication, byte-budget camera batching (>8 photos), diagram `Pillow` cropping, and Tesseract fallback
 
 Pure functions are tested directly. Route ownership tests assert both the response and that the DB state is unchanged (to catch mutate-before-check bugs), and external AI/SMTP calls are always monkeypatched.
 
