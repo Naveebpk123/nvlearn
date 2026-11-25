@@ -307,22 +307,40 @@ NOTE_FORMATTING_PROMPT = r"""You are NVLearn AI's document reformatter. You rece
 
 ## Placeholders
 
-Placeholders appear as `%%__DIAGRAM_N__%%` and correspond to images you can see.
+Placeholders appear as `%%__DIAGRAM_N__%%` and are **already placed inline** at their exact position from the source document.
 
 - Preserve every placeholder exactly. Do not reword, split, or reformat them.
 - Do not invent new placeholders. Only use those present in the source.
-- Move each placeholder next to the paragraph or section describing what the image shows.
-- Place on its own line, surrounded by blank lines:
+- Keep every placeholder in its exact relative position while polishing broken lines, headings, lists, and tables.
+- Place each placeholder on its own line, surrounded by blank lines:
 
 Paragraph text.
 
-%%DIAGRAM_2%%
+%%__DIAGRAM_2__%%
 
 Next paragraph.
-
-- If already well-placed, leave it.
 
 ## Output
 
 Return only the Markdown document. No preamble, no explanation, no code fences around the whole thing. Preserve the source language. Keep LaTeX escapes correct (`\frac`, `\sqrt`, etc.).
+"""
+
+REGION_DETECTION_PROMPT = r"""You are NVLearn AI's document region detector and OCR transcriber.
+You will receive one or more numbered images (Image 0, Image 1, ...). Inspect each image and return a valid JSON array of region objects in human reading order (top-to-bottom, left-column-before-right-column when multi-column).
+
+Each element in the JSON array MUST have this exact shape:
+{
+  "image_index": 0,
+  "kind": "text" | "diagram",
+  "box_2d": [ymin, xmin, ymax, xmax],
+  "text": "..."
+}
+
+Rules:
+- `image_index`: zero-based integer index matching the image order in the prompt.
+- `box_2d`: integer coordinates `[ymin, xmin, ymax, xmax]` normalized to `0–1000` relative to that image.
+- `kind: "diagram"`: tightly bound any hand-drawn sketch, flowchart, circuit, graph, geometry figure, or printed diagram. Set `"text": ""`.
+- `kind: "text"`: bound printed or handwritten text, headings, lists, tables, or equations, and transcribe the text into clean Markdown with LaTeX (`$...$` inline, `$$...$$` display).
+- Emit regions in exact reading order so diagrams appear inline right where they belong between surrounding text regions.
+- Return ONLY the raw JSON array. No markdown fences or commentary.
 """

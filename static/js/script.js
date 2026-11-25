@@ -1270,11 +1270,15 @@ if (optionUpload && noteFileInput) {
     const doneBtn = document.getElementById('cameraDoneBtn');
     const optionCamera = document.getElementById('optionCamera');
 
-    const MAX_PHOTOS = 8;
+    const MAX_CAMERA_BYTES = 45 * 1024 * 1024;
     const MAX_WIDTH = 2000;
 
     let stream = null;
     let capturedPhotos = [];
+
+    function getTotalCapturedBytes() {
+        return capturedPhotos.reduce((sum, p) => sum + (p.blob ? p.blob.size : 0), 0);
+    }
 
     function renderThumbs() {
         thumbstrip.innerHTML = '';
@@ -1312,7 +1316,7 @@ if (optionUpload && noteFileInput) {
     function updateDoneBtn() {
         doneBtn.textContent = `Done (${capturedPhotos.length})`;
         doneBtn.disabled = capturedPhotos.length === 0;
-        shutterBtn.disabled = capturedPhotos.length >= MAX_PHOTOS;
+        shutterBtn.disabled = getTotalCapturedBytes() >= MAX_CAMERA_BYTES;
     }
 
     function resetState() {
@@ -1364,8 +1368,8 @@ if (optionUpload && noteFileInput) {
     }
 
     shutterBtn.addEventListener('click', async () => {
-        if (capturedPhotos.length >= MAX_PHOTOS) {
-            flash(`Maximum ${MAX_PHOTOS} photos per note.`, 'info');
+        if (getTotalCapturedBytes() >= MAX_CAMERA_BYTES) {
+            flash('Maximum upload size budget reached (45 MB).', 'info');
             return;
         }
 
@@ -1387,6 +1391,11 @@ if (optionUpload && noteFileInput) {
             canvas.toBlob(res, 'image/jpeg', 0.92)
         );
         if (!blob) return;
+
+        if (getTotalCapturedBytes() + blob.size > MAX_CAMERA_BYTES) {
+            flash('Maximum upload size budget reached (45 MB).', 'info');
+            return;
+        }
 
         capturedPhotos.push({
             blob,

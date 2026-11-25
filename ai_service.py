@@ -460,6 +460,31 @@ def ask_gemini(question, action):
                 )
                 return response.text
 
+            elif action == "detect_regions":
+                response = gemini_client.models.generate_content(
+                    model=model,
+                    contents=build_contents(REGION_DETECTION_PROMPT, question),
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        max_output_tokens=32768,
+                    ),
+                )
+                parsed = parse_json_object(
+                    response.text,
+                    "Region detection returned invalid format.",
+                    allow_list=True,
+                )
+                if is_ai_error(parsed):
+                    return parsed
+                if isinstance(parsed, dict) and isinstance(parsed.get("regions"), list):
+                    return parsed["regions"]
+                if not isinstance(parsed, list):
+                    return ai_error(
+                        "invalid_json",
+                        "Region detection returned invalid format.",
+                    )
+                return parsed
+
         except Exception as e:
             last_error = e
             logger.warning(

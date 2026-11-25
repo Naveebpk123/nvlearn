@@ -314,12 +314,11 @@ def format_note_content(md_content, user_id):
         return md_content
 
     try:
-        placeholder_md, image_parts, valid_ids = _md_to_placeholders(
+        placeholder_md, _, valid_ids = _md_to_placeholders(
             md_content, user_id
         )
-        payload = [placeholder_md, *image_parts] if image_parts else placeholder_md
 
-        ai_result = ask_gemini(action="format_note", question=payload)
+        ai_result = ask_gemini(action="format_note", question=placeholder_md)
         if is_ai_error(ai_result):
             logger.warning(
                 "[format_note_content] AI error type=%s; returning original",

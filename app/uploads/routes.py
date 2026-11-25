@@ -1,35 +1,25 @@
 import base64
-import zipfile
-from io import BytesIO
 from pathlib import Path
-from xml.etree import ElementTree
 
-import pymupdf
-import pytesseract
 from flask import current_app, jsonify, request
 from flask_login import current_user, login_required
-from PIL import Image
 
 from . import bp
 from ..extensions import db
 from ..models import Diagram, Note
+from ..services.extraction_service import (
+    Region,
+    extract_docx_regions,
+    extract_images_regions,
+    extract_pdf_regions,
+)
 from ..services.metadata_service import get_meta_data, normalize_metadata
-from ..services.note_service import format_note_content 
+from ..services.note_service import format_note_content
 from utils import md_to_html
 from vector_store import upsert_note_vector
 
 
-def _normalize_image_to_png(img_bytes):
-    """Convert uploaded image bytes to RGB PNG so Gemini vision receives a consistent format."""
-    try:
-        img = Image.open(BytesIO(img_bytes))
-        if img.mode in ("CMYK", "P"):
-            img = img.convert("RGB")
-        output = BytesIO()
-        img.save(output, format="PNG")
-        return output.getvalue()
-    except Exception:
-        return img_bytes
+MAX_IMAGE_UPLOAD_BYTES = 50 * 1024 * 1024
 
 
 def _to_data_url(b_data, m_type):
@@ -38,11 +28,49 @@ def _to_data_url(b_data, m_type):
     return f"data:{m_type or 'image/png'};base64,{encoded}"
 
 
+def _save_regions_as_note(regions: list[Region], title: str, user_id: int) -> Note:
+    """Persist ordered text/diagram regions as a Note + Diagram rows and polish formatting."""
+    note = Note(
+        title=title,
+        md_content="[Placeholder]",
+        html_content="<p>[Placeholder]</p>",
+        in_bin=False,
+        user_id=user_id,
+        meta_data={},
+    )
+    db.session.add(note)
+    db.session.flush()
+
+    parts: list[str] = []
+    for region in regions:
+        if region.kind == "diagram" and region.image_bytes:
+            diagram = Diagram(
+                diagram_data=_to_data_url(region.image_bytes, "image/png"),
+                user_id=user_id,
+                note_id=note.id,
+            )
+            db.session.add(diagram)
+            db.session.flush()
+            parts.append(f"![Diagram](/diagram_image/{diagram.id}.png)")
+        elif region.kind == "text" and region.text and region.text.strip():
+            parts.append(region.text.strip())
+
+    raw_md = "\n\n".join(parts) if parts else "Uploaded file"
+    final_md = format_note_content(raw_md, user_id)
+
+    note.md_content = final_md
+    note.html_content = md_to_html(final_md)
+    metadata = get_meta_data(note.md_content, user_id=user_id)
+    note.meta_data = normalize_metadata(metadata, note.id)
+    db.session.commit()
+    upsert_note_vector(note)
+    return note
+
+
 @bp.route("/upload_note_file", methods=["POST"])
 @login_required
 def upload_note_file():
-    """Extract markdown/text from uploaded files (PDF, DOCX, images, text) via Gemini OCR or parsers and return JSON."""
-    # Support both single-file (image, PDF, DOCX, text) and multi-file (camera) uploads.
+    """Extract markdown/text and inline diagrams from uploaded files via extraction_service."""
     files = [f for f in request.files.getlist("files") if f and f.filename]
     if not files:
         single = request.files.get("file")
@@ -52,121 +80,71 @@ def upload_note_file():
     if not files:
         return jsonify({"status": "error", "message": "No file provided."}), 400
 
-    if len(files) > 8:
+    image_exts = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
+
+    def _is_image(f):
+        return (f.mimetype or "").startswith("image/") or Path(f.filename).suffix.lower() in image_exts
+
+    if len(files) > 1 and not all(_is_image(f) for f in files):
         return jsonify(
-            {"status": "error", "message": "Maximum 8 photos per note."}
+            {"status": "error", "message": "Multi-file upload only supports images."}
         ), 400
 
-    # ----- Multi-photo camera path -----
-    if len(files) > 1:
-        image_exts = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
-        all_images = all(
-            (f.mimetype or "").startswith("image/")
-            or Path(f.filename).suffix.lower() in image_exts
-            for f in files
-        )
-        if not all_images:
-            return jsonify(
-                {"status": "error", "message": "Multi-file upload only supports images."}
-            ), 400
-
-        try:
-            # Read each file's original bytes once; This will be used for both
-            # OCR (via merged PDF) and diagram storage.
+    try:
+        # Image(s) path: single image or multi-photo camera upload
+        if all(_is_image(f) for f in files):
             raw_images = []
             for f in files:
                 f.stream.seek(0)
-                raw_images.append((f.filename, f.read()))
+                data = f.read()
+                if data:
+                    raw_images.append(data)
+            if not raw_images:
+                return jsonify(
+                    {"status": "error", "message": "The selected file is empty."}
+                ), 400
 
-            # Merge into a single in-memory PDF for OCR
-            pdf_buffer = BytesIO()
-            pil_pages = []
-            for _, b in raw_images:
-                img = Image.open(BytesIO(b))
-                if img.mode not in ("RGB", "L"):
-                    img = img.convert("RGB")
-                pil_pages.append(img)
-            pil_pages[0].save(
-                pdf_buffer, format="PDF", save_all=True, append_images=pil_pages[1:]
-            )
-            pdf_buffer.seek(0)
-            pdf_bytes = pdf_buffer.read()
+            total_bytes = sum(len(b) for b in raw_images)
+            if total_bytes > MAX_IMAGE_UPLOAD_BYTES:
+                return jsonify(
+                    {"status": "error", "message": "Total image upload size exceeds the 50 MB limit."}
+                ), 400
 
-            # Create the note
-            title = (raw_images[0][0] or "Camera note")[:20]
-            note = Note(
-                title=title,
-                md_content="[Placeholder]",
-                html_content="<p>[Placeholder]</p>",
-                in_bin=False,
-                user_id=current_user.id,
-                meta_data={},
-            )
-            db.session.add(note)
-            db.session.commit()   
-
-
-            text_content = "\n\n".join(extracted_text_parts)
-            diagram_markdowns = []
-            for _, raw_bytes in raw_images:
-                pass
-
-            raw_md = "\n\n".join([text_content, *diagram_markdowns])
-
-            formatted_md = format_note_content(raw_md, current_user.id)
-
-            note = db.session.get(Note, note.id)  
-            note.md_content = formatted_md
-            note.html_content = md_to_html(formatted_md)
-            db.session.commit()  
-
-            metadata = get_meta_data(note.md_content, user_id=current_user.id)
-            note = db.session.get(Note, note.id)
-            note.meta_data = normalize_metadata(metadata, note.id)
-            db.session.commit()
-
-            upsert_note_vector(note)
-
+            title = (files[0].filename or "Camera note")[:20]
+            regions = extract_images_regions(raw_images)
+            note = _save_regions_as_note(regions, title, current_user.id)
             return jsonify({
                 "status": "success",
                 "note_id": note.id,
                 "md_content": note.md_content,
             })
 
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"[upload_note_file/multi] Error: {e}")
-            return jsonify({"status": "error", "message": str(e)}), 500
+        file = files[0]
+        filename = file.filename
+        title = filename[:20]
+        mimetype = file.mimetype or ""
+        extension = Path(filename).suffix.lower()
+        file_bytes = file.read()
 
-    file = files[0]
-    filename = file.filename
+        if not file_bytes:
+            return jsonify(
+                {"status": "error", "message": "The selected file is empty."}
+            ), 400
 
-    filename = file.filename
-    title = filename[:20]
-    mimetype = file.mimetype or ""
-    extension = Path(filename).suffix.lower()
-    file_bytes = file.read()
+        audio_video_extensions = {
+            ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".mp4",
+            ".mov", ".avi", ".mkv", ".webm",
+        }
+        if (
+            extension in audio_video_extensions
+            or mimetype.startswith("audio/")
+            or mimetype.startswith("video/")
+        ):
+            return jsonify(
+                {"status": "error", "message": "Audio and video files are not allowed."}
+            ), 400
 
-    if not file_bytes:
-        return jsonify(
-            {"status": "error", "message": "The selected file is empty."}
-        ), 400
-
-    audio_video_extensions = {
-        ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".mp4",
-        ".mov", ".avi", ".mkv", ".webm",
-    }
-    if (
-        extension in audio_video_extensions
-        or mimetype.startswith("audio/")
-        or mimetype.startswith("video/")
-    ):
-        return jsonify(
-            {"status": "error", "message": "Audio and video files are not allowed."}
-        ), 400
-
-    try:
-        # 1. Text-only
+        # Text-only
         if extension in {".md", ".txt", ".doc"} or mimetype.startswith("text/"):
             text_content = file_bytes.decode("utf-8", errors="replace")
             note = Note(
@@ -185,152 +163,21 @@ def upload_note_file():
             upsert_note_vector(note)
             return jsonify({"status": "success", "note_id": note.id})
 
-        # 2. Image-only
-        elif mimetype.startswith("image/") or extension in {
-            ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp",
-        }:
-            note = Note(
-                title=title,
-                md_content="[Placeholder]",
-                html_content="<p>[Placeholder]</p>",
-                in_bin=False,
-                user_id=current_user.id,
-                meta_data={},
-            )
-            db.session.add(note)
-            db.session.flush()
-
-            file_bytes = _normalize_image_to_png(file_bytes)
-            img_data_url = _to_data_url(file_bytes, "image/png")
-            diagram = Diagram(
-                diagram_data=img_data_url,
-                user_id=current_user.id,
-                note_id=note.id,
-            )
-            db.session.add(diagram)
-            db.session.flush()
-
-            img_url = f"/diagram_image/{diagram.id}.png"
-            note.md_content = f"![Diagram]({img_url})"
-            note.html_content = md_to_html(note.md_content)
-            metadata = get_meta_data(note.md_content, user_id=current_user.id)
-            note.meta_data = normalize_metadata(metadata, note.id)
-            db.session.commit()
-            upsert_note_vector(note)
-            return jsonify(
-                {
-                    "status": "success",
-                    "note_id": note.id,
-                    "diagram_id": diagram.id,
-                    "md_content": note.md_content,
-                }
-            )
-
-        # 3. PDF / DOCX
-        elif extension in {".pdf", ".docx"}:
-            note = Note(
-                title=title,
-                md_content="[Placeholder]",
-                html_content="<p>[Placeholder]</p>",
-                in_bin=False,
-                user_id=current_user.id,
-                meta_data={},
-            )
-            db.session.add(note)
-            db.session.flush()
-
-            extracted_text_parts = []
-            extracted_diagrams = []
-
-            if extension == ".pdf":
-                doc = pymupdf.open(stream=file_bytes, filetype="pdf")
-                for page_num in range(len(doc)):
-                    page = doc[page_num]
-                    page_text = page.get_text().strip()
-                    if not page_text:
-                        pix = page.get_pixmap(dpi=150)
-                        img = Image.open(BytesIO(pix.tobytes("png")))
-                        page_text = pytesseract.image_to_string(img).strip()
-                    if page_text:
-                        extracted_text_parts.append(page_text)
-
-                    for img_info in page.get_images(full=True):
-                        xref = img_info[0]
-                        base_image = doc.extract_image(xref)
-                        img_bytes = base_image["image"]
-                        img_bytes = _normalize_image_to_png(img_bytes)
-                        img_data_url = _to_data_url(img_bytes, "image/png")
-                        diagram = Diagram(
-                            diagram_data=img_data_url,
-                            user_id=current_user.id,
-                            note_id=note.id,
-                        )
-                        db.session.add(diagram)
-                        db.session.flush()
-                        extracted_diagrams.append(diagram)
-
-            elif extension == ".docx":
-                with zipfile.ZipFile(BytesIO(file_bytes)) as document:
-                    document_xml = document.read("word/document.xml")
-                    root = ElementTree.fromstring(document_xml)
-                    namespace = {
-                        "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-                    }
-                    for paragraph in root.findall(".//w:p", namespace):
-                        text = "".join(
-                            node.text or ""
-                            for node in paragraph.findall(".//w:t", namespace)
-                        ).strip()
-                        if text:
-                            extracted_text_parts.append(text)
-
-                    for name in document.namelist():
-                        if name.startswith("word/media/"):
-                            media_bytes = document.read(name)
-                            media_bytes = _normalize_image_to_png(media_bytes)
-                            img_data_url = _to_data_url(media_bytes, "image/png")
-                            diagram = Diagram(
-                                diagram_data=img_data_url,
-                                user_id=current_user.id,
-                                note_id=note.id,
-                            )
-                            db.session.add(diagram)
-                            db.session.flush()
-                            extracted_diagrams.append(diagram)
-
-            text_content = "\n\n".join(extracted_text_parts)
-            diagram_markdowns = [
-                f"![Diagram](/diagram_image/{diag.id}.png)"
-                for diag in extracted_diagrams
-            ]
-            raw_md = (
-                "\n\n".join([text_content, *diagram_markdowns])
-                if text_content or diagram_markdowns
-                else "Uploaded file"
-            )
-
-            # Format OCR output and reposition diagrams
-            final_md = format_note_content(raw_md, current_user.id)
-
-            note.md_content = final_md
-            note.html_content = md_to_html(final_md)
-            metadata = get_meta_data(note.md_content, user_id=current_user.id)
-            note.meta_data = normalize_metadata(metadata, note.id)
-            db.session.commit()
-            upsert_note_vector(note)
-            return jsonify(
-                {
-                    "status": "success",
-                    "note_id": note.id,
-                    "md_content": note.md_content,
-                }
-            )
-
+        if extension == ".pdf":
+            regions = extract_pdf_regions(file_bytes)
+        elif extension == ".docx":
+            regions = extract_docx_regions(file_bytes)
         else:
-            db.session.rollback()
             return jsonify(
                 {"status": "error", "message": "Unsupported file type."}
             ), 400
+
+        note = _save_regions_as_note(regions, title, current_user.id)
+        return jsonify({
+            "status": "success",
+            "note_id": note.id,
+            "md_content": note.md_content,
+        })
 
     except Exception as e:
         db.session.rollback()
