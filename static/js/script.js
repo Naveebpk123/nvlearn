@@ -191,11 +191,11 @@ function typesetMath(container) {
     if (!container || !window.MathJax) return;
     const run = () => {
         if (typeof window.MathJax.typesetPromise === 'function') {
-            window.MathJax.typesetPromise([container]).catch(() => {});
+            window.MathJax.typesetPromise([container]).catch(() => { });
         }
     };
     if (window.MathJax.startup && window.MathJax.startup.promise) {
-        window.MathJax.startup.promise.then(run).catch(() => {});
+        window.MathJax.startup.promise.then(run).catch(() => { });
     } else {
         run();
     }
@@ -548,20 +548,20 @@ function openModal(text, modal, action = null, id = null, triggerBtn = null) {
                 flash(response_json[0], response_json[1]);
             }
             else if (action === 'delete-chat-session') {
-    const response = await fetch(`/api/chat/sessions/${id}`, {
-        method: 'DELETE'
-    });
-    targetModal.style.display = 'none';
-    if (response.ok) {
-        flash('Chat deleted.', 'success');
-        if (currentSessionId === id) {
-            startNewChat();
-        }
-        loadSessionList();
-    } else {
-        flash('Could not delete chat.', 'error');
-    }
-}
+                const response = await fetch(`/api/chat/sessions/${id}`, {
+                    method: 'DELETE'
+                });
+                targetModal.style.display = 'none';
+                if (response.ok) {
+                    flash('Chat deleted.', 'success');
+                    if (currentSessionId === id) {
+                        startNewChat();
+                    }
+                    loadSessionList();
+                } else {
+                    flash('Could not delete chat.', 'error');
+                }
+            }
         }, { once: true }); // self-destroys after one click, no stacking
     }
 };
@@ -683,20 +683,27 @@ if (flashcards && flashcards.length > 0) {
         }
         if (currentCardIndex === flashcards.length - 1) {
             saveFlashcardsAttemptsBtn?.classList.remove('hidden');
-            saveFlashcardsAttemptsBtn?.addEventListener('click', async function () {
-                const response = await fetch(`/save-flashcards/${saveFlashcardsAttemptsBtn.dataset.id}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 'incorrect_attempts': incorrectAttempts })
-                })
-                if (response.status === 'saved') {
-                    flash('Saved flashcard attempts', 'success');
-                };
-            })
         }
     };
+
+    if (saveFlashcardsAttemptsBtn) {
+        saveFlashcardsAttemptsBtn.addEventListener('click', async function () {
+            const response = await fetch(`/save-flashcards/${saveFlashcardsAttemptsBtn.dataset.id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 'incorrect_attempts': incorrectAttempts })
+            });
+            const responseJSON = await response.json();
+            if (responseJSON.status === 'updated' || responseJSON.status === 'saved') {
+                saveFlashcardsAttemptsBtn.disabled = true;
+                flash('Saved flashcard attempts', 'success');
+            } else {
+                flash('Unable to save attempts', 'error');
+            }
+        });
+    }
 
     updateFlashcardPosition();
 
@@ -705,11 +712,10 @@ if (flashcards && flashcards.length > 0) {
         flashcard.addEventListener('click', () => {
             flashcard.classList.toggle('flipped');
             let cardIndex = Array.from(flashcards).findIndex(card => card.classList.contains('current'));
-            if (flashcard.classList.contains('flipped') && !(cardIndex in flashcardsIndices)) {
+            if (flashcard.classList.contains('flipped') && !flashcardsIndices.includes(cardIndex)) {
                 needsReviewBtn?.classList.remove('hidden');
                 gotItBtn?.classList.remove('hidden');
             };
-
         });
     });
 

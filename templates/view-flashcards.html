@@ -33,10 +33,12 @@
     <button id="gotItBtn" class="button text-green hidden">Got it</button>
 </div>
 {% if not is_saved %}
-<div class="action-buttons" style="margin-top: 0.5rem;">
+<div class="action-buttons" style="margin-top: 1.25rem;">
     <button class="button" id="saveFlashcardsBtn" data-id="{{cards_id}}">Save flashcards</button>
 </div>
 {% else %}
-<button class="button hidden" id="saveFlashcardsAttemptsBtn" data-id="{{cards_id}}">Save flashcard attempts</button>
+<div class="action-buttons" style="margin-top: 1.25rem;">
+    <button class="button hidden" id="saveFlashcardsAttemptsBtn" data-id="{{cards_id}}">Save flashcard attempts</button>
+</div>
 {% endif %}
 {% endblock %}
