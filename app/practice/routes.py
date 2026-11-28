@@ -140,6 +140,22 @@ def save_quiz(quiz_id):
     return jsonify({"status": "saved"})
 
 
+@bp.route("/rename-quiz/<int:quiz_id>", methods=["POST"])
+@login_required
+def rename_quiz(quiz_id):
+    """Rename an owned quiz and return the updated title."""
+    quiz_obj = db.session.get(Quiz, quiz_id)
+    if not quiz_obj or quiz_obj.user_id != current_user.id:
+        return jsonify({"error": "Quiz not found"}), 404
+    data = request.get_json(silent=True) or {}
+    new_title = (data.get("title") or "").strip()
+    if not new_title:
+        return jsonify({"error": "Title cannot be empty"}), 400
+    quiz_obj.title = new_title[:200]
+    db.session.commit()
+    return jsonify({"title": quiz_obj.title})
+
+
 @bp.route("/delete-quiz/<int:quiz_id>", methods=["POST"])
 @login_required
 def delete_quiz(quiz_id):

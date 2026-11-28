@@ -40,7 +40,15 @@
                 {% for quiz in quizzes %}
                     <div class="quiz-card" data-quiz-id="{{ quiz.id }}">
                         <div class="card-header">
-                            <h3 class="quiz-title">{{ quiz.title or 'Untitled Quiz' }}</h3>
+                            <div class="quiz-title-row">
+                                <h3 class="quiz-title" title="{{ quiz.title or 'Untitled Quiz' }}">{{ quiz.title or 'Untitled Quiz' }}</h3>
+                                <button type="button" class="edit-quiz-title-btn" data-quiz-id="{{ quiz.id }}" title="Rename quiz" aria-label="Rename quiz">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                                        <path d="m15 5 4 4"/>
+                                    </svg>
+                                </button>
+                            </div>
                             {% if quiz.tags %}
                                 <div class="tags">
                                     {% for tag in quiz.tags %}

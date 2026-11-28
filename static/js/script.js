@@ -855,6 +855,83 @@ if (modalSegmentedToggle) {
     });
 }
 
+function startRenamingQuiz(quizId, card) {
+    const titleEl = card?.querySelector('.quiz-title');
+    if (!titleEl) return;
+
+    const originalTitle = titleEl.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'quiz-title-input';
+    input.maxLength = 200;
+    input.value = originalTitle;
+
+    titleEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    let finished = false;
+    const restore = (text) => {
+        const restored = document.createElement('h3');
+        restored.className = 'quiz-title';
+        restored.title = text;
+        restored.textContent = text;
+        input.replaceWith(restored);
+    };
+
+    const commit = async () => {
+        if (finished) return;
+        finished = true;
+        const newTitle = input.value.trim();
+        if (!newTitle || newTitle === originalTitle) {
+            restore(originalTitle);
+            return;
+        }
+        try {
+            const res = await fetch(`/rename-quiz/${quizId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: newTitle }),
+            });
+            if (!res.ok) {
+                restore(originalTitle);
+                flash('Could not rename quiz.', 'error');
+                return;
+            }
+            const data = await res.json();
+            restore(data.title || newTitle);
+        } catch (err) {
+            console.error('[quiz] rename error:', err);
+            restore(originalTitle);
+            flash('Could not rename quiz.', 'error');
+        }
+    };
+
+    input.addEventListener('click', (e) => e.stopPropagation());
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            commit();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            finished = true;
+            restore(originalTitle);
+        }
+    });
+    input.addEventListener('blur', commit);
+}
+
+document.querySelectorAll('.edit-quiz-title-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const quizId = btn.dataset.quizId;
+        const card = btn.closest('.quiz-card');
+        if (quizId && card) {
+            startRenamingQuiz(quizId, card);
+        }
+    });
+});
+
 if (quizPreviousAttemptsBtns && quizPreviousAttemptsBtns.length > 0) {
     Array.from(quizPreviousAttemptsBtns).forEach(btn => {
         btn.addEventListener('click', async () => {

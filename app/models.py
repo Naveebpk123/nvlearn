@@ -50,6 +50,7 @@ class Flashcard(db.Model):
 class Quiz(db.Model):
     __tablename__ = "quizzes"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False, server_default="Untitled Quiz")
     quiz_data: Mapped[Dict[str, Any]] = mapped_column(JSON)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     is_saved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
