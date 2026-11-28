@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import time
 
 from .extensions import db, scheduler
 from .models import Diagram, Flashcard, Note, Quiz
@@ -10,7 +11,7 @@ from .services.metadata_service import (
 
 
 def generate_meta_data(app):
-    """Generate metadata for one note that needs it. Runs every 10 minutes."""
+    """Generate metadata for up to 5 pending notes per 10-minute interval."""
     try:
         with app.app_context():
             # First pass: backfill missing metadata IDs
@@ -25,36 +26,39 @@ def generate_meta_data(app):
                     note.meta_data = normalize_metadata(note.meta_data, note.id)
             db.session.commit()
 
-            # Find one note that needs metadata generation
-            target = next((n for n in notes if metadata_needs_ai(n.meta_data)), None)
-            if not target:
+            # Process at most 5 pending notes per interval to stay within free-tier quotas
+            pending = [
+                (n.id, n.md_content, n.user_id)
+                for n in notes
+                if metadata_needs_ai(n.meta_data)
+            ][:5]
+            if not pending:
                 return
 
-            # Capture what we need, then close the session so the DB
-            # lock is released during the (slow) AI call
-            note_id = target.id
-            content = target.md_content
-            user_id = target.user_id
             db.session.close()
 
-            # AI call runs outside any transaction
-            metadata = get_meta_data(content, user_id=user_id)
-            if metadata == "error":
-                app.logger.warning(
-                    "Metadata generation returned 'error' for note_id=%s. Skipping.",
-                    note_id,
-                )
-                return
+            for idx, (note_id, content, user_id) in enumerate(pending):
+                if idx > 0:
+                    time.sleep(3)
 
-            # Re-fetch in a fresh short transaction to save the result
-            note = db.session.get(Note, note_id)
-            if not note:
-                return
-            note.meta_data = normalize_metadata(metadata, note.id)
-            db.session.commit()
-            app.logger.info(
-                "Successfully generated metadata for note_id=%s.", note_id
-            )
+                # AI call runs outside any transaction
+                metadata = get_meta_data(content, user_id=user_id)
+                if metadata == "error":
+                    app.logger.warning(
+                        "Metadata generation returned 'error' for note_id=%s. Skipping.",
+                        note_id,
+                    )
+                    continue
+
+                # Re-fetch in a fresh short transaction to save the result
+                note = db.session.get(Note, note_id)
+                if not note:
+                    continue
+                note.meta_data = normalize_metadata(metadata, note.id)
+                db.session.commit()
+                app.logger.info(
+                    "Successfully generated metadata for note_id=%s.", note_id
+                )
     except Exception:
         app.logger.exception(
             "Unhandled exception in generate_meta_data background job."

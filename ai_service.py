@@ -13,6 +13,8 @@ bootstrap).
 import json
 import logging
 import os
+import re
+import time
 
 import requests
 from google import genai
@@ -229,14 +231,25 @@ def ask_intent_router(contents, username="", chat_only=False, new_session=False)
 
 # ── Instruction builder ──────────────────────────────────────────────
 
+def _sanitize_metadata_content(text):
+    """Strip embedded base64 images/Mermaid blocks, collapse whitespace, and cap at 10,000 chars."""
+    if not isinstance(text, str):
+        return str(text or "")
+    sanitized = re.sub(r"data:image/[^;]+;base64,[A-Za-z0-9+/=]+", "[image]", text)
+    sanitized = re.sub(r"\[\[MERMAID_START\]\][\s\S]*?\[\[MERMAID_END\]\]", "[diagram]", sanitized)
+    sanitized = re.sub(r"\s+", " ", sanitized).strip()
+    return sanitized[:10000]
+
+
 def build_ai_instructions(contents, username, metadata=False, chat_only=False, new_session=False):
     """Convert raw user input or router output into a list of executable action dicts."""
     instructions = []
 
     if metadata:
         try:
+            sanitized_contents = _sanitize_metadata_content(contents)
             result = ask_gemini(
-                f"Return the metadata of this note:\n{contents}", action="metadata"
+                f"Return the metadata of this note:\n{sanitized_contents}", action="metadata"
             )
             if is_ai_error(result):
                 return "error"
@@ -335,7 +348,6 @@ def ask_gemini(question, action):
     lite_models = [
         "gemini-3.5-flash-lite",
         "gemini-3.1-flash-lite",
-        "gemini-2.5-flash-lite",
     ]
 
     all_models = [
@@ -346,7 +358,6 @@ def ask_gemini(question, action):
         "gemini-2.5-flash",
         "gemini-3.5-flash-lite",
         "gemini-3.1-flash-lite",
-        "gemini-2.5-flash-lite",
     ]
 
     lite_only_actions = {"batch_summary", "metadata", "summarize"}
@@ -490,6 +501,8 @@ def ask_gemini(question, action):
                 "[ask_gemini] Model '%s' failed for action='%s': %s",
                 model, action, e,
             )
+            if is_rate_limit_error(e):
+                time.sleep(2)
             continue
 
     if last_error and is_rate_limit_error(last_error):

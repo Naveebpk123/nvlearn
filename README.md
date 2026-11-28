@@ -337,9 +337,9 @@ CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id
 Used by `ask_gemini()` in `ai_service.py` for content generation, formatting, and vision tasks. `ask_gemini()` uses a **two-tier model fallback chain** to maximize quality while preserving daily quotas:
 
 - **Full-capability chain (`all_models`)** — used for note creation, note actions, flashcards, quizzes, note editing, formatting, and vision region localization (`detect_regions`):
-  `gemini-4-hydrogen` → `gemini-3.8-flash` → `gemini-3.6-flash` → `gemini-3-flash-preview` → `gemini-2.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-2.5-flash-lite`
+  `gemini-4-hydrogen` → `gemini-3.8-flash` → `gemini-3.6-flash` → `gemini-3-flash-preview` → `gemini-2.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite`
 - **Lightweight chain (`lite_models`)** — used for high-frequency utility and background tasks (`metadata`, `batch_summary`, `summarize`) to preserve full-model daily quotas:
-  `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-2.5-flash-lite`
+  `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite`
 
 If a model hits a rate limit (`429`) or transient error, `ask_gemini()` automatically steps down to the next model in the list—pooling free-tier RPM/TPM/RPD limits before falling back to chat-only mode or Tesseract OCR.
 

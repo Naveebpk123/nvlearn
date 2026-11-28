@@ -369,6 +369,36 @@
                 activeDiagramId = null;
             }
 
+            function hasDrawioXml(dataUrl) {
+                if (!dataUrl || typeof dataUrl !== 'string') return false;
+                const trimmed = dataUrl.trim();
+                if (trimmed.startsWith('<mxfile') || trimmed.startsWith('<mxGraphModel')) return true;
+                if (!trimmed.startsWith('data:image/')) return false;
+                try {
+                    const commaIdx = trimmed.indexOf(',');
+                    if (commaIdx === -1) return false;
+                    const binary = atob(trimmed.slice(commaIdx + 1));
+                    return binary.includes('mxfile') || binary.includes('mxGraphModel');
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            function buildDrawioXmlFromPlainImage(dataUrl, imgEl) {
+                const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+                const mime = match ? match[1] : 'image/png';
+                const b64 = match ? match[2] : dataUrl;
+                const drawioImgSrc = `data:${mime},${b64}`;
+                let w = (imgEl && imgEl.naturalWidth) ? imgEl.naturalWidth : 400;
+                let h = (imgEl && imgEl.naturalHeight) ? imgEl.naturalHeight : 300;
+                const maxW = 600;
+                if (w > maxW) {
+                    h = Math.round(h * (maxW / w));
+                    w = maxW;
+                }
+                return `<mxfile><diagram id="ocr-diagram" name="Page-1"><mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100"><root><mxCell id="0"/><mxCell id="1" parent="0"/><mxCell id="2" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=${drawioImgSrc};" vertex="1" parent="1"><mxGeometry x="40" y="40" width="${w}" height="${h}" as="geometry"/></mxCell></root></mxGraphModel></diagram></mxfile>`;
+            }
+
             /**
              * Handles postMessage communication events received from the Draw.io iframe.
              */
@@ -385,9 +415,14 @@
                         if (iframe && iframe.contentWindow) {
                             const loadMsg = { action: 'load' };
                             if (activeDiagramData) {
-                                // Load existing diagram XML/PNG data onto canvas
-                                loadMsg.xmlpng = activeDiagramData;
-                                loadMsg.xml = activeDiagramData;
+                                if (hasDrawioXml(activeDiagramData)) {
+                                    // Load existing Draw.io XML/xmlpng data onto canvas
+                                    loadMsg.xmlpng = activeDiagramData;
+                                    loadMsg.xml = activeDiagramData;
+                                } else {
+                                    // Plain image (e.g. OCR-extracted diagram): wrap in mxfile XML so Draw.io renders it
+                                    loadMsg.xml = buildDrawioXmlFromPlainImage(activeDiagramData, activeDiagramImg);
+                                }
                             } else {
                                 // Load blank canvas for new diagram
                                 loadMsg.xml = '';
@@ -448,10 +483,21 @@
                                     activeDiagramImg.classList.add('diagram-image');
                                     if (window.tiptapEditor) {
                                         const { state, view } = window.tiptapEditor;
-                                        const pos = view.posAtDOM(activeDiagramImg, 0);
-                                        if (typeof pos === 'number' && pos >= 0) {
-                                            const tr = state.tr.setNodeMarkup(pos, undefined, {
-                                                ...state.doc.nodeAt(pos)?.attrs,
+                                        let targetPos = null;
+                                        const prevId = activeDiagramImg.getAttribute('data-diagram-id') || (activeDiagramId ? String(activeDiagramId) : null);
+                                        state.doc.descendants((node, pos) => {
+                                            if (targetPos !== null) return false;
+                                            if (node.type.name === 'image') {
+                                                const nodeId = node.attrs['data-diagram-id'] ? String(node.attrs['data-diagram-id']) : null;
+                                                if ((prevId && nodeId === prevId) || node.attrs.src === activeDiagramImg.getAttribute('src')) {
+                                                    targetPos = pos;
+                                                    return false;
+                                                }
+                                            }
+                                        });
+                                        if (targetPos !== null) {
+                                            const tr = state.tr.setNodeMarkup(targetPos, undefined, {
+                                                ...state.doc.nodeAt(targetPos)?.attrs,
                                                 src: displayImgUrl,
                                                 'data-diagram-id': String(savedId),
                                             });
@@ -1084,8 +1130,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 
 <script>
-window.addEventListener('pagehide', (e) => {
-    if (e.persisted) return;                 // bfcache — defer to TTL
+window.addEventListener('pagehide', () => {
     if (isFormSubmitting) return;            // note is being saved; nothing to roll back
     if (!window.dirty_diagrams || window.dirty_diagrams.size === 0) return;
 
@@ -1094,7 +1139,14 @@ window.addEventListener('pagehide', (e) => {
     });
     const blob = new Blob([payload], { type: 'application/json' });
     const ok = navigator.sendBeacon('/restore_diagrams', blob);
-    if (!ok) console.warn('Server will handle');
+    if (!ok) {
+        fetch('/restore_diagrams', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payload,
+            keepalive: true
+        }).catch(() => {});
+    }
 });
 </script>
     <script>

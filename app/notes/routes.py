@@ -46,7 +46,8 @@ def notes():
             for tag in metadata.get("tags", []):
                 if isinstance(tag, str) and tag.strip():
                     tag = tag.strip()
-                    tag_counts[tag] = tag_counts.get(tag, 0) + 1
+                    if tag.lower() != "error":
+                        tag_counts[tag] = tag_counts.get(tag, 0) + 1
         sorted_tags = [t for t, _ in sorted(tag_counts.items(), key=lambda x: (-x[1], x[0].lower()))]
         main_tags = [t for t in sorted_tags if tag_counts[t] > 2 or t.lower() in Config.DEFAULT_TAGS]
         for tag in sorted_tags:
@@ -115,6 +116,18 @@ def edit_note(note_id):
 
     form = EditNoteForm()
     if request.method == "GET":
+        dirty_diagrams = db.session.scalars(
+            db.select(Diagram).where(
+                Diagram.note_id == note.id,
+                Diagram.original_diagram_data.is_not(None),
+            )
+        ).all()
+        if dirty_diagrams:
+            for d in dirty_diagrams:
+                d.diagram_data = d.original_diagram_data
+                d.original_diagram_data = None
+                d.dirty_since = None
+            db.session.commit()
         form.content.data = note.md_content
 
     if form.validate_on_submit():
