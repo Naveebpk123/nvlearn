@@ -21,7 +21,9 @@
     accept=".pdf,.doc,.md,.docx,image/*" 
     style="display: none;"
 >
-</div>        <div class="dropdown-wrapper">
+</div>
+        {% if notes|length > 1 %}
+        <div class="dropdown-wrapper">
             <button id="note-view-options-btn" class="dropdown-btn">
                 View options <span class="arrow">▼</span>
             </button>
@@ -42,7 +44,7 @@
                 <div id="filter-tag-list" class="filter-tag-list">
                     {% for tag in main_tags %}
                         <li class="filter-tag-option">
-                            <label>
+                            <label title="{{ tag }}">
                                 <input type="checkbox" value="{{ tag }}">
                                 <span>{{ tag }}</span>
                             </label>
@@ -50,7 +52,7 @@
                     {% endfor %}
                     {% for tag in extra_tags %}
                         <li class="filter-tag-option extra-filter-tag hidden">
-                            <label>
+                            <label title="{{ tag }}">
                                 <input type="checkbox" value="{{ tag }}">
                                 <span>{{ tag }}</span>
                             </label>
@@ -63,6 +65,7 @@
             </ul>
 
         </div>
+        {% endif %}
     </div>
     <div class="note-container">
         {% if notes %}

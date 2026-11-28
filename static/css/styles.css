@@ -2078,29 +2078,55 @@ mjx-container[display="true"] {
 }
 
 
+#filter-menu {
+    width: max-content;
+    min-width: 220px;
+    max-width: min(520px, 90vw);
+}
+
+#filter-menu.expanded {
+    max-width: min(640px, 92vw);
+}
+
 .filter-tag-list {
-    max-height: 220px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+    gap: 4px 8px;
+    max-height: 280px;
     overflow-y: auto;
+    padding: 6px 10px;
 }
 
 .filter-tag-option {
     padding: 0 !important;
+    min-width: 0;
 }
 
 .filter-tag-option label {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 16px;
+    padding: 6px 10px;
     cursor: pointer;
+    min-width: 0;
+}
+
+.filter-tag-option label span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .filter-tag-option input {
     accent-color: var(--accent-text);
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .more-filter-tags {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
     color: var(--accent-text) !important;
     font-size: 0.8rem !important;
     text-align: center;

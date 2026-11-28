@@ -1089,6 +1089,14 @@ if (moveToBinBtns) {
             const response_json = await response.json();
             flash(response_json[0], response_json[1]);
             btn.closest('.note').remove();
+            const remainingNotes = document.querySelectorAll('.note[data-id]:not([data-id="_"])').length;
+            if (remainingNotes <= 1) {
+                const viewOptionsWrapper = noteViewOptionsBtn?.closest('.dropdown-wrapper');
+                if (viewOptionsWrapper) viewOptionsWrapper.classList.add('hidden');
+                noteViewOptions?.classList.add('hidden');
+                sortMenu?.classList.add('hidden');
+                filterMenu?.classList.add('hidden');
+            }
         })
     }
 }
@@ -1135,8 +1143,10 @@ filterTagOptions.forEach(option => {
     option.querySelector('input')?.addEventListener('change', applyNoteTagFilter);
 });
 
-moreFilterTags?.addEventListener('click', () => {
+moreFilterTags?.addEventListener('click', (e) => {
+    e.stopPropagation();
     filterMenu.querySelectorAll('.extra-filter-tag').forEach(option => option.classList.remove('hidden'));
+    filterMenu.classList.add('expanded');
     moreFilterTags.remove();
 });
 
@@ -1182,10 +1192,11 @@ if (sortOptions) {
 }
 
 document.addEventListener('click', (e) => {
-    if (sortMenu && !sortMenu.contains(e.target) && e.target !== sortBtn) {
+    const path = e.composedPath ? e.composedPath() : [];
+    if (sortMenu && !path.includes(sortMenu) && !sortMenu.contains(e.target) && e.target !== sortBtn) {
         sortMenu.classList.add('hidden');
     }
-    if (filterMenu && !filterMenu.contains(e.target) && e.target !== filterBtn) {
+    if (filterMenu && !path.includes(filterMenu) && !filterMenu.contains(e.target) && e.target !== filterBtn) {
         filterMenu.classList.add('hidden');
     }
 });
@@ -1567,6 +1578,14 @@ if (restoreBtns) {
             const response_json = await response.json();
             flash(response_json[0], response_json[1]);
             btn.closest('.note').remove();
+            const remainingNotes = document.querySelectorAll('.note[data-id]:not([data-id="_"])').length;
+            if (remainingNotes <= 1) {
+                const viewOptionsWrapper = noteViewOptionsBtn?.closest('.dropdown-wrapper');
+                if (viewOptionsWrapper) viewOptionsWrapper.classList.add('hidden');
+                noteViewOptions?.classList.add('hidden');
+                sortMenu?.classList.add('hidden');
+                filterMenu?.classList.add('hidden');
+            }
         })
     }
 }

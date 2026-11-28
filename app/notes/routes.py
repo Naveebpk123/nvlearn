@@ -47,11 +47,14 @@ def notes():
                 if isinstance(tag, str) and tag.strip():
                     tag = tag.strip()
                     tag_counts[tag] = tag_counts.get(tag, 0) + 1
-        main_tags = [t for t, c in tag_counts.items() if c > 2]
-        extra_tags = [t for t, c in tag_counts.items() if c > 1 and t not in main_tags]
-        for tag in tag_counts:
-            if tag.lower() in Config.DEFAULT_TAGS and tag not in (main_tags + extra_tags):
+        sorted_tags = [t for t, _ in sorted(tag_counts.items(), key=lambda x: (-x[1], x[0].lower()))]
+        main_tags = [t for t in sorted_tags if tag_counts[t] > 2 or t.lower() in Config.DEFAULT_TAGS]
+        for tag in sorted_tags:
+            if len(main_tags) >= 8:
+                break
+            if tag not in main_tags:
                 main_tags.append(tag)
+        extra_tags = [t for t in sorted_tags if t not in main_tags]
 
     return render_template(
         "notes.html",
