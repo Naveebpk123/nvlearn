@@ -583,6 +583,11 @@ label {
     gap: 12px;
 }
 
+#note-form {
+    max-width: 960px;
+    width: 95%;
+}
+
 .tiptap-editor-wrapper {
     display: flex;
     flex-direction: column;
@@ -601,8 +606,8 @@ label {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px;
-    padding: 8px 10px;
+    gap: 6px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-main);
 }
@@ -610,8 +615,8 @@ label {
 .tiptap-toolbar-group {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    padding-right: 6px;
+    gap: 4px;
+    padding-right: 8px;
     margin-right: 4px;
     border-right: 1px solid var(--border-color);
 }
@@ -630,7 +635,7 @@ label {
     min-width: 30px;
     height: 30px;
     padding: 0 7px;
-    border: 1px solid transparent;
+    border: 1px solid rgba(0, 0, 0, 0.12);
     border-radius: 5px;
     background: transparent;
     color: var(--text-main);
@@ -658,13 +663,15 @@ label {
 
 .tiptap-editor-content {
     flex: 1;
-    min-height: 280px;
+    min-height: 340px;
+    max-height: 440px;
+    overflow-y: auto;
     background: var(--bg-card);
     color: var(--text-main);
 }
 
 .tiptap-editor-content .ProseMirror {
-    min-height: 280px;
+    min-height: 340px;
     padding: 14px 16px;
     outline: none;
     font-size: 1rem;
@@ -819,6 +826,7 @@ label {
 .tiptap-editor-wrapper.fullscreen-active .tiptap-editor-content {
     flex: 1 !important;
     height: calc(100vh - 110px) !important;
+    max-height: none !important;
     overflow-y: auto;
 }
 
@@ -2964,7 +2972,12 @@ html.dark {
 }
 
 /* TipTap Editor Dark Mode */
-.dark .tiptap-editor-wrapper {
+.dark #note-form {
+    max-width: 960px;
+    width: 95%;
+}
+
+.tiptap-editor-wrapper {
     background: var(--bg-card);
     border-color: var(--border-color);
 }
@@ -2974,16 +2987,17 @@ html.dark {
 }
 
 .dark .tiptap-toolbar {
-    background: var(--bg-dark);
-    border-bottom-color: var(--border-color);
+    background: #1e293b;
+    border-bottom-color: #334155;
 }
 
 .dark .tiptap-toolbar-btn {
     color: var(--text-main);
+    border-color: rgba(255, 255, 255, 0.14);
 }
 
 .dark .tiptap-toolbar-btn:hover:not(:disabled) {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: rgba(255, 255, 255, 0.12);
     color: var(--primary-blue);
 }
 
